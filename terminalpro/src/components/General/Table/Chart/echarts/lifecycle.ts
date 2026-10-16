@@ -29,3 +29,89 @@ export interface ChartLifecycle {
 }
 /** One owner per DOM container. A remount after disposal requires a fresh owner. */
 export type CreateChartLifecycle = (container: HTMLDivElement) => ChartLifecycle;
+
+import { type ECharts, init } from "echarts";
+
+export const createChartLifecycle: CreateChartLifecycle = (container) => {
+  let instance: ECharts | undefined;
+  let pending: ChartRenderRequest | undefined;
+  let appliedRevision: number | undefined;
+  let mounted = false;
+  let disposed = false;
+
+  function sized(): boolean {
+    return container.clientWidth > 0 && container.clientHeight > 0;
+  }
+
+  function release(): void {
+    const previous = instance;
+    instance = undefined;
+    appliedRevision = undefined;
+    previous?.dispose();
+  }
+
+  function apply(request: ChartRenderRequest, resizing = false): LifecycleResult {
+    if (!sized()) return "deferred";
+    try {
+      instance ??= init(container);
+      if (resizing) instance.resize();
+      if (appliedRevision !== request.revision) {
+        instance.setOption(request.options, { notMerge: true });
+        appliedRevision = request.revision;
+      }
+      return "applied";
+    } catch (error) {
+      // A partial option/resize failure cannot leave a usable rendering owner.
+      // Preserve the original failure even if public cleanup also fails.
+      try {
+        release();
+      } catch {
+        // The instance reference has already been detached.
+      }
+      throw error;
+    }
+  }
+
+  function accept(request: ChartRenderRequest): LifecycleResult {
+    if (!Number.isFinite(request.revision)) throw new Error("Chart revision must be finite");
+    if (pending && request.revision <= pending.revision) return "stale";
+    const result = apply(request);
+    pending = request;
+    return result;
+  }
+
+  function mount(request: ChartRenderRequest): LifecycleResult {
+    if (disposed) return "disposed";
+    if (mounted) return accept(request);
+    if (!Number.isFinite(request.revision)) throw new Error("Chart revision must be finite");
+    mounted = true;
+    pending = request;
+    return apply(request);
+  }
+
+  function update(request: ChartRenderRequest): LifecycleResult {
+    if (disposed) return "disposed";
+    if (!mounted) throw new Error("Chart is not mounted");
+    return accept(request);
+  }
+
+  function resize(): LifecycleResult {
+    if (disposed) return "disposed";
+    if (!pending) throw new Error("Chart is not mounted");
+    return apply(pending, true);
+  }
+
+  function exportImage(options: ChartImageOptions = {}): string {
+    if (disposed || !instance || !sized()) throw new Error("Chart image is unavailable");
+    return instance.getDataURL({ ...options, type: "png" });
+  }
+
+  function dispose(): void {
+    if (disposed) return;
+    disposed = true;
+    pending = undefined;
+    release();
+  }
+
+  return { mount, update, resize, exportImage, dispose };
+};
