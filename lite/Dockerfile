@@ -15,31 +15,30 @@
 ###############################################
 # Frontend — build terminalpro SPA in runtime mode
 ###############################################
-FROM node:22 AS frontend-build
+FROM docker.io/oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS bun-tool
+FROM docker.io/library/node:24.22.0-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS frontend-build
 
-ARG OPENBB_IMAGE_VARIANT=lite
-
-ENV NODE_OPTIONS="--max-old-space-size=8192"
-
+ARG OPENBB_IMAGE_VARIANT=full
+# Public release identity supplied by the caller; no private terminalpro .env.
+ARG VITE_RELEASE_VERSION
+ENV NODE_OPTIONS="--max-old-space-size=8192" \
+    SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=48 \
+    PATH="/root/.safe-chain/shims:/usr/local/bin:$PATH"
+COPY --from=bun-tool /usr/local/bin/bun /usr/local/bin/bun
+ADD --chmod=755 --checksum=sha256:3462a8395f822b392b7c0808c70116ef90e17a5a1479e604cfc41d57bfbd827c https://github.com/AikidoSec/safe-chain/releases/download/1.5.25/safe-chain-linuxstatic-x64 /usr/local/bin/safe-chain
 WORKDIR /app
-COPY terminalpro/package.json terminalpro/package-lock.json ./
-RUN npm ci
-
+COPY terminalpro/package.json terminalpro/bun.lock ./
+RUN safe-chain bun safe-chain-verify && safe-chain bun install --frozen-lockfile
 COPY terminalpro/ ./
-# Keep terminalpro's release version (bumped there on every release) — the
-# variant env COPY below replaces .env, so carry the value across instead of
-# hand-maintaining a drifting copy in this repo.
-RUN grep '^VITE_RELEASE_VERSION=' .env > /tmp/release-version.env
-COPY frontend.env ./frontend.lite.env
-COPY frontend.full.env ./frontend.full.env
-RUN case "$OPENBB_IMAGE_VARIANT" in \
+COPY lite/frontend.env ./frontend.lite.env
+COPY lite/frontend.full.env ./frontend.full.env
+RUN test -n "$VITE_RELEASE_VERSION" && case "$OPENBB_IMAGE_VARIANT" in \
       lite|full) cp "./frontend.${OPENBB_IMAGE_VARIANT}.env" ./.env ;; \
       *) echo "Unknown OPENBB_IMAGE_VARIANT=$OPENBB_IMAGE_VARIANT" >&2; exit 1 ;; \
     esac
-RUN cat /tmp/release-version.env >> .env
-# The Lite env selects terminalpro's strict in-repo lock profile; the Full env
-# deliberately leaves frontend runtime configuration unlocked.
-RUN npm run build:runtime
+ENV VITE_RELEASE_VERSION=${VITE_RELEASE_VERSION} \
+    VITE_TRADINGVIEW_ENABLED=false
+RUN bun run build:runtime
 
 
 ###############################################
@@ -129,7 +128,7 @@ RUN $VENV_PATH/bin/pip uninstall -y cython pip setuptools 2>/dev/null || true \
 ###############################################
 FROM python-base AS runtime
 
-ARG OPENBB_IMAGE_VARIANT=lite
+ARG OPENBB_IMAGE_VARIANT=full
 
 RUN apt-get update -y \
     && apt-get install --no-install-recommends -y \
