@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node", "vitest/globals"]
+  },
+  "include": [
+    "../../../src/components/General/Table/Chart/compatibility/**/*.ts",
+    "../../../src/components/General/Table/Chart/echarts/**/*.ts",
+    "../../../src/components/General/Table/Chart/echarts/**/*.tsx",
+    "./**/*.ts",
+    "./**/*.tsx",
+    "../../e2e/chart-compatibility/**/*.ts",
+    "../../e2e/chart-compatibility/**/*.tsx"
+  ]
+}
