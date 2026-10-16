@@ -7,23 +7,14 @@ import { getConfig } from "./runtimeConfig";
 import { useAuthStore, useShallowAuthStore } from "./state/auth";
 import { useShallowBackendConnectorStore } from "./state/backendConnector";
 import { useShallowPermissionsStore } from "./state/permissions";
+import { sessionHeaders } from "./utils/backendOrigin";
 import { resolveCronRefetchInterval } from "./utils/cronSchedule";
+import { rejectQueryResponse } from "./utils/queryResponse";
 
 export {
   cleanSearchParams,
   convertHeadersToRecord,
 } from "~/lib/utils/widgetParams";
-
-// File widgets persist the absolute URL the backend minted at upload time
-// (built from the backend's SELFURL, which still points at payments.openbb.*)
-const LEGACY_FILE_URL_ORIGIN =
-  /^https:\/\/payments\.openbb\.(co|dev)(?=\/pro\/files\/)/;
-
-function isBackendOrigin(url: string) {
-  return (
-    url?.includes(getConfig().urls.backend) || LEGACY_FILE_URL_ORIGIN?.test(url || "")
-  );
-}
 
 export type TResponseCb<TData> = (
   data: Response,
@@ -98,7 +89,6 @@ export function useJsonData<
   );
   const removedApp = url === "" && external && sourceName;
 
-  const withAuth = addBearerToken && isBackendOrigin(url);
   const updateQueuedRefreshId = useShallowBackendConnectorStore(
     (state) => state.updateQueuedRefreshId,
   );
@@ -161,10 +151,14 @@ export function useJsonData<
         }
 
         fetch(cleanUrl, {
-          headers: {
-            ...headers,
-            ...(withAuth && userToken ? { Authorization: `Bearer ${userToken}` } : {}),
-          },
+          headers: sessionHeaders(
+            cleanUrl,
+            headers,
+            userToken,
+            getConfig().urls.backend,
+            window.location.origin,
+            addBearerToken,
+          ),
           method,
           signal,
           body: body && method === "POST" ? JSON.stringify(body) : undefined,
@@ -172,33 +166,7 @@ export function useJsonData<
           .then(async (r) => {
             const noContent = r.status === 204;
             if (!r.ok || noContent) {
-              let error: any;
-
-              try {
-                error = await r.json();
-              } catch (_) {
-                return reject(r.statusText);
-              }
-
-              const warnings = error?.warnings;
-
-              if (warnings?.length)
-                for (const warning of warnings) console.warn(warning);
-
-              const errorDetail =
-                error?.detail || error?.message || error?.error || error;
-
-              const errorMessage =
-                typeof errorDetail === "string"
-                  ? errorDetail
-                  : JSON.stringify(errorDetail);
-
-              const errorObj = new Error(errorMessage, {
-                cause: error?.error_kind || error?.status || "unknown",
-              });
-
-              onError?.(errorObj);
-              return reject(errorObj);
+              return rejectQueryResponse(r, reject, onError);
             }
 
             resolveCallback(r, resolve, reject);
@@ -230,10 +198,13 @@ export function fetchWithToken(
   if (!token) return Promise.reject(new Error("No token found"));
   return fetch(url, {
     ...(options ?? {}),
-    headers: {
-      ...(options?.headers ?? {}),
-      Authorization: `Bearer ${token}`,
-    },
+    headers: sessionHeaders(
+      url,
+      options?.headers,
+      token,
+      getConfig().urls.backend,
+      window.location.origin,
+    ),
     signal,
   });
 }
@@ -265,9 +236,7 @@ export function useMultipleQueries<
       onError,
     } = queryOption;
     // Convert endpointHeaders to Record format if necessary
-    const userToken = "";
     const { headers, newParams } = convertHeadersToRecord(endpointHeaders, params);
-    const withAuth = addBearerToken && isBackendOrigin(url);
 
     const resolveCallback = async (response, resolve, reject) => {
       if (responseCb) {
@@ -298,12 +267,14 @@ export function useMultipleQueries<
       queryFn: ({ signal }) =>
         new Promise((resolve, reject) =>
           fetch(cleanUrl, {
-            headers: {
-              ...headers,
-              ...(withAuth && userToken
-                ? { Authorization: `Bearer ${userToken}` }
-                : {}),
-            },
+            headers: sessionHeaders(
+              cleanUrl,
+              headers,
+              useAuthStore.getState().user?.token,
+              getConfig().urls.backend,
+              window.location.origin,
+              addBearerToken,
+            ),
             method,
             signal,
             body: method === "POST" ? JSON.stringify(body) : undefined,
@@ -311,33 +282,7 @@ export function useMultipleQueries<
             .then(async (r) => {
               const noContent = r.status === 204;
               if (!r.ok || noContent) {
-                let error: any;
-
-                try {
-                  error = await r.json();
-                } catch (_) {
-                  return reject(r.statusText);
-                }
-
-                const warnings = error?.warnings;
-
-                if (warnings?.length)
-                  for (const warning of warnings) console.warn(warning);
-
-                const errorDetail =
-                  error?.detail || error?.message || error?.error || error;
-
-                const errorMessage =
-                  typeof errorDetail === "string"
-                    ? errorDetail
-                    : JSON.stringify(errorDetail);
-
-                const errorObj = new Error(errorMessage, {
-                  cause: error?.error_kind || error?.status || "unknown",
-                });
-
-                onError?.(errorObj);
-                return reject(errorObj);
+                return rejectQueryResponse(r, reject, onError);
               }
 
               resolveCallback(r, resolve, reject);
