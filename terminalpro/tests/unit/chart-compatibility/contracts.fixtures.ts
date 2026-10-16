@@ -12,4 +12,3 @@ export const detachedFixture = {
   storage: { chartModel: { extra: [1, null] }, chartOptions: { persisted: true }, isPivotMode: true },
   eventOptions: undefined, chartType: "custom-family", totalSeries: 2,
 };
-
