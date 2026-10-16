@@ -31,6 +31,8 @@ csv_json_array() {
 }
 
 : "${BACKEND_URL:=/api}"
+: "${DATA_API_URL:=${PUBLIC_URL:-http://localhost:23003}/data}"
+: "${AGENT_API_URL:=${PUBLIC_URL:-http://localhost:23003}/agent}"
 : "${AI_API_URL:=}"
 : "${PLATFORM_URL:=}"
 : "${DATABASE_API_URL:=}"
@@ -50,12 +52,12 @@ csv_json_array() {
 : "${OKTA_DOMAIN:=}"
 
 : "${AI_COPILOT_ENABLED:=true}"
-: "${AI_COPILOT_OPENBB_COPILOT:=false}"
+AI_COPILOT_OPENBB_COPILOT=false
 : "${AI_COPILOT_DOCUMENTATION_LINKS:=true}"
-: "${AI_COPILOT_WEB_SEARCH:=true}"
-: "${AI_COPILOT_SEC_FILINGS:=true}"
-: "${AI_COPILOT_JINA_AI:=true}"
-: "${AI_COPILOT_AI_ENHANCEMENTS:=true}"
+AI_COPILOT_WEB_SEARCH=false
+AI_COPILOT_SEC_FILINGS=false
+AI_COPILOT_JINA_AI=false
+AI_COPILOT_AI_ENHANCEMENTS=false
 : "${AI_COPILOT_SHOW_CUSTOM_KEY:=true}"
 
 : "${UI_SHOW_COMPANION_MCP_MODE:=true}"
@@ -116,6 +118,8 @@ cat > "$CONFIG_OUT" <<EOF
 window.__APP_CONFIG__ = {
   urls: {
     backend: "${BACKEND_URL}",
+    data: "${DATA_API_URL}",
+    agent: "${AGENT_API_URL}",
     ai: "${AI_API_URL}",
     platform: "${PLATFORM_URL}",
     database: "${DATABASE_API_URL}"

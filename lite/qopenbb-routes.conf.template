@@ -1,0 +1,30 @@
+# Resolve optional services on request; absent DNS must not prevent startup.
+resolver ${NGINX_RESOLVER} valid=10s ipv6=off;
+resolver_timeout 1s;
+proxy_connect_timeout 3s;
+location = /data { return 308 /data/; }
+location ^~ /data/ {
+  set $data_origin http://data-api:6900;
+  rewrite ^/data/(.*)$ /$1 break;
+  proxy_pass $data_origin;
+  proxy_set_header Host ${PUBLIC_HOST};
+  proxy_set_header X-Forwarded-Proto ${PUBLIC_SCHEME};
+  proxy_set_header X-Forwarded-Prefix /data;
+  proxy_intercept_errors off;
+}
+location = /agent { return 308 /agent/; }
+location ^~ /agent/ {
+  set $agent_origin http://agent:7777;
+  rewrite ^/agent/(.*)$ /$1 break;
+  proxy_pass $agent_origin;
+  proxy_http_version 1.1;
+  proxy_set_header Host ${PUBLIC_HOST};
+  proxy_set_header X-Forwarded-Proto ${PUBLIC_SCHEME};
+  proxy_set_header X-Forwarded-Prefix /agent;
+  proxy_set_header Connection "";
+  proxy_buffering off;
+  proxy_cache off;
+  proxy_read_timeout 300s;
+  proxy_send_timeout 300s;
+  proxy_intercept_errors off;
+}

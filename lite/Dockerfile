@@ -168,6 +168,7 @@ COPY --from=frontend-build /app/dist /usr/share/nginx/html
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY supervisord.conf /etc/supervisor/supervisord.conf
 COPY entrypoint.sh /entrypoint.sh
+COPY lite/origin_config.py lite/configure-origin.sh lite/qopenbb-routes.conf.template /usr/local/share/openbb/
 COPY lite/bootstrap.py /usr/local/share/openbb/bootstrap.py
 COPY render-frontend-config.sh /usr/local/share/openbb/render-frontend-config.lite.sh
 COPY render-frontend-config.full.sh /usr/local/share/openbb/render-frontend-config.full.sh

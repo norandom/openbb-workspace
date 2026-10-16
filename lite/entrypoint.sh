@@ -1,6 +1,7 @@
 #!/bin/bash
 # Preserve the upstream account and migration flow using private bind state.
 set -euo pipefail
+source /usr/local/share/openbb/configure-origin.sh
 umask 077
 DATA_DIR="${DATA_DIR:-/data}"
 SECRETS_FILE="${DATA_DIR}/secrets.env"
@@ -17,7 +18,7 @@ done < "$SECRETS_FILE"
 
 umask 022
 /usr/local/bin/render-frontend-config.sh
-envsubst '${PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/sites-available/default
+envsubst '${PORT} ${PUBLIC_SCHEME} ${PUBLIC_HOST}' < /etc/nginx/templates/default.conf.template > /etc/nginx/sites-available/default
 ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 rm -f /etc/nginx/sites-enabled/default.dpkg-dist
 cd /opt/code
