@@ -1,16 +1,9 @@
 # syntax=docker/dockerfile:1.6
 #
-# OpenBB Lite image.
-#
-# Bundles the FastAPI backend (Cython-compiled lite build), the terminalpro
-# SPA (Vite runtime build), Redis, nginx, and supervisord into a single image.
-# Defaults to SQLite at /data/openbb.db so a `docker run -d -p 3000:3000` works
-# without any -e flags. Override via standard backend env vars (DATABASE_TYPE,
-# DB_HOST, ...).
-#
-# Build context: this repo's root, with backend/ (from openbb-hub) and
-# terminalpro/ assembled alongside the Dockerfile. See README.md / build-local.sh.
-#   docker build -f Dockerfile -t openbb/lite:latest .
+# QOpenBB Full Workspace packaging. Frontend inputs retain the frozen Bun lock.
+# Backend inputs retain the Poetry lock; protected uv installs its exact export.
+# Build context is the allowlisted assembled Workspace source, never live state.
+# Application image assembly belongs to the Dagger build-only catalog.
 #
 ###############################################
 # Frontend — build terminalpro SPA in runtime mode
@@ -44,7 +37,7 @@ RUN bun run build:runtime
 ###############################################
 # Backend base — python + poetry deps
 ###############################################
-FROM python:3.13-slim AS python-base
+FROM docker.io/library/python:3.13.15-slim-bookworm@sha256:2325bb286ec344af3e5898cc224b5844e2707ac6e26b1632516fd3edc84a5e26 AS python-base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -62,27 +55,33 @@ ENV PYTHONUNBUFFERED=1 \
 
 ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
 
-RUN python -m pip install --upgrade pip setuptools
+ADD --checksum=sha256:68a509da24b06b4223a1c0175fb5eb5bc79342b76cbeff0cfe51ac3f5b17b6b2 https://github.com/astral-sh/uv/releases/download/0.12.5/uv-x86_64-unknown-linux-gnu.tar.gz /tmp/uv.tar.gz
+RUN tar -xzf /tmp/uv.tar.gz -C /tmp && cp /tmp/uv-x86_64-unknown-linux-gnu/uv /usr/local/bin/uv && rm -rf /tmp/uv*
+ADD --chmod=755 --checksum=sha256:3462a8395f822b392b7c0808c70116ef90e17a5a1479e604cfc41d57bfbd827c https://github.com/AikidoSec/safe-chain/releases/download/1.5.25/safe-chain-linuxstatic-x64 /usr/local/bin/safe-chain
+ENV SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=48
 
 
 FROM python-base AS backend-build
 
-RUN apt-get update -y && apt-get upgrade -y \
+RUN apt-get update -y \
     && apt-get install --no-install-recommends -y \
        curl build-essential git unzip \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR $PYSETUP_PATH
 
-RUN pip install --upgrade setuptools poetry
+COPY lite/build-tools.txt /opt/build-tools.txt
+RUN safe-chain uv safe-chain-verify \
+    && uv venv /opt/tools \
+    && safe-chain uv pip sync --python /opt/tools/bin/python --require-hashes /opt/build-tools.txt
 
 COPY backend/pyproject.toml backend/poetry.lock ./
-# Regenerate the lock if it's out of sync with pyproject.toml (e.g. after
-# moving deps into an optional group). --no-update keeps existing pins.
-RUN poetry lock --no-update || poetry lock
-RUN poetry install --only main
-
-RUN $VENV_PATH/bin/pip install "cython>=3.0" "setuptools>=68"
+# Reject drift instead of resolving a different application dependency set.
+RUN /opt/tools/bin/poetry check --lock \
+    && /opt/tools/bin/poetry export --only main --without-hashes -o /opt/backend-requirements.txt \
+    && uv venv "$VENV_PATH" \
+    && safe-chain uv pip sync --python "$VENV_PATH/bin/python" --build-constraints /opt/build-tools.txt /opt/backend-requirements.txt \
+    && safe-chain uv pip install --python "$VENV_PATH/bin/python" --no-deps Cython==3.2.4 setuptools==82.0.1 supervisor==4.3.0
 
 RUN rm -rf $VENV_PATH/src/slowapi/poetry.lock $VENV_PATH/src/slowapi/docs/requirements.txt
 
@@ -117,7 +116,7 @@ RUN find api routers utilities -name "*.py" ! -name "__init__.py" | while read -
 # DO NOT blindly delete dirs named "tests" / "docs" / "examples" here —
 # several packages ship real importable submodules under those names
 # (e.g. boto3.docs is a runtime module, not documentation).
-RUN $VENV_PATH/bin/pip uninstall -y cython pip setuptools 2>/dev/null || true \
+RUN uv pip uninstall --python "$VENV_PATH/bin/python" cython setuptools \
     && find $VENV_PATH -depth -type d -name __pycache__ -exec rm -rf {} + \
     && find $VENV_PATH -depth -name "*.pyc" -delete \
     && find $VENV_PATH -depth -name "*.pyo" -delete
@@ -132,14 +131,10 @@ ARG OPENBB_IMAGE_VARIANT=full
 
 RUN apt-get update -y \
     && apt-get install --no-install-recommends -y \
-       nginx redis-server gettext-base tini \
+       curl nginx redis-server gettext-base tini \
     && rm -rf /var/lib/apt/lists/* /var/log/nginx/* \
               /usr/share/doc /usr/share/man /usr/share/info /usr/share/locale \
     && mkdir -p /var/log/supervisor /run/nginx
-
-# supervisor via pip, not apt: the apt package drags in Debian's system Python
-# stack (/usr/lib/python3/dist-packages), incl. vulnerable jaraco.context (CVE-2026-23949)
-RUN python -m pip install supervisor
 
 COPY --from=backend-compile $VENV_PATH $VENV_PATH
 
@@ -173,6 +168,7 @@ COPY --from=frontend-build /app/dist /usr/share/nginx/html
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY supervisord.conf /etc/supervisor/supervisord.conf
 COPY entrypoint.sh /entrypoint.sh
+COPY lite/bootstrap.py /usr/local/share/openbb/bootstrap.py
 COPY render-frontend-config.sh /usr/local/share/openbb/render-frontend-config.lite.sh
 COPY render-frontend-config.full.sh /usr/local/share/openbb/render-frontend-config.full.sh
 # Admin-login helper: `docker exec openbb credentials`
@@ -222,6 +218,6 @@ EXPOSE 3000
 VOLUME ["/data"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -fsS http://localhost:${PORT}/api/health || exit 1
+    CMD curl -fsS http://localhost:${PORT}/api/health >/dev/null || exit 1
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
