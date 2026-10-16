@@ -5,6 +5,8 @@ import { reduceDetachedState } from "../../../src/components/General/Table/Chart
 import { mapColumnEditorEvent } from "../../../src/components/General/Table/Chart/compatibility/editorEvents";
 import { reduceIntegratedState } from "../../../src/components/General/Table/Chart/compatibility/integratedState";
 import type { RuntimeOptions } from "../../../src/components/General/Table/Chart/compatibility/legacyTypes";
+import { validateDetachedInput } from "../../../src/components/General/Table/Chart/compatibility/legacyTypes";
+import { selectOptionBaseline } from "../../../src/components/General/Table/Chart/compatibility/optionState";
 import type { ColumnEditorEvent } from "../../../src/components/General/Table/Chart/compatibility/optionStateTypes";
 import { capturedEditorPayloads } from "./editorPayload.fixtures";
 
@@ -286,5 +288,187 @@ describe("original reducer composition with supplied frozen baselines", () => {
     }
     (eventOptions.list as unknown[]).push(2);
     expect(complete).toEqual(before);
+  });
+});
+
+function baseline(input: unknown) {
+  const result = selectOptionBaseline(input);
+  if (!result.valid) throw new Error(result.error);
+  return result.value;
+}
+
+function integratedEdit(
+  previous: ReturnType<typeof baseline>,
+  event: ColumnEditorEvent,
+) {
+  const storage = reduceIntegratedState({
+    storage: {},
+    stateKey: previous.stateAddress,
+    currentModel: previous.model,
+    resolvedOptions: previous.options,
+    eventOptions: patch(event, previous.chartType),
+    chartType: previous.chartType,
+    totalSeries: 2,
+    isPivotMode: false,
+  });
+  return baseline({
+    kind: "synchronize",
+    stateAddress: previous.stateAddress,
+    previous,
+    partitionModel: (storage[previous.stateAddress] as { chartModel: unknown })
+      .chartModel,
+  });
+}
+
+function initialBaseline() {
+  return baseline({
+    kind: "initialize",
+    stateAddress: "revenue",
+    partitionModel: capturedEditorPayloads[0].model,
+    rootOptions: { ignoredFallback: true },
+    initialChartType: "groupedColumn",
+  });
+}
+
+describe("joined baseline, editor and reducer boundary", () => {
+  it("selects captured options then persists successive edits including disabled title text", () => {
+    const initial = initialBaseline();
+    let selected = integratedEdit(initial, {
+      kind: "title-text",
+      value: "Retained revenue",
+    });
+    selected = integratedEdit(selected, { kind: "title-enabled", value: true });
+    selected = integratedEdit(selected, { kind: "title-enabled", value: false });
+    selected = integratedEdit(selected, { kind: "legend-position", value: "bottom" });
+    selected = integratedEdit(selected, { kind: "stroke-width", value: 4 });
+    expect(selected.options).toEqual({
+      common: {
+        legend: { position: "top", maxHeight: 50 },
+        axes: { number: { label: { fontSize: 11 } } },
+      },
+      bar: {
+        title: { text: "Retained revenue", enabled: false },
+        legend: { position: "bottom" },
+        series: { strokeWidth: 4 },
+      },
+    });
+    expect(initial.model).toEqual(capturedEditorPayloads[0].model);
+    expect(initial.options).toEqual(capturedEditorPayloads[0].model.chartOptions);
+  });
+
+  it.each([
+    {},
+    undefined,
+  ])("retains edited values through an empty/absent partition: %j", (partitionModel) => {
+    const edited = integratedEdit(initialBaseline(), {
+      kind: "title-text",
+      value: "Before transition",
+    });
+    const retained = baseline({
+      kind: "synchronize",
+      stateAddress: "empty",
+      previous: edited,
+      partitionModel,
+    });
+    expect(retained.stateAddress).toBe("empty");
+    expect(retained.model).toEqual(edited.model);
+    const next = integratedEdit(retained, { kind: "title-enabled", value: false });
+    expect(next.options).toMatchObject({
+      bar: { title: { text: "Before transition", enabled: false } },
+    });
+    const populated = baseline({
+      kind: "synchronize",
+      stateAddress: "populated",
+      previous: next,
+      partitionModel: {
+        chartType: "stackedColumn",
+        cellRange: { columns: ["period", "eps"] },
+        chartOptions: { bar: { legend: { position: "left" } }, independent: 7 },
+      },
+    });
+    const result = integratedEdit(populated, { kind: "stroke-width", value: 0.5 });
+    expect(result.options).toEqual({
+      bar: { legend: { position: "left" }, series: { strokeWidth: 0.5 } },
+      independent: 7,
+    });
+    expect(result.model.cellRange).toEqual({ columns: ["period", "eps"] });
+  });
+
+  it("preserves edited bar options through supplied stacked, grouped and line destination ranges", () => {
+    const edited = integratedEdit(initialBaseline(), {
+      kind: "title-text",
+      value: "Saved title",
+    });
+    for (const chartType of ["stackedColumn", "groupedColumn", "line"]) {
+      const storage = reduceIntegratedState({
+        storage: {},
+        stateKey: edited.stateAddress,
+        currentModel: {
+          cellRange: { columns: ["period", "eps"], rowStartIndex: 3, rowEndIndex: 8 },
+        },
+        resolvedOptions: edited.options,
+        eventOptions: {},
+        chartType,
+        totalSeries: 1,
+        isPivotMode: false,
+      });
+      const selected = baseline({
+        kind: "synchronize",
+        stateAddress: edited.stateAddress,
+        previous: edited,
+        partitionModel: (storage.revenue as { chartModel: unknown }).chartModel,
+      });
+      expect(selected.chartType).toBe(chartType);
+      expect(selected.model.cellRange).toEqual({
+        columns: ["period", "eps"],
+        rowStartIndex: 3,
+        rowEndIndex: 8,
+      });
+      expect(selected.options).toMatchObject({
+        bar: { title: { text: "Saved title" } },
+      });
+    }
+  });
+
+  it("replaces detached options using an explicit complete event after selected-baseline edits", () => {
+    const selected = integratedEdit(initialBaseline(), {
+      kind: "title-text",
+      value: "Saved separately",
+    });
+    const completeEvent: RuntimeOptions = {
+      theme: "explicit-event-theme",
+      unrelated: { retained: true },
+      bar: {
+        title: { text: "Producer title", enabled: false },
+        legend: { position: "right" },
+      },
+    };
+    const before = cloneDeep(completeEvent);
+    const eventOptions = merge(
+      cloneDeep(completeEvent),
+      patch({ kind: "stroke-width", value: 4 }, selected.chartType),
+    );
+    const input = validateDetachedInput({
+      storage: { chartModel: selected.model, chartOptions: { discarded: true } },
+      eventOptions,
+      chartType: "line",
+      totalSeries: 2,
+    });
+    if (!input.valid) throw new Error(input.error);
+    const result = reduceDetachedState(input.value);
+    expect(result.chartOptions).toEqual({
+      theme: "explicit-event-theme",
+      unrelated: { retained: true },
+      bar: {
+        title: { text: "Producer title", enabled: false },
+        legend: { position: "right" },
+        series: { strokeWidth: 4 },
+      },
+    });
+    expect(result.chartModel).toEqual({ ...selected.model, chartType: "line" });
+    expect(completeEvent).toEqual(before);
+    expect(selected.options).toMatchObject({
+      bar: { title: { text: "Saved separately" } },
+    });
   });
 });
