@@ -11,7 +11,7 @@ if (!evidence || !process.env.PLAYWRIGHT_BROWSERS_PATH)
 
 export default defineConfig({
   testDir: import.meta.dirname,
-  testMatch: "smoke.spec.ts",
+  testMatch: ["smoke.spec.ts", "host.spec.ts"],
   workers: 1,
   retries: 0,
   timeout: 30000,
