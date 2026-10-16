@@ -1,4 +1,4 @@
-import type { ChartType } from "ag-grid-enterprise";
+import type { ChartType } from "ag-grid-community";
 import cloneDeep from "lodash/cloneDeep";
 import isEqual from "lodash.isequal";
 import { v4 as uuidv4 } from "uuid";

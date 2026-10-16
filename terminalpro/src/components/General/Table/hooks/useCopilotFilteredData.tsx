@@ -3,7 +3,7 @@ import type {
   FilterChangedEvent,
   FirstDataRenderedEvent,
   RowDataUpdatedEvent,
-} from "ag-grid-enterprise";
+} from "ag-grid-community";
 import { useCallback, useEffect, useMemo } from "react";
 import { useWidgetContext } from "~/components/Widget.context";
 import SOURCES from "~/lib/sources.json";

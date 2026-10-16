@@ -66,7 +66,6 @@ export default defineConfig(({ mode }) => {
               pkg === "antlr4ng"
             )
               return "vendor-monaco";
-            if (pkg.startsWith("highcharts")) return "vendor-highcharts";
             if (pkg.startsWith("@azure/") || pkg.startsWith("@okta/"))
               return "vendor-auth";
             if (pkg.startsWith("@wooorm/")) return "vendor-starry-night";

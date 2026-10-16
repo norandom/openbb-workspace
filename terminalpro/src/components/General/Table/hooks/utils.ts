@@ -1,4 +1,4 @@
-import type { ColumnState, GridState } from "ag-grid-enterprise";
+import type { ColumnState, GridState } from "ag-grid-community";
 import { useEffect, useRef } from "react";
 import type { SavedState } from "./types";
 

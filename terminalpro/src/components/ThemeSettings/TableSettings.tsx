@@ -1,5 +1,6 @@
 import type { Part, ThemeDefaultParams } from "ag-grid-community";
 import {
+  AllCommunityModule,
   colorSchemeDark,
   colorSchemeLight,
   iconSetAlpine,
@@ -8,7 +9,6 @@ import {
   ModuleRegistry,
   themeAlpine,
 } from "ag-grid-community";
-import { AllEnterpriseModule } from "ag-grid-enterprise";
 import { AgGridReact } from "ag-grid-react";
 import cloneDeep from "lodash/cloneDeep";
 import isEqual from "lodash.isequal";
@@ -31,7 +31,7 @@ import { TableThemeControls } from "./TableThemeControls";
 import { THEME_MODES, ThemeSettingsLayout } from "./ThemeSettingsLayout";
 import { columnDefs, defaultGridProps, sampleData } from "./tablePreviewData";
 
-ModuleRegistry.registerModules([AllEnterpriseModule]);
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 interface IconSetOption {
   id: "iconSetQuartz" | "iconSetAlpine" | "iconSetMaterial";

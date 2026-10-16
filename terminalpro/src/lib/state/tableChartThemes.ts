@@ -1,11 +1,11 @@
-import type { AgChartThemeName } from "ag-charts-enterprise";
+import type { AgChartThemeName } from "ag-charts-community";
 import type {
   ColorValue,
   FontFamilyValue,
   LengthValue,
   ScaleValue,
   ThemeDefaultParams,
-} from "ag-grid-enterprise";
+} from "ag-grid-community";
 import isEqual from "lodash.isequal";
 import { toast } from "sonner";
 import { subscribeWithSelector } from "zustand/middleware";

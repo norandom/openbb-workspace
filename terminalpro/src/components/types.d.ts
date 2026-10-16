@@ -4,7 +4,7 @@ import type {
   ChartType,
   Column,
   GridState,
-} from "ag-grid-enterprise";
+} from "ag-grid-community";
 import type { MutableRefObject } from "react";
 import type { Layout } from "react-grid-layout";
 import type { InnerTab } from "~/lib/state/app";

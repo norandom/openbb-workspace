@@ -1,4 +1,4 @@
-import type { AgChartThemeOverrides } from "ag-charts-enterprise";
+import type { AgChartThemeOverrides } from "ag-charts-community";
 import type {
   GridState as AgGridState,
   CellClickedEvent,
@@ -18,7 +18,7 @@ import type {
   NewColumnsLoadedEvent,
   StateUpdatedEvent,
   VirtualColumnsChangedEvent,
-} from "ag-grid-enterprise";
+} from "ag-grid-community";
 
 import type {
   AgGridReact,
@@ -32,9 +32,15 @@ import type {
   ReactNode,
   SetStateAction,
 } from "react";
-import type { WidgetColumnDefT } from "~/components/types";
+import type { WidgetColumnDefT, WidgetT } from "~/components/types";
 import type { DispatchAction } from "~/hooks/useStateReducer";
-import type { CreateChartDataProps } from "../Chart/hooks/useCreateChartData";
+type CreateChartDataProps = {
+  gridApi: AgGridElement["api"];
+  rowData: any[];
+  columnDefs: ColDef[];
+  widget: WidgetT;
+  chartType?: string;
+};
 
 type ChartData = {
   rowData: any[];

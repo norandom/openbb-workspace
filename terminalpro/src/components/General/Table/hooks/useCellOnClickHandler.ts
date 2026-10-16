@@ -1,4 +1,4 @@
-import type { CellClickedEvent } from "ag-grid-enterprise";
+import type { CellClickedEvent } from "ag-grid-community";
 import { useCallback, useMemo } from "react";
 import { dispatchCopilotCommand } from "~/components/AI/hooks/utils";
 import type { CellOnClickedProps } from "~/components/General/Table/hooks/types";

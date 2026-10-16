@@ -1,4 +1,4 @@
-import type { ChartType } from "ag-grid-enterprise";
+import type { ChartType } from "ag-grid-community";
 import type { ArtifactT, CopilotWidget, Message } from "~/lib/state/copilot";
 import { convertToReadableLabel } from "../../General/Table/AgGridUtils";
 import type { WidgetColumnDefT, WidgetJsonT, WidgetT } from "../../types";

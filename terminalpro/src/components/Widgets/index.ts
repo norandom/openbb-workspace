@@ -3,20 +3,17 @@ import { WidgetDataProcessors } from "~/components/Widgets/dataProcessors";
 import { BLOCKED_WIDGET_IDS } from "~/lib/constants";
 import type { WidgetsIds } from "~/lib/utils/widget";
 import type { WidgetT } from "../types";
-import { communityWidget } from "./UnsupportedRenderer";
+import { unsupportedChartReason } from "./communityCharts";
+import UnsupportedRenderer, { communityWidget } from "./UnsupportedRenderer";
 
 const AgChartFC = lazy(() => import("./AgChart"));
 const AgWebSocketsFC = lazy(() => import("../General/Table/AgWebSockets"));
 const CurrencySnapshotFC = lazy(() => import("../Widgets/Currency/CurrencySnapshot"));
 const MarkdownFC = lazy(() => import("./custom/Markdown"));
-const AgChartFromTableFC = lazy(() => import("../General/Table/AgChartFromTable"));
 const AgGridFileFC = lazy(() => import("../General/Table/AgGridFile"));
 const AgGridSQLFC = lazy(() => import("../General/Table/AgGridSQL"));
-const AgGridSSRMFC = lazy(() => import("../General/Table/AgGridSSRM"));
-const AgGridSSRMAdvancedFC = lazy(() => import("../General/Table/AgGridSSRMAdvanced"));
 const AgGridTableFC = lazy(() => import("../General/Table/AgGridTable"));
 const ChartFC = lazy(() => import("./Chart"));
-const ChartHighchartsFC = lazy(() => import("./charting/ChartHighcharts"));
 const ChartVegaLiteFC = lazy(() => import("./charting/ChartVegaLite"));
 
 const MetricWidgetFC = lazy(() => import("./Metric"));
@@ -187,12 +184,14 @@ export const NonAgGridComponents = {
 } as const;
 
 export const Widgets = {
-  AgChart: AgChartFC,
+  AgChart: communityWidget(AgChartFC, (widget) =>
+    unsupportedChartReason(widget?.storage?.chart_params),
+  ),
   AgWebSockets: communityWidget(AgWebSocketsFC),
   CurrencySnapshot: communityWidget(CurrencySnapshotFC),
   Markdown: MarkdownFC,
   AgChartFromTable: communityWidget(
-    AgChartFromTableFC,
+    UnsupportedRenderer,
     "legacy charts or hierarchical/remote tables",
   ),
   AgGridFile: communityWidget(AgGridFileFC),
@@ -201,16 +200,19 @@ export const Widgets = {
     "legacy charts or hierarchical/remote tables",
   ),
   AgGridSSRM: communityWidget(
-    AgGridSSRMFC,
+    UnsupportedRenderer,
     "legacy charts or hierarchical/remote tables",
   ),
   AgGridSSRMAdvanced: communityWidget(
-    AgGridSSRMAdvancedFC,
+    UnsupportedRenderer,
     "legacy charts or hierarchical/remote tables",
   ),
   AgGridTable: communityWidget(AgGridTableFC),
   Chart: ChartFC,
-  ChartHighcharts: ChartHighchartsFC,
+  ChartHighcharts: communityWidget(
+    UnsupportedRenderer,
+    "legacy Highcharts configurations",
+  ),
   ChartVegaLite: ChartVegaLiteFC,
   MetricWidget: MetricWidgetFC,
   FileViewerWidget: FileViewerWidgetFC,

@@ -14,11 +14,14 @@ export default function UnsupportedRenderer({
   );
 }
 
-export function communityWidget(Component: ComponentType<any>, unavailable?: string) {
+export function communityWidget(
+  Component: ComponentType<any>,
+  unavailable?: string | ((widget: any) => string | undefined),
+) {
   return function CommunityWidget(props: any) {
     const { widget } = useWidgetContext();
     const reason =
-      unavailable ??
+      (typeof unavailable === "function" ? unavailable(widget) : unavailable) ??
       unsupportedTableReason(widget?.storage) ??
       unsupportedTableReason(widget?.data?.table);
     return reason ? (

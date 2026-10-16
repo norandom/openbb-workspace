@@ -2,13 +2,11 @@ import type {
   AgAxisCaptionOptions,
   AgBarSeriesItemStylerParams,
   AgBarSeriesStyle,
-  AgChartBackground,
   AgChartLegendOptions,
   AgChartTheme,
   AgChartThemePalette,
   AgPieSeriesThemeableOptions,
-  AgWaterfallSeriesItemOptions,
-} from "ag-charts-enterprise";
+} from "ag-charts-community";
 import {
   colorSchemeDark,
   colorSchemeLight,
@@ -17,7 +15,7 @@ import {
   iconSetMaterial,
   iconSetQuartz,
   themeAlpine,
-} from "ag-grid-enterprise";
+} from "ag-grid-community";
 import cloneDeep from "lodash/cloneDeep";
 import { useCallback, useMemo, useRef } from "react";
 import { useWidgetContext } from "~/components/Widget.context";
@@ -102,11 +100,6 @@ const getLegend = (theme: ThemeT, decimalPlaces?: number) => {
   } as AgChartLegendOptions<GridChartContext>;
 };
 
-const waterfallLabel = {
-  enabled: false,
-  placement: "inside-center",
-} as AgWaterfallSeriesItemOptions<any, GridChartContext>["label"];
-
 const defaultFills = [
   "#fac858",
   "#91cc75",
@@ -181,16 +174,6 @@ const defaultOverrides = {
   pie: { series: pieAndDonutSeries },
   donut: { series: pieAndDonutSeries },
   scatter: { axes: { number: { title: titleOptions } } },
-  waterfall: {
-    series: {
-      item: {
-        negative: { label: waterfallLabel },
-        positive: { label: waterfallLabel },
-        total: { label: waterfallLabel },
-      },
-    },
-  },
-  funnel: { series: { label: { enabled: false } } },
   bar: { series: { itemStyler: createItemStyler() } },
   common: {
     axes: {
@@ -199,17 +182,6 @@ const defaultOverrides = {
       "radius-number": numberAxisOptions,
     },
     // padding: { top: 20, bottom: 5, left: 20, right: 40 },
-    zoom: {
-      enabled: true,
-      anchorPointX: "pointer",
-      anchorPointY: "pointer",
-      minVisibleItems: 4,
-      autoScaling: { enabled: true },
-    },
-    navigator: {
-      enabled: false,
-      miniChart: { enabled: false },
-    },
     legend: getLegend("dark"),
     title: { fontSize: 12 },
   },
@@ -246,13 +218,11 @@ export function getOpenBBChartTheme(theme: ThemeT) {
 export function getCustomChartTheme(
   themeSettings: ThemeSettings["chartTheme"],
   shouldFillBars?: () => boolean,
-  navigatorEnabled?: boolean,
-  miniChartEnabled?: boolean,
 ): AgChartTheme<any, GridChartContext> {
   const isDarkMode = themeSettings.baseTheme === "ag-default-dark";
   const baseTheme = isDarkMode ? AgChartDarkTheme : AgChartLightTheme;
   const overrides = cloneDeep(baseTheme.overrides);
-  const { backgroundImage, palette, params } = themeSettings;
+  const { palette, params } = themeSettings;
 
   const options = {
     ...baseTheme,
@@ -260,19 +230,6 @@ export function getCustomChartTheme(
     params,
     overrides,
   } as AgChartTheme<any, GridChartContext>;
-
-  let background: AgChartBackground | undefined;
-  if (backgroundImage?.enabled && backgroundImage?.url) {
-    const { enabled, ...imageConfig } = { ...backgroundImage };
-
-    background = { image: imageConfig };
-  }
-
-  options.overrides.common.background = background;
-  options.overrides.common.navigator = {
-    enabled: Boolean(navigatorEnabled || miniChartEnabled),
-    miniChart: { enabled: Boolean(miniChartEnabled) },
-  };
 
   // Add dynamic itemStyler with the theme's palette
   const itemStyler = createItemStyler(palette, shouldFillBars);
@@ -288,11 +245,7 @@ const iconSetMap = {
 };
 
 export function useAgThemes(theme: ThemeT) {
-  const {
-    chartBarFillEnabled = false,
-    chartNavigatorEnabled = false,
-    chartMiniChartEnabled = false,
-  } = useWidgetContext(true)?.widget?.storage ?? {};
+  const { chartBarFillEnabled = false } = useWidgetContext(true)?.widget?.storage ?? {};
 
   const shouldFillBars = useCallback(() => chartBarFillEnabled, [chartBarFillEnabled]);
 
@@ -333,21 +286,12 @@ export function useAgThemes(theme: ThemeT) {
     for (const [key, value] of Object.entries(agChartThemes ?? {})) {
       if (value?.baseTheme && value?.palette && value?.params) {
         themePalette = value.palette;
-        updatedThemes[key] = getCustomChartTheme(
-          value,
-          shouldFillBars,
-          chartNavigatorEnabled,
-          chartMiniChartEnabled,
-        );
+        updatedThemes[key] = getCustomChartTheme(value, shouldFillBars);
         continue;
       }
       const obbKey = key.replace("custom-", "openbb-") as `openbb-${ThemeT}`;
       const obbTheme = defaultChartThemesRef.current[obbKey];
       obbTheme.overrides.bar.series.itemStyler = createItemStyler(null, shouldFillBars);
-      obbTheme.overrides.common.navigator = {
-        enabled: chartNavigatorEnabled || chartMiniChartEnabled,
-        miniChart: { enabled: chartMiniChartEnabled },
-      };
 
       updatedThemes[obbKey] = obbTheme;
     }
@@ -360,14 +304,7 @@ export function useAgThemes(theme: ThemeT) {
       customChartThemes: updatedThemes,
       chartThemes: [chartTheme],
     };
-  }, [
-    defaultChartThemesRef,
-    agChartThemes,
-    theme,
-    shouldFillBars,
-    chartNavigatorEnabled,
-    chartMiniChartEnabled,
-  ]);
+  }, [defaultChartThemesRef, agChartThemes, theme, shouldFillBars]);
 
   return { themePalette, agTheme, chartThemes, customChartThemes };
 }

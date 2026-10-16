@@ -72,10 +72,8 @@
         "@uiw/react-codemirror": "^4.22.0",
         "@wooorm/starry-night": "^3.9.0",
         "ag-charts-community": "12.1.1",
-        "ag-charts-enterprise": "12.1.1",
         "ag-charts-react": "12.1.1",
         "ag-grid-community": "34.1.1",
-        "ag-grid-enterprise": "34.1.1",
         "ag-grid-react": "34.1.1",
         "axios": "^1.18.1",
         "axios-retry": "^4.5.0",
@@ -91,8 +89,6 @@
         "framer-motion": "^11.3.31",
         "fuse.js": "^7.0.0",
         "hast-util-to-jsx-runtime": "^2.3.6",
-        "highcharts": "^11.4.8",
-        "highcharts-react-official": "^3.2.1",
         "html-react-parser": "^5.1.7",
         "html-to-image": "^1.11.11",
         "input-otp": "^1.4.2",
@@ -1660,8 +1656,6 @@
 
     "ag-charts-core": ["ag-charts-core@12.1.1", "", { "dependencies": { "ag-charts-types": "12.1.1" } }, "sha512-Kp/fXAtNmHWWo4MTHfYN1O4O5F3wWF5ZhLcjbfrdBcx3rBdbQGw46K/FcclK8Wyer3tmITBG9EZQFO/CDeu4vA=="],
 
-    "ag-charts-enterprise": ["ag-charts-enterprise@12.1.1", "", { "dependencies": { "ag-charts-community": "12.1.1", "ag-charts-core": "12.1.1" } }, "sha512-kcifzWM1JA+gmXKUcHrFb5P23MAnY+3lyBo9MVziZh0RMH/fHa7wEjgPHyim7/71Lbz9DmJbaYaPwXpLp/4f9Q=="],
-
     "ag-charts-locale": ["ag-charts-locale@12.1.1", "", {}, "sha512-kpmtZvC12idQcNPnM3BIALmFUXvbb2TtCZtTuXqWdmtT7ykgnQCWWFczLOcM4EsgfnaudATI952JLAeQ/C2wwQ=="],
 
     "ag-charts-react": ["ag-charts-react@12.1.1", "", { "dependencies": { "ag-charts-community": "12.1.1" }, "peerDependencies": { "react": "^18.0.0 || ^19.0.0" } }, "sha512-FaFFXdICK1CVfIzCkIZN3L44ME9H6ddDAFWGcHGviA2PtfSz6WiT8fgYLIFvn7l6Qx9IcWMfqFpJ3OTf+DV8tw=="],
@@ -1669,8 +1663,6 @@
     "ag-charts-types": ["ag-charts-types@12.1.1", "", {}, "sha512-VbAOfp1E7+Z/TBufJOIjUYdx70kQRDg49WoluiVKVSB0r0el/uvxARp9xjzx4ByBq9+Xq/V23tJVsRj1MS2A/g=="],
 
     "ag-grid-community": ["ag-grid-community@34.1.1", "", { "dependencies": { "ag-charts-types": "12.1.1" } }, "sha512-ODVvGoMTkyGvMT8b5lzvum5r93bG6CKdJdNrk6u/aYS7oqZ5rUEXJJHC8n8Zq+o76KhFiXMBQrU39xuhz8i+Tg=="],
-
-    "ag-grid-enterprise": ["ag-grid-enterprise@34.1.1", "", { "dependencies": { "ag-grid-community": "34.1.1" }, "optionalDependencies": { "ag-charts-community": "12.1.1", "ag-charts-enterprise": "12.1.1" } }, "sha512-r/HPmKM7rU+EnMYjzUUnp7Zlq+C77chUCdcT9oTS4eYPbjS/TF4bZO8laL4Nx/eAnwN5G5tyltIqUnSHpJmqKw=="],
 
     "ag-grid-react": ["ag-grid-react@34.1.1", "", { "dependencies": { "ag-grid-community": "34.1.1", "prop-types": "^15.8.1" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-ZffTltCJe5+yzC57LVTMFpjZiYUzFiX8+G4NNfM1MfiLV6cMl5kCEE6w3Afc0nSt8b1JCAZOiX6K0+VXqjIfYQ=="],
 
@@ -2547,10 +2539,6 @@
     "hermes-estree": ["hermes-estree@0.25.1", "", {}, "sha512-0wUoCcLp+5Ev5pDW2OriHC2MJCbwLwuRx+gAqMTOkGKJJiBCLjtrvy4PWUGn6MIVefecRpzoOZ/UV6iGdOr+Cw=="],
 
     "hermes-parser": ["hermes-parser@0.25.1", "", { "dependencies": { "hermes-estree": "0.25.1" } }, "sha512-6pEjquH3rqaI6cYAXYPcz9MS4rY6R4ngRgrgfDshRptUZIc3lw0MCIJIGDj9++mfySOuPTHB4nrSW99BCvOPIA=="],
-
-    "highcharts": ["highcharts@11.4.8", "", {}, "sha512-5Tke9LuzZszC4osaFisxLIcw7xgNGz4Sy3Jc9pRMV+ydm6sYqsPYdU8ELOgpzGNrbrRNDRBtveoR5xS3SzneEA=="],
-
-    "highcharts-react-official": ["highcharts-react-official@3.2.2", "", { "peerDependencies": { "highcharts": ">=6.0.0", "react": ">=16.8.0" } }, "sha512-2kkWOB6RpdR26fmAJkrtJFG9xWFUDGKWyat88tW3fa/3l/Jc7D5ZfwTng2MZsdiKIH32AFy0Pr75udUe7uN6LA=="],
 
     "highlight.js": ["highlight.js@10.7.3", "", {}, "sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A=="],
 

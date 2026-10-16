@@ -28,7 +28,7 @@ vi.mock("~/components/Widgets/dataProcessors", () => ({ WidgetDataProcessors: {}
 vi.mock("~/components/Tooltip", () => ({ default: ({ children }: any) => children }));
 vi.mock("~/lib/constants", () => ({ BLOCKED_WIDGET_IDS: new Set() }));
 vi.mock("~/components/Widgets/Chart", () => ({ default: () => <div>Plotly widget retained</div> }));
-vi.mock("~/components/General/Table/AgGridSSRM", () => ({ default: () => { throw new Error("SSRM must not mount"); } }));
+vi.mock("~/components/Widgets/AgChart", () => ({ default: () => <div>Standalone chart retained</div> }));
 vi.mock("~/components/Widget.context", () => ({ useWidgetContext: () => ({ widget: fixture.widget, getWidget: () => fixture.widget, updateWidget: (update: any) => fixture.updates.push(update(fixture.widget)) }) }));
 vi.mock("~/lib/state/theme", () => ({ useShallowThemeStore: (select: any) => select({ theme: "light", tablePagination: fixture.tablePagination }) }));
 vi.mock("~/lib/utils", () => ({ cn: (...args: any[]) => args.filter((v) => typeof v === "string").join(" "), formatNumber: (n: number, digits: number) => n.toFixed(digits), formatNumberThousands: String, formatNumberMagnitude: String }));
@@ -51,6 +51,31 @@ vi.mock("ag-grid-react", () => ({ AgGridReact: forwardRef((props: any, ref: any)
 afterEach(() => { cleanup(); fixture.widget = { storage: {}, data: { table: {} } }; fixture.updates = []; fixture.tablePagination = false; vi.clearAllMocks(); });
 
 describe("Community callers", () => {
+  it("blocks unsupported standalone series without mounting or changing saved data", () => {
+    fixture.widget.storage = { chart_params: { chartType: "waterfall", yKey: ["income"] }, content: [{ income: 10 }] };
+    const before = structuredClone(fixture.widget);
+    const Renderer = getWidgetComponent("ag_chart");
+    render(<Suspense fallback={null}><Renderer /></Suspense>);
+    expect(screen.getByRole("status").textContent).toContain("unsupported standalone chart series");
+    expect(screen.queryByText("Standalone chart retained")).toBeNull();
+    expect(fixture.widget).toEqual(before);
+    expect(fixture.updates).toEqual([]);
+  });
+  it("retains a supported standalone chart", async () => {
+    fixture.widget.storage = { chart_params: { chartType: "line", yKey: ["income"] }, content: [{ income: 10 }] };
+    const Renderer = getWidgetComponent("ag_chart");
+    render(<Suspense fallback={null}><Renderer /></Suspense>);
+    await waitFor(() => expect(screen.getByText("Standalone chart retained")).toBeTruthy());
+  });
+  it.each(["ag_chart_from_table", "ssrm_table", "ssrm_advanced", "chart-highcharts"])("preserves saved legacy payload for unavailable renderer %s", (id) => {
+    fixture.widget.storage = { content: [{ date: "2025-12-31", revenue: 42 }], chartModel: { chartType: "line" }, arbitraryLegacyOptions: { retained: true } };
+    const before = structuredClone(fixture.widget);
+    const Renderer = getWidgetComponent(id as any);
+    render(<Suspense fallback={null}><Renderer /></Suspense>);
+    expect(screen.getByRole("status").textContent).toContain("saved configuration is preserved");
+    expect(fixture.widget).toEqual(before);
+    expect(fixture.updates).toEqual([]);
+  });
   it("uses theme pagination then saved settings on mount, settings changes, refresh and reopen", async () => {
     const rows = Array.from({ length: 250 }, (_, index) => ({ currency: `C${index}`, revenue: index }));
     const columns = [{ field: "currency" }, { field: "revenue" }];

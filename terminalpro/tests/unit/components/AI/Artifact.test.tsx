@@ -1,10 +1,13 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import Artifact from "~/components/AI/Artifact";
 import { useCopilotContext } from "~/lib/contexts/CopilotChatContext";
 import type { ArtifactT } from "~/lib/state/copilot";
 import { useThemeStore } from "~/lib/state/theme";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 // Global mocks
 vi.mock("sonner", () => ({

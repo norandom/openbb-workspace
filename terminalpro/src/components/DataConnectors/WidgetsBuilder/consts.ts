@@ -136,7 +136,6 @@ const DEFAULT_WIDGET_TYPES = [
   { label: "Live Grid", value: "live_grid" },
   { label: "Newsfeed", value: "newsfeed" },
   { label: "Advanced Chart", value: "advanced-chart" },
-  { label: "Highcharts Chart", value: "chart-highcharts" },
   { label: "Vega-Lite Chart", value: "chart-vegalite" },
   { label: "SSRM Advanced", value: "ssrm_advanced" },
 ];

@@ -1,5 +1,6 @@
 import Editor, { type Monaco } from "@monaco-editor/react";
 import { useCallback } from "react";
+import { communityWidgetSchema } from "./communityWidgetSchema";
 import { useWidgetConfigContext } from "./WidgetConfigContext";
 import widgetSchema from "./widget-schema.json";
 
@@ -20,7 +21,7 @@ export default function JSONConfiguration() {
         {
           uri: "http://terminalpro.io/schemas/widget-schema.json", // Unique URI for the schema
           fileMatch: ["*"], // Apply to all JSON files in this editor
-          schema: widgetSchema,
+          schema: communityWidgetSchema(widgetSchema),
         },
       ],
     });

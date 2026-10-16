@@ -1,5 +1,5 @@
 import type { WithoutGridCommon } from "ag-grid-community";
-import type { IHeaderParams } from "ag-grid-enterprise";
+import type { IHeaderParams } from "ag-grid-community";
 import type { AgGridReact } from "ag-grid-react";
 import dayjs from "dayjs";
 import type { AgGridSSRMOptions, WidgetColumnDefT, WidgetT } from "~/components/types";

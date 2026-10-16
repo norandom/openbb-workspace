@@ -1,4 +1,4 @@
-import type { ColDef } from "ag-grid-enterprise";
+import type { ColDef } from "ag-grid-community";
 import Avatar from "~/components/General/Avatar";
 
 export const COMPARISON_TYPES = [
