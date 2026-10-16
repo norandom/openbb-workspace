@@ -1,15 +1,17 @@
+import { currencyColumns } from "./CurrencyColumns";
+
+export { formatPercentage } from "./CurrencyColumns";
+
 import { keepPreviousData } from "@tanstack/react-query";
-import type { ColDef, GridOptions } from "ag-grid-community";
-import { type ReactElement, useCallback, useMemo, useState } from "react";
+import type { GridOptions } from "ag-grid-community";
+import { useCallback, useMemo, useState } from "react";
 import DraggableCard from "~/components/DraggableCard";
 import {
-  formatTime,
   getContextMenuItems,
   getTimezoneCompact,
 } from "~/components/General/Table/AgGridUtils";
 import { AgGridProvider, useColumnVisibility } from "~/components/General/Table/hooks";
 import TableSettings from "~/components/General/Table/SubMenus/TableSettings";
-import Tooltip from "~/components/Tooltip";
 import { useWidgetContext } from "~/components/Widget.context";
 import {
   useCurrencySnapshots,
@@ -17,36 +19,7 @@ import {
 } from "~/lib/api/sdkComponents";
 import type { FMPCurrencySnapshotsData } from "~/lib/api/sdkSchemas";
 import { useShallowThemeStore } from "~/lib/state/theme";
-import { cn, formatNumber } from "~/lib/utils";
 import DropdownCheckboxItems from "../Helpers/DropdownCheckboxItems";
-
-export function formatPercentage(
-  value: string | number,
-  withColor = false,
-  decimals = 2,
-): ReactElement | string {
-  const numericValue = Number(value);
-  if (Number.isNaN(numericValue)) {
-    return "Invalid value";
-  }
-  const formattedValue = `${numericValue >= 0 ? "+" : ""}${formatNumber(
-    numericValue,
-    decimals,
-  )}%`;
-  if (withColor) {
-    return (
-      <span
-        className={cn({
-          "text-green-400": numericValue > 0,
-          "text-red-500": numericValue < 0,
-        })}
-      >
-        {formattedValue}
-      </span>
-    );
-  }
-  return formattedValue;
-}
 
 export default function CurrencySnapshot() {
   const { widget, updateWidget } = useWidgetContext();
@@ -113,336 +86,35 @@ export default function CurrencySnapshot() {
 
       return {
         ...snapshot,
-        change_percent: snapshot?.change_percent * 100,
+        change_percent:
+          snapshot?.change_percent == null ? null : snapshot.change_percent * 100,
         symbol: `${snapshot.base_currency}/${snapshot.counter_currency}`,
-        one_day: quote?.one_day * 100,
-        one_week: quote?.one_week * 100,
-        one_month: quote?.one_month * 100,
-        three_month: quote?.three_month * 100,
-        six_month: quote?.six_month * 100,
-        ytd: quote?.ytd * 100,
-        one_year: quote?.one_year * 100,
-        three_year: quote?.three_year * 100,
-        five_year: quote?.five_year * 100,
-        ten_year: quote?.ten_year * 100,
-        max: quote?.max * 100,
+        one_day: quote?.one_day == null ? null : quote.one_day * 100,
+        one_week: quote?.one_week == null ? null : quote.one_week * 100,
+        one_month: quote?.one_month == null ? null : quote.one_month * 100,
+        three_month: quote?.three_month == null ? null : quote.three_month * 100,
+        six_month: quote?.six_month == null ? null : quote.six_month * 100,
+        ytd: quote?.ytd == null ? null : quote.ytd * 100,
+        one_year: quote?.one_year == null ? null : quote.one_year * 100,
+        three_year: quote?.three_year == null ? null : quote.three_year * 100,
+        five_year: quote?.five_year == null ? null : quote.five_year * 100,
+        ten_year: quote?.ten_year == null ? null : quote.ten_year * 100,
+        max: quote?.max == null ? null : quote.max * 100,
       };
     });
   }, [currencySnapshots, quoteData]);
 
   const timezone = getTimezoneCompact();
 
-  const columnDefs = useMemo(() => {
-    return [
-      { field: "base_currency", rowGroup: true, hide: true },
-      {
-        headerName: "Symbol",
-        flex: 1,
-        field: "symbol",
-        filter: "agTextColumnFilter",
-        cellDataType: "text",
-      },
-      {
-        field: "last_rate",
-        headerName: "Last",
-        flex: 1,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          return (
-            <span className="whitespace-nowrap" title={params.value}>
-              {formatNumber(params.value, decimalDigitsToUse)}
-            </span>
-          );
-        },
-      },
-      {
-        field: "open",
-        headerName: "Open",
-        flex: 1,
-        hide: true,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          return (
-            <span className="whitespace-nowrap" title={params.value}>
-              {formatNumber(params.value, decimalDigitsToUse)}
-            </span>
-          );
-        },
-      },
-      {
-        field: "high",
-        headerName: "High",
-        flex: 1,
-        hide: true,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          return (
-            <span className="whitespace-nowrap" title={params.value}>
-              {formatNumber(params.value, decimalDigitsToUse)}
-            </span>
-          );
-        },
-      },
-      {
-        field: "low",
-        headerName: "Low",
-        flex: 1,
-        hide: true,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          return (
-            <span className="whitespace-nowrap" title={params.value}>
-              {formatNumber(params.value, decimalDigitsToUse)}
-            </span>
-          );
-        },
-      },
-      {
-        field: "volume",
-        headerName: "Volume",
-        flex: 1,
-        hide: true,
-        filter: "agNumberColumnFilter",
-      },
-      {
-        field: "prev_close",
-        headerName: "Prev Close (%)",
-        flex: 1,
-        type: "numericColumn",
-        valueGetter: (params) => {
-          if (params.node.group) return "";
-          if (!(params.data?.prev_close && params.data?.last_rate)) return 0;
-          const prevClose = params.data.prev_close;
-          const lastRate = params.data.last_rate;
-          return formatNumber(
-            ((lastRate - prevClose) / prevClose) * 100,
-            decimalDigitsToUse,
-          );
-        },
-        cellRenderer: (params) => {
-          if (params.node.group) return "";
-          return formatPercentage(params.value, true, decimalDigitsToUse);
-        },
-      },
-      {
-        field: "change",
-        headerName: "Change",
-        flex: 1,
-        hide: true,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          return (
-            <span className="whitespace-nowrap" title={params.value}>
-              {formatNumber(params.value, decimalDigitsToUse)}
-            </span>
-          );
-        },
-      },
-      {
-        field: "change_percent",
-        headerName: "Change Percent",
-        flex: 1,
-        hide: true,
-        cellRenderer: (params) => {
-          if (params.node.group) return "";
-          return formatPercentage(params.value, true, decimalDigitsToUse);
-        },
-        filter: "agNumberColumnFilter",
-      },
-      {
-        field: "ma50",
-        headerName: "MA50",
-        flex: 1,
-        hide: true,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          return (
-            <span className="whitespace-nowrap" title={params.value}>
-              {formatNumber(params.value, decimalDigitsToUse)}
-            </span>
-          );
-        },
-      },
-      {
-        field: "ma200",
-        headerName: "MA200",
-        flex: 1,
-        hide: true,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          return (
-            <span className="whitespace-nowrap" title={params.value}>
-              {formatNumber(params.value, decimalDigitsToUse)}
-            </span>
-          );
-        },
-      },
-      {
-        field: "year_high",
-        headerName: "52W High",
-        flex: 1,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          return (
-            <span className="whitespace-nowrap" title={params.value}>
-              {formatNumber(params.value, decimalDigitsToUse)}
-            </span>
-          );
-        },
-      },
-      {
-        field: "year_low",
-        headerName: "52W Low",
-        flex: 1,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          return (
-            <span className="whitespace-nowrap" title={params.value}>
-              {formatNumber(params.value, decimalDigitsToUse)}
-            </span>
-          );
-        },
-      },
-      {
-        field: "one_week",
-        headerName: "1W%",
-        flex: 1,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          if (params.node.group) return "";
-          return formatPercentage(params.value, true, decimalDigitsToUse);
-        },
-      },
-      {
-        field: "one_month",
-        headerName: "1M%",
-        flex: 1,
-        hide: true,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          if (params.node.group) return "";
-          return formatPercentage(params.value, true, decimalDigitsToUse);
-        },
-      },
-      {
-        field: "three_month",
-        headerName: "3M%",
-        flex: 1,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          if (params.node.group) return "";
-          return formatPercentage(params.value, true, decimalDigitsToUse);
-        },
-      },
-      {
-        field: "six_month",
-        headerName: "6M%",
-        flex: 1,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          if (params.node.group) return "";
-          return formatPercentage(params.value, true, decimalDigitsToUse);
-        },
-      },
-      {
-        field: "ytd",
-        headerName: "YTD%",
-        flex: 1,
-        hide: true,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          if (params.node.group) return "";
-          return formatPercentage(params.value, true, decimalDigitsToUse);
-        },
-      },
-      {
-        field: "one_year",
-        headerName: "1Y%",
-        flex: 1,
-        hide: true,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          if (params.node.group) return "";
-          return formatPercentage(params.value, true, decimalDigitsToUse);
-        },
-      },
-      {
-        field: "three_year",
-        headerName: "3Y%",
-        flex: 1,
-        hide: true,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          if (params.node.group) return "";
-          return formatPercentage(params.value, true, decimalDigitsToUse);
-        },
-      },
-      {
-        field: "five_year",
-        headerName: "5Y%",
-        flex: 1,
-        hide: true,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          if (params.node.group) return "";
-          return formatPercentage(params.value, true, decimalDigitsToUse);
-        },
-      },
-      {
-        field: "ten_year",
-        headerName: "10Y%",
-        flex: 1,
-        hide: true,
-        filter: "agNumberColumnFilter",
-        type: "numericColumn",
-        cellRenderer: (params) => {
-          if (params.node.group) return "";
-          return formatPercentage(params.value, true, decimalDigitsToUse);
-        },
-      },
-      {
-        field: "last_rate_timestamp",
-        headerName: "Time",
-        flex: 1,
-        filter: "agDateColumnFilter",
-        cellRenderer: (params) => {
-          if (params.node.group) return "";
-          return (
-            <Tooltip message={timezone}>
-              <div>{formatTime(params.value)}</div>
-            </Tooltip>
-          );
-        },
-      },
-    ] as ColDef[];
-  }, [decimalDigitsToUse]);
+  const columnDefs = useMemo(
+    () => currencyColumns(decimalDigitsToUse, timezone),
+    [decimalDigitsToUse, timezone],
+  );
 
   const gridOptions = useMemo(() => {
     return {
       rowHeight: 32,
       headerHeight: 32,
-      groupDefaultExpanded: -1,
-      autoGroupColumnDef: {
-        headerName: "Base Currency",
-      },
-      groupDisplayType: "multipleColumns",
     } as GridOptions<any>;
   }, []);
 

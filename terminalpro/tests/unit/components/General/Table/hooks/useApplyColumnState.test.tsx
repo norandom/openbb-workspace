@@ -39,6 +39,7 @@ const createGridApi = () => ({
     { colId: "b", width: 300 },
   ]),
   applyColumnState: vi.fn(),
+  setState: vi.fn(),
   setFilterModel: vi.fn(),
   setRowGroupColumns: vi.fn(),
   getColumnGroupState: vi.fn(() => []),
@@ -103,66 +104,25 @@ const renderApplyColumnState = ({
 
 const flushRestore = () => new Promise((resolve) => setTimeout(resolve, 30));
 
-describe("useApplyColumnState chart-view transitions", () => {
-  it("keeps saved column widths when restoring the table as chart view closes", async () => {
-    // Toggle-off flow: ChartViewButton's setView stamps the shared ref before
-    // flipping storage, then handleChartViewToggle calls applyColumnState with
-    // ignoreChart=true while the hook closure still sees enabled=true
+describe("Community column state restoration", () => {
+  it("restores modern saved widths without automatic resizing", async () => {
     const api = createGridApi();
-    const previousChartEnabledRef = { current: true };
-
-    const applyColumnState = renderApplyColumnState({
-      widget: createWidget(true),
-      liveWidget: createWidget(false),
-      previousChartEnabledRef,
-    });
-
-    applyColumnState({ api } as any, true);
+    const applyColumnState = renderApplyColumnState({ widget: createWidget(false), previousChartEnabledRef: { current: false } });
+    applyColumnState({ api } as any);
     await flushRestore();
-
-    expect(api.applyColumnState).toHaveBeenCalledWith(
-      expect.objectContaining({
-        state: expect.arrayContaining([
-          expect.objectContaining({ colId: "a", width: 222 }),
-          expect.objectContaining({ colId: "b", width: 333 }),
-        ]),
-      }),
-    );
+    expect(api.setState).toHaveBeenCalledWith(expect.objectContaining({ columnSizing: { columnSizingModel: savedWidths } }));
     expect(api.sizeColumnsToFit).not.toHaveBeenCalled();
     expect(api.autoSizeAllColumns).not.toHaveBeenCalled();
   });
-
-  it("keeps saved column widths on the follow-up restore after the chart closed", async () => {
-    // e.g. onNewColumnsLoaded fires after the toggle re-render: chart is off
-    // everywhere, only the shared flag (cleared by setView's delayed reset)
-    // says we just came back from chart view
+  it("leaves an imported integrated chart untouched without grid calls", async () => {
     const api = createGridApi();
-    const previousChartEnabledRef = { current: true };
-
-    const applyColumnState = renderApplyColumnState({
-      widget: createWidget(false),
-      previousChartEnabledRef,
-    });
-
+    const widget = createWidget(true);
+    const before = structuredClone(widget);
+    const applyColumnState = renderApplyColumnState({ widget, previousChartEnabledRef: { current: false } });
     applyColumnState({ api } as any);
     await flushRestore();
-
-    expect(api.sizeColumnsToFit).not.toHaveBeenCalled();
-    expect(api.autoSizeAllColumns).not.toHaveBeenCalled();
-  });
-
-  it("still auto-fits small tables on restores unrelated to chart view", async () => {
-    const api = createGridApi();
-    const previousChartEnabledRef = { current: false };
-
-    const applyColumnState = renderApplyColumnState({
-      widget: createWidget(false),
-      previousChartEnabledRef,
-    });
-
-    applyColumnState({ api } as any);
-    await flushRestore();
-
-    expect(api.sizeColumnsToFit).toHaveBeenCalled();
+    expect(api.setState).not.toHaveBeenCalled();
+    expect(api.applyColumnState).not.toHaveBeenCalled();
+    expect(widget).toEqual(before);
   });
 });

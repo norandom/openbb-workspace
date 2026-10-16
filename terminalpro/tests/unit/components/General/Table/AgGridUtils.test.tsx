@@ -294,7 +294,7 @@ describe("getColumnDefs", () => {
     expect(dateCol?.filter).toBe("agDateColumnFilter");
   });
 
-  it("enables row grouping for advanced mode", () => {
+  it("keeps row grouping unavailable for legacy advanced mode", () => {
     const data = [{ name: "Apple", category: "Tech", price: 150 }];
     const advancedWidget = {
       ...mockWidget,
@@ -305,7 +305,7 @@ describe("getColumnDefs", () => {
 
     // Check that category columns have enableRowGroup
     const categoryCol = result.find((col) => col.chartDataType === "category");
-    expect(categoryCol?.enableRowGroup).toBe(true);
+    expect(categoryCol?.enableRowGroup).toBeUndefined();
   });
 
   it("respects decimal places parameter", () => {
@@ -461,75 +461,15 @@ describe("Edge Cases", () => {
   });
 });
 
-describe("getColumnDefs sparkline valueGetter", () => {
-  // AG Grid's agSparklineCellRenderer throws on a null cell value (null.length),
-  // which crashes the whole widget via the error boundary. The renderer reads
-  // params.value, which AG Grid computes from the TOP-LEVEL colDef.valueGetter —
-  // a valueGetter inside cellRendererParams is ignored. It must coerce any
-  // non-array value to [] so a row without data renders empty instead.
-  const getSparklineValueGetter = (sparkline: object) => {
-    const widget = {
-      widgetId: "test-widget",
-      external: false,
-      storage: { enableAdvanced: false },
-      data: {
-        table: {
-          columnsDefs: [{ field: "weekly_prices", sparkline }],
-        },
-      },
-    };
-    const data = [
-      { symbol: "RS", weekly_prices: [1, 2, 3], history: [1, 2, 3] },
-      { symbol: "NUE", weekly_prices: null, history: null },
-    ];
-
-    const result = getColumnDefs(data, widget as any);
-    const col = result.find((c) => c.field === "weekly_prices");
-    return col?.valueGetter as ((params: any) => unknown) | undefined;
-  };
-
-  it("returns [] when the dataField value is null", () => {
-    const valueGetter = getSparklineValueGetter({
-      type: "line",
-      dataField: "history",
-    });
-
-    expect(valueGetter?.({ data: { symbol: "NUE", history: null } })).toEqual([]);
-  });
-
-  it("returns [] when the column field value is null and no dataField is set", () => {
-    const valueGetter = getSparklineValueGetter({ type: "line" });
-
-    expect(valueGetter?.({ data: { symbol: "NUE", weekly_prices: null } })).toEqual(
-      [],
-    );
-  });
-
-  it("returns [] when row data is missing", () => {
-    const valueGetter = getSparklineValueGetter({
-      type: "line",
-      dataField: "history",
-    });
-
-    expect(valueGetter?.({ data: undefined })).toEqual([]);
-  });
-
-  it("returns [] for non-array values like strings and objects", () => {
-    const valueGetter = getSparklineValueGetter({
-      type: "line",
-      dataField: "history",
-    });
-
-    expect(valueGetter?.({ data: { history: "N/A" } })).toEqual([]);
-    expect(valueGetter?.({ data: { history: { close: 1 } } })).toEqual([]);
-  });
-
-  it("passes through valid array data unchanged", () => {
-    const valueGetter = getSparklineValueGetter({
-      type: "line",
-      dataField: "history",
-    });
-
-    expect(valueGetter?.({ data: { history: [1, 2, 3] } })).toEqual([1, 2, 3]);
+describe("Community sparkline compatibility", () => {
+  it("hides the unavailable sparkline while preserving source values", () => {
+    const rows = [{ symbol: "RS", weekly_prices: [1, 2, 3] }, { symbol: "NUE", weekly_prices: null }];
+    const widget = { data: { table: { columnsDefs: [{ field: "weekly_prices", sparkline: { type: "line" } }] } } };
+    const before = structuredClone(rows);
+    const column = getColumnDefs(rows, widget as any).find((column) => column.field === "weekly_prices");
+    expect(column.hide).toBe(true);
+    expect(column.cellRenderer).not.toBe("agSparklineCellRenderer");
+    expect(column.valueGetter).toBeUndefined();
+    expect(rows).toEqual(before);
   });
 });

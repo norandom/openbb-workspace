@@ -5,7 +5,6 @@ import { Checkbox } from "~/components/ds/atoms/Checkbox";
 import { Input } from "~/components/ds/atoms/Input";
 import BrandedLogo from "~/components/General/BrandedLogo";
 import Icon from "~/components/Icon";
-import Tooltip from "~/components/Tooltip";
 import { useWidgetContext } from "~/components/Widget.context";
 import { useStateReducer } from "~/hooks/useStateReducer";
 import { useShallowThemeStore } from "~/lib/state/theme";
@@ -43,14 +42,6 @@ const TableSettings = memo(
               <div className="-ml-0.5 grid grid-cols-3 gap-2 overflow-auto p-0.5">
                 <div className="flex items-center gap-2">
                   <Checkbox
-                    id="enable-advanced"
-                    label="Advanced"
-                    checked={props.enableSettings?.enableAdvanced}
-                    onCheckedChange={(enableAdvanced: boolean) =>
-                      setEnableSettings?.({ enableAdvanced })
-                    }
-                  />
-                  <Checkbox
                     id="enable-pagination"
                     label="Pagination"
                     checked={props.enableSettings?.enablePagination ?? tablePagination}
@@ -58,31 +49,6 @@ const TableSettings = memo(
                       setEnableSettings?.({ enablePagination })
                     }
                   />
-                  <Checkbox
-                    id="enable-stats"
-                    label="Stats"
-                    checked={props.enableSettings?.enableStats}
-                    onCheckedChange={(enableStats: boolean) =>
-                      setEnableSettings?.({ enableStats })
-                    }
-                  />
-                  <Tooltip
-                    message="Formulas are not supported in Pivot Mode."
-                    position="top"
-                    hide={!isPivotMode}
-                  >
-                    <span className="flex items-center">
-                      <Checkbox
-                        id="enable-formulas"
-                        label="Formulas"
-                        disabled={isPivotMode}
-                        checked={props.enableSettings?.enableFormulas}
-                        onCheckedChange={(enableFormulas: boolean) =>
-                          setEnableSettings?.({ enableFormulas })
-                        }
-                      />
-                    </span>
-                  </Tooltip>
                 </div>
               </div>
             </div>

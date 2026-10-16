@@ -12,10 +12,6 @@ import * as sdkQuery from "~/lib/api/sdkComponents";
 import { useShallowThemeStore } from "~/lib/state/theme";
 import { cn, getJsonColDefs, getWidgetDataSource } from "~/lib/utils";
 import { getContextMenuItems, onPivotModeChanged } from "./AgGridUtils";
-import { ChartViewButton, ChartViewElement } from "./Chart/AgChartView";
-import useChartOptions, {
-  useChartToolPanelAction,
-} from "./Chart/hooks/useChartOptions";
 import {
   AgGridProvider,
   getSideBarOptions,
@@ -179,21 +175,6 @@ export function useGetTableData(
       rowHeight: 32,
       headerHeight:
         period.toLowerCase() === "quarter" && widget?.storage?.transpose ? 22 : 32,
-      statusBar: widget.storage.enableStats
-        ? {
-            statusPanels: [
-              {
-                statusPanel: "agAggregationComponent",
-                statusPanelParams: {
-                  aggFuncs: ["count", "sum", "min", "max", "avg"],
-                },
-              },
-              {
-                statusPanel: "agTotalRowCountComponent",
-              },
-            ],
-          }
-        : undefined,
       sideBar,
     };
   }, [
@@ -229,7 +210,7 @@ export default function AgGridTable() {
     },
   });
 
-  const chartView = widget.storage?.chartView?.enabled;
+  const chartView = false;
 
   const { rowData, columnDefs, gridOptions, isLoading, dataUpdatedAt, error } =
     useGetTableData(state, dispatch);
@@ -256,12 +237,9 @@ export default function AgGridTable() {
     [],
   );
 
-  const agChartViewProps = useChartOptions();
-  const ChartToolPanelActions = useChartToolPanelAction();
-
   const extraSettings = useMemo(() => {
-    return [quickActions, ...(chartView ? ChartToolPanelActions : [])];
-  }, [chartView, quickActions, ChartToolPanelActions]);
+    return [quickActions, ...[]];
+  }, [chartView, quickActions]);
 
   const exportFns = useAgExportFuncs();
 
@@ -324,16 +302,10 @@ export default function AgGridTable() {
           )}
         </>
       }
-      extraNavbarElements={
-        (!!widget?.storage?.chartView ||
-          widget?.external ||
-          widgetFromJSON?.data?.table?.enableCharts) && <ChartViewButton />
-      }
       error={error || rowData?.length === 0}
       errorMessage={widget?.external ? error?.message : "No results found"}
       extraSettings={extraSettings}
     >
-      {chartView && <ChartViewElement />}
       <div
         className={cn("flex grow h-full", {
           "h-[calc(100%-20px)]": showCurrency && !chartView,
@@ -347,7 +319,6 @@ export default function AgGridTable() {
           getContextMenuItems={contextMenuItems}
           gridOptions={gridOptions}
           onColumnPivotModeChanged={onColumnPivotModeChanged}
-          {...agChartViewProps}
         />
       </div>
       <HideOnResize>

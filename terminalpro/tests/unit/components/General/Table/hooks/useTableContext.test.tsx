@@ -448,7 +448,7 @@ describe("useGridSync Hook", () => {
     });
   });
 
-  it("does not call updateAgGrid for empty data", async () => {
+  it("updates the grid to clear stale rows on empty refresh", async () => {
     const mockUpdateAgGrid = vi.fn();
     const testContext = createTestContext({ updateAgGrid: mockUpdateAgGrid });
 
@@ -463,8 +463,7 @@ describe("useGridSync Hook", () => {
       </AgGridContext.Provider>,
     );
 
-    // Should not be called for empty data
-    expect(mockUpdateAgGrid).not.toHaveBeenCalled();
+    expect(mockUpdateAgGrid).toHaveBeenCalledWith(expect.objectContaining({ rowData: [], columnDefs: [] }));
   });
 });
 
