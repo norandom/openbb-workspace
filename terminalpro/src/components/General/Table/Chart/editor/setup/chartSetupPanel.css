@@ -1,0 +1,22 @@
+.chart-setup-panel { color: var(--text-heading); font: inherit; font-size: 12px; }
+.chart-setup-group { border-bottom: 1px solid var(--general-border-primary); }
+.chart-setup-group:last-child { border-bottom: 0; }
+.chart-setup-heading { display: flex; align-items: center; gap: 10px; width: 100%; height: 40px; padding: 0 14px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.chart-setup-heading > span { font-size: 18px; width: 12px; }
+.chart-setup-content { padding: 0 12px 12px; }
+.chart-setup-panel select { box-sizing: border-box; width: 100%; height: 40px; padding: 0 4px; border: 0; background: var(--surface-card); color: inherit; font: inherit; cursor: pointer; }
+.chart-setup-switch { margin-top: 10px; }
+.chart-setup-switch > div { display: flex; align-items: center; flex-direction: row-reverse; justify-content: space-between; min-height: 28px; }
+.chart-setup-switch label { color: var(--text-body, var(--text-heading)); font: inherit; cursor: pointer; }
+.chart-setup-switch .BB-Switch { box-sizing: border-box; position: relative; width: 28px; height: 18px; padding: 0; border: 0; border-radius: 12px; background: var(--toggle-bg, #777); cursor: pointer; }
+.chart-setup-switch .BB-Switch[data-state="checked"] { background: var(--tab-action-active, #29a5d4); }
+.chart-setup-switch .BB-Switch > span { display: block; box-sizing: border-box; width: 18px; height: 18px; border: 1px solid var(--toggle-bg, #777); border-radius: 50%; background: var(--surface-card); transform: translateX(0); }
+.chart-setup-switch .BB-Switch[data-state="checked"] > span { transform: translateX(10px); }
+.chart-setup-series { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+.chart-setup-chip { display: flex; align-items: center; height: 22px; border: 1px solid var(--general-border-primary); border-radius: 12px; background: var(--surface-divider); }
+.chart-setup-chip button { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 28px; height: 20px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.chart-setup-chip .chart-setup-grip { cursor: grab; font-size: 15px; }
+.chart-setup-series-label { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: 1; }
+.chart-setup-remove > span { display: block; width: 13px; height: 13px; border-radius: 50%; background: var(--text-caption); color: var(--surface-card); line-height: 12px; font-weight: bold; }
+.chart-setup-transpose { margin-top: 26px; }
+.chart-setup-panel :is(button, select):focus-visible { outline: 2px solid var(--text-heading); outline-offset: 1px; }
