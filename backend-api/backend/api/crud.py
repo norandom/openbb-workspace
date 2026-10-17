@@ -530,7 +530,7 @@ async def get_user_dashboards_owned(
             case(
                 (
                     and_(User.first_name.is_not(None), User.last_name.is_not(None)),
-                    func.concat(User.first_name, " ", User.last_name),
+                    User.first_name + " " + User.last_name,
                 ),
                 else_=User.email,
             ).label("created_by"),
@@ -811,7 +811,7 @@ async def get_user_dashboards_shared(
             case(
                 (
                     and_(User.first_name.is_not(None), User.last_name.is_not(None)),
-                    func.concat(User.first_name, " ", User.last_name),
+                    User.first_name + " " + User.last_name,
                 ),
                 else_=User.email,
             ).label("created_by"),
@@ -845,7 +845,7 @@ async def get_user_dashboards_entity_shared_noex(
             case(
                 (
                     and_(User.first_name.is_not(None), User.last_name.is_not(None)),
-                    func.concat(User.first_name, " ", User.last_name),
+                    User.first_name + " " + User.last_name,
                 ),
                 else_=User.email,
             ).label("created_by"),
@@ -904,11 +904,11 @@ async def get_user_dashboards_entity_shared(
         case(
             (
                 and_(User.first_name.is_not(None), User.last_name.is_not(None)),
-                func.concat(User.first_name, " ", User.last_name),
+                User.first_name + " " + User.last_name,
             ),
             else_=User.email,
         ).label("created_by"),
-    ).where(DashboardItem.uuid.in_(shared_uuids))
+    ).join(User, User.uuid == DashboardItem.creator_uuid).where(DashboardItem.uuid.in_(shared_uuids))
 
     results = await db.execute(query)
     return {x.uuid: get_value(x, user_uuid) for x in results.all()}
@@ -1526,7 +1526,7 @@ async def get_user_apps_shared(db: AsyncSession, user_uuid: UUID) -> UserApps:
             case(
                 (
                     and_(User.first_name.is_not(None), User.last_name.is_not(None)),
-                    func.concat(User.first_name, " ", User.last_name),
+                    User.first_name + " " + User.last_name,
                 ),
                 else_=User.email,
             ).label("created_by"),
@@ -1559,7 +1559,7 @@ async def get_user_apps_owned(db: AsyncSession, user_uuid: UUID) -> UserApps:
             case(
                 (
                     and_(User.first_name.is_not(None), User.last_name.is_not(None)),
-                    func.concat(User.first_name, " ", User.last_name),
+                    User.first_name + " " + User.last_name,
                 ),
                 else_=User.email,
             ).label("created_by"),
