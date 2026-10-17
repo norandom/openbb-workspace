@@ -250,3 +250,260 @@ describe("resolved Cartesian financial mapping", () => {
     );
   });
 });
+
+import {
+  captionAppearance,
+  seriesAppearance,
+  validateCartesianStyle,
+} from "../../../src/components/General/Table/Chart/echarts/cartesianStyle";
+import {
+  appearanceStyle,
+  enabledPaletteMarkerStyle,
+  expectedCaptions,
+  expectedPaletteMarkerAppearance,
+  expectedRevenueAppearance,
+  expectedRevenueColumnAppearance,
+  markerStyle,
+  retainedTitleCases,
+} from "./appearance.fixtures";
+
+describe("explicit Cartesian appearance helpers", () => {
+  it("projects frozen captions and retains hidden/empty titles", () => {
+    expect(captionAppearance(appearanceStyle)).toStrictEqual(expectedCaptions);
+    for (const entry of retainedTitleCases)
+      expect(captionAppearance(entry.style).title).toMatchObject(entry.expected);
+    expect(captionAppearance({ ...style, title: undefined })).toEqual({
+      title: undefined,
+      legendText: {
+        color: style.textColor,
+        fontFamily: style.fontFamily,
+        fontSize: style.fontSize,
+      },
+      axisLabelStyle: { color: style.textColor },
+    });
+    expect(captionAppearance(style).title).toEqual({
+      text: style.title,
+      textStyle: {
+        color: style.textColor,
+        fontFamily: style.fontFamily,
+        fontSize: style.fontSize,
+      },
+    });
+  });
+  it("projects explicit overrides and isolates families without mutating inputs", () => {
+    const before = JSON.stringify(markerStyle);
+    expect(seriesAppearance(markerStyle, "revenue", 0, "line")).toEqual(
+      expectedRevenueAppearance,
+    );
+    for (const family of ["groupedColumn", "stackedColumn"] as const)
+      expect(seriesAppearance(markerStyle, "revenue", 0, family)).toEqual(
+        expectedRevenueColumnAppearance,
+      );
+    expect(seriesAppearance(enabledPaletteMarkerStyle, "revenue", 0, "line")).toEqual(
+      expectedPaletteMarkerAppearance,
+    );
+    expect(
+      seriesAppearance(enabledPaletteMarkerStyle, "revenue", 1, "line").lineStyle
+        ?.color,
+    ).toBe(appearanceStyle.palette[1]);
+    expect(seriesAppearance(markerStyle, "revenue", 1, "line")).toEqual(
+      expectedRevenueAppearance,
+    );
+    expect(JSON.stringify(markerStyle)).toBe(before);
+  });
+  it.each([
+    [{}, "#145da0", "#145da0", 0],
+    [{ color: "legacy", lineWidth: 2 }, "legacy", "legacy", 2],
+    [
+      { color: "legacy", fill: "fill", stroke: "stroke", strokeWidth: 0.5 },
+      "fill",
+      "stroke",
+      0.5,
+    ],
+    [
+      { markerFill: "marker", markerStroke: "edge", markerStrokeWidth: 0 },
+      "marker",
+      "edge",
+      0,
+    ],
+  ] as const)("resolves every marker fallback %j", (override, fill, stroke, width) => {
+    const input = { ...enabledPaletteMarkerStyle, series: { revenue: override } };
+    expect(seriesAppearance(input, "revenue", 0, "line").itemStyle).toEqual({
+      color: fill,
+      borderColor: stroke,
+      borderWidth: width,
+    });
+  });
+  it("preserves legacy series shape and omits inactive marker fields", () => {
+    expect(seriesAppearance(style, "revenue", 0, "line")).toStrictEqual({
+      itemStyle: { color: style.series.revenue?.color, borderWidth: undefined },
+      lineStyle: { color: style.series.revenue?.color, width: 2 },
+      connectNulls: false,
+    });
+    expect(
+      seriesAppearance({ ...style, series: {} }, "revenue", 0, "groupedColumn"),
+    ).toStrictEqual({ itemStyle: { color: undefined, borderWidth: undefined } });
+    expect(seriesAppearance(appearanceStyle, "revenue", 0, "line")).toMatchObject({
+      showSymbol: false,
+      connectNulls: true,
+    });
+    expect(seriesAppearance(appearanceStyle, "revenue", 0, "line")).not.toHaveProperty(
+      "symbol",
+    );
+    expect(
+      seriesAppearance(
+        { ...style, series: { revenue: { fill: "fill", markerFill: "unused" } } },
+        "revenue",
+        0,
+        "line",
+      ).itemStyle.color,
+    ).toBe("fill");
+  });
+  it.each([
+    "fill",
+    "stroke",
+    "markerFill",
+    "markerStroke",
+    "color",
+    "strokeWidth",
+    "markerStrokeWidth",
+    "lineWidth",
+  ])("validates override %s even on columns", (key) => {
+    for (const value of [
+      null,
+      key.includes("Width") ? -1 : 7,
+      key.includes("Width") ? Number.POSITIVE_INFINITY : false,
+    ]) {
+      expect(
+        validateCartesianStyle(
+          { ...style, series: { revenue: { [key]: value } } },
+          "groupedColumn",
+        ),
+      ).toMatchObject({
+        status: "invalid",
+        diagnostics: [{ path: ["style", "series", "revenue", key] }],
+      });
+    }
+    expect(
+      validateCartesianStyle(
+        { ...style, series: { revenue: { [key]: undefined } } },
+        "line",
+      ).status,
+    ).toBe("valid");
+  });
+  it.each([
+    ["titleEnabled", null],
+    ["titleEnabled", 1],
+    ["title", null],
+    ["typography", null],
+    ["typography", {}],
+    ["line", null],
+    ["line", {}],
+    ["line", { connectMissingData: 1, markers: { enabled: false } }],
+    ["line", { connectMissingData: true, markers: null }],
+    [
+      "line",
+      { connectMissingData: true, markers: { enabled: true, shape: 7, size: 1 } },
+    ],
+    [
+      "line",
+      {
+        connectMissingData: true,
+        markers: { enabled: true, shape: "circle", size: -1 },
+      },
+    ],
+  ])("rejects malformed optional %s", (key, value) => {
+    expect(
+      validateCartesianStyle({ ...style, [key]: value }, "groupedColumn").status,
+    ).toBe("invalid");
+  });
+  it("validates complete typography, retained text and optional absence", () => {
+    for (const field of ["title", "legend", "axis"] as const)
+      for (const change of [
+        { color: null },
+        { fontFamily: 2 },
+        { fontSize: -1 },
+        { fontSize: Number.NaN },
+        { fontSize: Number.POSITIVE_INFINITY },
+      ])
+        expect(
+          validateCartesianStyle(
+            {
+              ...appearanceStyle,
+              typography: {
+                ...appearanceStyle.typography,
+                [field]: { ...appearanceStyle.typography?.[field], ...change },
+              },
+            },
+            "line",
+          ).status,
+        ).toBe("invalid");
+    for (const key of ["titleEnabled", "typography", "line"])
+      expect(
+        validateCartesianStyle({ ...style, [key]: undefined }, "line").status,
+      ).toBe("valid");
+    expect(
+      validateCartesianStyle(
+        { ...style, title: undefined, titleEnabled: false },
+        "line",
+      ).status,
+    ).toBe("invalid");
+    for (const entry of retainedTitleCases)
+      expect(validateCartesianStyle(entry.style, "line").status).toBe("valid");
+  });
+  it("prioritizes malformed fields over unsupported active shape", () => {
+    const input = {
+      ...appearanceStyle,
+      line: {
+        connectMissingData: true,
+        markers: { enabled: true, shape: "square", size: 0 },
+      },
+    };
+    expect(validateCartesianStyle(input, "line")).toMatchObject({
+      status: "unsupported",
+      diagnostics: [{ path: ["style", "line", "markers", "shape"] }],
+    });
+    expect(validateCartesianStyle(input, "groupedColumn").status).toBe("valid");
+    expect(
+      validateCartesianStyle({ ...input, series: { revenue: { fill: null } } }, "line")
+        .status,
+    ).toBe("invalid");
+    expect(
+      validateCartesianStyle(
+        {
+          ...input,
+          line: {
+            ...input.line,
+            markers: { enabled: false, shape: "square", size: 0 },
+          },
+        },
+        "line",
+      ).status,
+    ).toBe("valid");
+    expect(
+      validateCartesianStyle(
+        { ...input, line: { ...input.line, markers: { enabled: false, size: null } } },
+        "line",
+      ).status,
+    ).toBe("invalid");
+  });
+  it("rejects unsafe inspection and validates legacy boundary", () => {
+    for (const input of [
+      null,
+      {},
+      { ...style, palette: [] },
+      { ...style, precision: 21 },
+      { ...style, legend: { visible: true, position: "center" } },
+      new Proxy(
+        {},
+        {
+          get() {
+            throw Error("unsafe");
+          },
+        },
+      ),
+    ])
+      expect(validateCartesianStyle(input, "line").status).toBe("invalid");
+    expect(validateCartesianStyle(style, "line")).toEqual({ status: "valid", style });
+  });
+});
