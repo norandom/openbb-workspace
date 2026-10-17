@@ -1,0 +1,478 @@
+{
+  "provenance": {
+    "files": {
+      "artifacts/reviewed/parity/appearance-saved-composition/source-manifest.json": "ecb62e6f281938186676a179559d5ba91117c369663576bc416cf1e428a927f0",
+      "artifacts/reviewed/parity/appearance-saved-composition/case-inputs.json": "789f657c44215dac4c8e9d997653d8a7014ae6b2a57cc16f10bb39da1c6b200d",
+      "artifacts/reviewed/parity/appearance-saved-composition/cases.json": "fef8c696b34262d9a3f737caecabd001d19946f016ecb8c286efe2d99f4520e5",
+      "artifacts/reviewed/parity/appearance-saved-composition/assertions.json": "a685d78dab7cebc863f897d70689df64df66862a9af0ccd55a32fd8904f9856b",
+      "artifacts/reviewed/parity/appearance-contract-close/source-manifest.json": "a58755b20ea53daecff204096cede32455c86b754bc0d0876fc7113380ab6735",
+      "artifacts/reviewed/parity/appearance-contract-close/cases.json": "f429407124be0952217520754aa5c4ea0b682dc4fe16d0a072c94cace999877a",
+      "artifacts/reviewed/parity/appearance-contract-close/normalized-color-evidence.json": "74b1ad224b3fa6008da5050b29ce15920e4e2e752f32aa1bd5b714668e36c45f"
+    },
+    "savedCompositionSource": {
+      "source": "38dffc33389aca0e4a87e0e88d42f7067aa220df",
+      "image": "sha256:f48eb1c9b32e1f84d5199dafc943bc1fc10f3b1745ab29860975d002dc5c8a3f",
+      "candidate": "76edf85a46298f7bc5212ff9944e4b66e9baa4af",
+      "files": [
+        {
+          "path": "terminalpro/src/components/General/Table/Chart/hooks/useChartOptions.tsx",
+          "sha256": "ffcc22d273f3be0390365202812ebf200455913c2bb0eba1d945982bb8af444a"
+        },
+        {
+          "path": "terminalpro/src/components/General/Table/hooks/useUpdateColumnState.ts",
+          "sha256": "c6b34ad355c19d69f0eb858c9fbb027c7a5cc0cb5e6cae49e3f15bc466f4d0fb"
+        },
+        {
+          "path": "terminalpro/src/components/General/Table/hooks/useTableContext.tsx",
+          "sha256": "63e82095b66945c12a657968fd57ab22ad92105fe6d981b7d2f403a8ee34f8da"
+        },
+        {
+          "path": "terminalpro/src/components/General/Table/Chart/AgChartView.tsx",
+          "sha256": "37a5a127ee597efbe26d47806d1085ccd1447dc11d2f048cf4c98cb8abd70fc7"
+        }
+      ]
+    },
+    "colorSource": {
+      "installedDependency": {
+        "name": "ag-charts-community",
+        "version": "12.1.1",
+        "license": "MIT",
+        "files": [
+          {
+            "path": "/home/mc/qopenbb-work/appearance-deps/terminalpro/node_modules/ag-charts-community/package.json",
+            "sha256": "77ae0168d7c6209f2c880a00748fadbb390da794532164d84e0b4382e61c5b88"
+          },
+          {
+            "path": "/home/mc/qopenbb-work/appearance-deps/terminalpro/node_modules/ag-charts-community/LICENSE.txt",
+            "sha256": "1cb5ddc0b89c5bf0c5ccdf3a387edc4a1408c922968d633c719265c8ccdd354b"
+          },
+          {
+            "path": "/home/mc/qopenbb-work/appearance-deps/terminalpro/node_modules/ag-charts-community/dist/package/main.cjs.js",
+            "sha256": "237912c75d2c7e8219fced7bb79e5ed8fca0f620d6f4d259cdfa58748445fcd1"
+          }
+        ]
+      },
+      "ownedSource": [
+        {
+          "path": "terminalpro/package.json",
+          "sha256": "48d9550e7e7312809a6b36a4a47871f7c5b741447d21d36d8575f52fe0f935bf"
+        },
+        {
+          "path": "terminalpro/src/components/General/Table/Chart/themes.tsx",
+          "sha256": "ff4ffdf77236326f0f476d7a06f1cbc6b876f7d41235b9faca8999b4a3ca8e21"
+        },
+        {
+          "path": "terminalpro/src/components/General/Table/Chart/hooks/useChartOptions.tsx",
+          "sha256": "ffcc22d273f3be0390365202812ebf200455913c2bb0eba1d945982bb8af444a"
+        }
+      ]
+    }
+  },
+  "scope": "Finite data-only projections; expected composition follows the pinned owned common-replacement operation. No final theme inheritance is inferred.",
+  "composition": [
+    {
+      "id": "bar-common",
+      "referenceActionId": "bar-common",
+      "baseline": {
+        "stateAddress": "synthetic",
+        "chartType": "groupedColumn",
+        "model": {
+          "chartType": "groupedColumn",
+          "chartThemeName": "openbb-dark",
+          "chartOptions": {}
+        },
+        "options": {
+          "common": {
+            "title": {
+              "enabled": true,
+              "text": "SAVED COMMON",
+              "color": "#123456"
+            },
+            "legend": {
+              "position": "bottom"
+            },
+            "axes": {
+              "number": {
+                "label": {
+                  "color": "#123456"
+                }
+              }
+            },
+            "series": {
+              "fill": "#123456",
+              "stroke": "#234567",
+              "strokeWidth": 7
+            }
+          }
+        }
+      },
+      "generated": {
+        "common": {
+          "legend": {
+            "position": "top"
+          }
+        }
+      },
+      "expected": {
+        "common": {
+          "legend": {
+            "position": "top"
+          }
+        }
+      },
+      "observedCommonLegendPosition": "top"
+    },
+    {
+      "id": "bar-family",
+      "referenceActionId": "bar-family",
+      "baseline": {
+        "stateAddress": "synthetic",
+        "chartType": "groupedColumn",
+        "model": {
+          "chartType": "groupedColumn",
+          "chartThemeName": "openbb-dark",
+          "chartOptions": {}
+        },
+        "options": {
+          "common": {
+            "title": {
+              "enabled": true,
+              "text": "SAVED COMMON",
+              "color": "#123456"
+            },
+            "legend": {
+              "position": "bottom"
+            },
+            "axes": {
+              "number": {
+                "label": {
+                  "color": "#123456"
+                }
+              }
+            },
+            "series": {
+              "fill": "#123456",
+              "stroke": "#234567",
+              "strokeWidth": 7
+            }
+          },
+          "bar": {
+            "title": {
+              "enabled": true,
+              "text": "SAVED BAR",
+              "color": "#654321"
+            },
+            "legend": {
+              "position": "right"
+            },
+            "axes": {
+              "number": {
+                "label": {
+                  "color": "#654321"
+                },
+                "left": {
+                  "label": {
+                    "color": "#abcdef"
+                  }
+                }
+              }
+            },
+            "series": {
+              "fill": "#abcdef",
+              "stroke": "#fedcba",
+              "strokeWidth": 3
+            }
+          }
+        }
+      },
+      "generated": {
+        "common": {
+          "legend": {
+            "position": "top"
+          }
+        }
+      },
+      "expected": {
+        "common": {
+          "legend": {
+            "position": "top"
+          }
+        },
+        "bar": {
+          "title": {
+            "enabled": true,
+            "text": "SAVED BAR",
+            "color": "#654321"
+          },
+          "legend": {
+            "position": "right"
+          },
+          "axes": {
+            "number": {
+              "label": {
+                "color": "#654321"
+              },
+              "left": {
+                "label": {
+                  "color": "#abcdef"
+                }
+              }
+            }
+          },
+          "series": {
+            "fill": "#abcdef",
+            "stroke": "#fedcba",
+            "strokeWidth": 3
+          }
+        }
+      },
+      "observedCommonLegendPosition": "top"
+    },
+    {
+      "id": "line-common",
+      "referenceActionId": "line-common",
+      "baseline": {
+        "stateAddress": "synthetic",
+        "chartType": "line",
+        "model": {
+          "chartType": "line",
+          "chartThemeName": "openbb-dark",
+          "chartOptions": {}
+        },
+        "options": {
+          "common": {
+            "title": {
+              "enabled": true,
+              "text": "SAVED COMMON",
+              "color": "#123456"
+            },
+            "legend": {
+              "position": "bottom"
+            },
+            "axes": {
+              "number": {
+                "label": {
+                  "color": "#123456"
+                }
+              }
+            },
+            "series": {
+              "fill": "#123456",
+              "stroke": "#234567",
+              "strokeWidth": 7
+            }
+          }
+        }
+      },
+      "generated": {
+        "common": {
+          "legend": {
+            "position": "top"
+          }
+        }
+      },
+      "expected": {
+        "common": {
+          "legend": {
+            "position": "top"
+          }
+        }
+      },
+      "observedCommonLegendPosition": "top"
+    },
+    {
+      "id": "line-family",
+      "referenceActionId": "line-family",
+      "baseline": {
+        "stateAddress": "synthetic",
+        "chartType": "line",
+        "model": {
+          "chartType": "line",
+          "chartThemeName": "openbb-dark",
+          "chartOptions": {}
+        },
+        "options": {
+          "common": {
+            "title": {
+              "enabled": true,
+              "text": "SAVED COMMON",
+              "color": "#123456"
+            },
+            "legend": {
+              "position": "bottom"
+            },
+            "axes": {
+              "number": {
+                "label": {
+                  "color": "#123456"
+                }
+              }
+            },
+            "series": {
+              "fill": "#123456",
+              "stroke": "#234567",
+              "strokeWidth": 7
+            }
+          },
+          "line": {
+            "title": {
+              "enabled": true,
+              "text": "SAVED LINE",
+              "color": "#654321"
+            },
+            "legend": {
+              "position": "right"
+            },
+            "axes": {
+              "number": {
+                "label": {
+                  "color": "#654321"
+                },
+                "left": {
+                  "label": {
+                    "color": "#abcdef"
+                  }
+                }
+              }
+            },
+            "series": {
+              "fill": "#abcdef",
+              "stroke": "#fedcba",
+              "strokeWidth": 5,
+              "marker": {
+                "enabled": true,
+                "fill": "#789abc",
+                "stroke": "#cba987",
+                "strokeWidth": 2
+              }
+            }
+          }
+        }
+      },
+      "generated": {
+        "common": {
+          "legend": {
+            "position": "top"
+          }
+        }
+      },
+      "expected": {
+        "common": {
+          "legend": {
+            "position": "top"
+          }
+        },
+        "line": {
+          "title": {
+            "enabled": true,
+            "text": "SAVED LINE",
+            "color": "#654321"
+          },
+          "legend": {
+            "position": "right"
+          },
+          "axes": {
+            "number": {
+              "label": {
+                "color": "#654321"
+              },
+              "left": {
+                "label": {
+                  "color": "#abcdef"
+                }
+              }
+            }
+          },
+          "series": {
+            "fill": "#abcdef",
+            "stroke": "#fedcba",
+            "strokeWidth": 5,
+            "marker": {
+              "enabled": true,
+              "fill": "#789abc",
+              "stroke": "#cba987",
+              "strokeWidth": 2
+            }
+          }
+        }
+      },
+      "observedCommonLegendPosition": "top"
+    }
+  ],
+  "colors": [
+    {
+      "id": "explicit-derived-tokens",
+      "tokens": {
+        "base": "ag-default-dark",
+        "foregroundColor": "#123456",
+        "backgroundColor": "#26394a",
+        "textColor": "#123456",
+        "chartBackgroundColor": "#26394a"
+      },
+      "expected": {
+        "status": "resolved",
+        "gridLineColor": "#21384d",
+        "subtleTextColor": "#1d374f"
+      }
+    }
+  ],
+  "normalizedColors": {
+    "package": "ag-charts-community@12.1.1",
+    "license": "MIT",
+    "method": "installed _Util.Color.mix/fromString/toString; exhaustive red-channel pairs; Math.round(clamp(normalized interpolation)*255)",
+    "edge": {
+      "foreground": "#000000",
+      "background": "#9b0000",
+      "t": 0.9,
+      "actual": "#8b0000",
+      "normalized": "#8b0000",
+      "byteShortcut": "#8c0000"
+    },
+    "ratios": [
+      {
+        "role": "dark-grid",
+        "t": 0.743,
+        "channelPairs": 65536,
+        "normalizedMismatches": 0,
+        "byteShortcutMismatches": 0
+      },
+      {
+        "role": "light-grid",
+        "t": 0.9,
+        "channelPairs": 65536,
+        "normalizedMismatches": 0,
+        "byteShortcutMismatches": 1220
+      },
+      {
+        "role": "dark-subtitle",
+        "t": 0.57,
+        "channelPairs": 65536,
+        "normalizedMismatches": 0,
+        "byteShortcutMismatches": 118
+      },
+      {
+        "role": "light-subtitle",
+        "t": 0.38,
+        "channelPairs": 65536,
+        "normalizedMismatches": 0,
+        "byteShortcutMismatches": 237
+      }
+    ]
+  },
+  "invalidInputPolicy": {
+    "basis": "Approved design policy, not runtime reference observation",
+    "composition": ["accessors", "nonplain objects", "cycles", "throwing proxies"],
+    "colorsInvalid": [
+      "missing field",
+      "non-string token",
+      "unknown own field",
+      "accessor",
+      "nonplain object",
+      "throwing proxy"
+    ],
+    "colorsUnresolved": [
+      "unsupported string base",
+      "string outside opaque six-digit hex"
+    ]
+  }
+}
