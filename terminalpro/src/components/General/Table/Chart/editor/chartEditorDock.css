@@ -1,0 +1,21 @@
+.chart-editor-dock {
+  box-sizing: border-box;
+  width: 260px;
+  min-width: 260px;
+  height: 100%;
+  background: var(--surface-card);
+  color: var(--text-heading);
+  border-left: 1px solid var(--general-border-primary);
+  font-family: inherit;
+  font-size: 12px;
+}
+.chart-editor-dock[hidden], .chart-editor-dock-panel[hidden] { display: none; }
+.chart-editor-dock-tabs { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.chart-editor-dock-header { display: flex; align-items: center; flex-shrink: 0; height: 28px; border-bottom: 1px solid var(--general-border-primary); }
+.chart-editor-dock-header [role="tablist"] { display: flex; flex: 1; gap: 0; height: 100%; }
+.chart-editor-dock-header [role="tab"] { flex: 1; padding: 0; border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--text-caption); font: inherit; cursor: pointer; }
+.chart-editor-dock-header [role="tab"][data-state="active"] { color: var(--tab-action-active); border-bottom-color: currentColor; }
+.chart-editor-dock-collapse { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 34px; height: 100%; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.chart-editor-dock :is(button, [role="tabpanel"]):focus-visible { outline: 2px solid var(--text-heading); outline-offset: -2px; }
+.chart-editor-dock-panel { flex: 1; min-height: 0; overflow: auto; }
+.chart-editor-dock-panel > .chart-type-gallery { height: 100%; }
