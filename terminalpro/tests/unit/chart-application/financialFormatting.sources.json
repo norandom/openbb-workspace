@@ -1,0 +1,34 @@
+{
+  "pin": "38dffc33389aca0e4a87e0e88d42f7067aa220df",
+  "extraction": "TypeScript 5.9.2 top-level function/variable AST getText; exact source snippets joined LF; export removed only at execution",
+  "notice": "OpenBB Workspace source, OpenBB Inc. Preserve upstream vendor/workspace/LICENSE and notices. Test-only original helper excerpts, no maintained production copy.",
+  "sources": [
+    {
+      "path": "terminalpro/src/lib/utils/utils.ts",
+      "fullSourceSha256": "42d80270c073318d648dc57b76c81cbc92f61b732ea33ea1a5f437fb032a99b1",
+      "names": [
+        "formatNumber",
+        "formatNumberMagnitude",
+        "formatNumberNoMagnitude",
+        "formatNumberThousands",
+        "toFixedString"
+      ],
+      "code": "export function formatNumber(number: number, decimals = 3, inMillions = false): string {\n  if (Number.isNaN(number)) {\n    return \"N/A\";\n  }\n  if (number === 0) return \"0\";\n  if (number > 1_000_000 || number < -1_000_000) {\n    return formatNumberMagnitude(number, decimals, inMillions);\n  }\n\n  const value = toFixedString(number, decimals);\n\n  if (number > 1000 || number < -1000) {\n    const parts = value.split(\".\");\n    const integerPart = parts[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g, \",\");\n    const decimalPart = parts[1] ? `.${parts[1]}` : \"\";\n    return `${integerPart}${decimalPart}`;\n  }\n  return value;\n}\nexport function formatNumberNoMagnitude(value: number | string) {\n  if (typeof value === \"string\") {\n    const suffix = value.replace(/[^a-zA-Z]/g, \"\").trim();\n    const magnitude = [\"\", \"K\", \"M\", \"B\", \"T\"].indexOf(suffix.replace(/\\s/g, \"\"));\n    value = Number(value.replace(/[^\\d.-]/g, \"\").trim()) * 10 ** (magnitude * 3);\n  }\n\n  return value;\n}\nexport function formatNumberThousands(value: number | string): string {\n  if (typeof value === \"string\") {\n    value = Number(value);\n  }\n\n  if (value > 1000 || value < -1000) {\n    const parts = value?.toString().split(\".\");\n    const integerPart = parts[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g, \",\");\n    const decimalPart = parts[1] ? `.${parts[1]}` : \"\";\n    return `${integerPart}${decimalPart}`;\n  }\n\n  return value?.toString();\n}\nexport function toFixedString(value: number, decimals = 3): string {\n  if (!value?.toFixed) return value?.toString();\n\n  if (value % 1 !== 0) {\n    if (value < 1 && value > -1) {\n      decimals = Math.max(decimals, 2);\n    }\n    const totalDecimals = value?.toString()?.split(\".\")[1]?.length || 0;\n    const toFixed = Math.min(decimals, totalDecimals);\n\n    const rounded = value?.toFixed(toFixed);\n    return rounded?.padEnd(decimals + rounded?.indexOf(\".\") + 1, \"0\");\n  }\n  return value?.toString();\n}\nexport function formatNumberMagnitude(\n  value: number | string,\n  decimals = 3,\n  inMillions = false,\n  noSuffix = false,\n) {\n  if (typeof value === \"string\") {\n    value = Number(formatNumberNoMagnitude(value));\n  }\n\n  if (value === 0) return \"0\";\n  if (Number.isNaN(value)) return \"N/A\";\n\n  value = Number(toFixedString(value, decimals) || 0);\n\n  if (value > 1_000_000 || value < -1_000_000) {\n    const magnitude = Math.min(\n      inMillions ? 2 : 4,\n      Math.floor(Math.log10(Math.abs(value)) / 3),\n    );\n    const suffix = [\" \", \"\", \"M\", ...(inMillions ? [] : [\"B\", \"T\"])][magnitude];\n    const formatted = round(\n      value / 10 ** (magnitude * 3),\n      Math.min(decimals, 3),\n    ).toString();\n\n    const parts = formatted?.toString().split(\".\");\n    const integerPart = parts[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g, \",\");\n    const decimalPart = `.${parts[1] || \"\"}`;\n    const formattedNumber = `${integerPart}${decimalPart}`;\n\n    const finalValue = `${formattedNumber?.padEnd(\n      Math.min(decimals, 3) + formattedNumber?.indexOf(\".\") + 1,\n      \"0\",\n    )}`;\n\n    return `${finalValue.split(\".\")?.[1] ? finalValue : finalValue.split(\".\")?.[0]} ${\n      noSuffix ? \"\" : suffix\n    }`;\n  }\n\n  if (inMillions && (value > 1_000 || value < -1_000)) {\n    // format number in millions\n    const formatted = round(value / 1_000_000, decimals).toString();\n    const parts = formatted?.toString().split(\".\");\n    const integerPart = parts[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g, \",\");\n    const decimalPart = `.${parts[1] || \"\"}`;\n    const formattedNumber = `${integerPart}${decimalPart}`;\n\n    return `${formattedNumber?.padEnd(\n      decimals + formattedNumber?.indexOf(\".\") + 1,\n      \"0\",\n    )} ${noSuffix ? \"\" : \"M\"}`;\n  }\n\n  return formatNumberThousands(value);\n}",
+      "codeSha256": "3e2badb377d7c3edfeee69b43a9ea30440cafb216b041791c0998fc699a51f1f"
+    },
+    {
+      "path": "terminalpro/src/components/General/Table/AgGridUtils.tsx",
+      "fullSourceSha256": "152af34753d847c866539ffe99d0de61008182d4c40ef625442d18ae9f07f772",
+      "names": ["datePattern", "dateTimePattern", "isDate", "isDateTime"],
+      "code": "const datePattern = /^\\d{4}-\\d{2}-\\d{2}$|^\\d{1,2}\\/\\d{1,2}\\/\\d{4}$/;\nconst dateTimePattern = /^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}(\\.\\d*)?/;\nexport function isDate(value: any): boolean {\n  return datePattern.test(value?.toString()) && dayjs(value).isValid();\n}\nexport function isDateTime(value: any): boolean {\n  return dateTimePattern.test(value?.toString()) && dayjs(value).isValid();\n}",
+      "codeSha256": "a9004a55ac8f4690042774083e74975f79e22533ec9576b4b67b59af61b2b1af"
+    },
+    {
+      "path": "terminalpro/src/components/General/Table/Chart/utils.tsx",
+      "fullSourceSha256": "a4a092b6ccb6076006dc51c93f9ea088c608d2aadb24b6183c5683d8ca302ba1",
+      "names": ["getFiscalPeriodString"],
+      "code": "export function getFiscalPeriodString(\n  value: string | Date,\n  getParsedPeriod: CreateDefaultProps[\"getParsedPeriod\"],\n  chartType = \"\",\n): string {\n  const hasTime = isDateTime(value);\n\n  if (value instanceof Date) {\n    const valueStr = value.toISOString().replace(\"T\", \" \");\n    return valueStr.slice(0, 19).replace(\" 00:00:00\", \"\");\n  }\n\n  if (!(isDate(value) || hasTime)) return value;\n\n  const dateObj = dayjs(value);\n\n  if (hasTime && dateObj.format(\"HH:mm:ss\").includes(\"00:00:00\")) {\n    return dateObj.format(\"YYYY-MM-DD\");\n  }\n\n  const { isQuarterly, isAnnual } = getParsedPeriod();\n  if (isQuarterly) {\n    const newLine = chartType?.includes(\"Column\") ? \"\\n\" : \" \";\n    return `Q${dateObj.quarter()}${newLine}${dateObj.year()}`;\n  }\n\n  if (isAnnual) return `FY ${dateObj.year()}`;\n\n  return value;\n}",
+      "codeSha256": "90c955e698ee86bc71040731e6d14f04caae9b9ff4a623c59a8f06323d2b2aa7"
+    }
+  ]
+}
