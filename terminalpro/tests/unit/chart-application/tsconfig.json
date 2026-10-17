@@ -1,0 +1,8 @@
+{
+  "extends": "../chart-compatibility/tsconfig.json",
+  "include": [
+    "../../../src/components/General/Table/Chart/application/**/*.ts",
+    "./**/*.ts",
+    "./**/*.tsx"
+  ]
+}
