@@ -4,6 +4,12 @@ import type { ChartSnapshot, SnapshotDiagnostic } from "../compatibility/snapsho
 export type CartesianFamily = "groupedColumn" | "stackedColumn" | "line";
 export interface CartesianSeriesStyle {
   readonly color?: string;
+  readonly fill?: string;
+  readonly stroke?: string;
+  readonly strokeWidth?: number;
+  readonly markerFill?: string;
+  readonly markerStroke?: string;
+  readonly markerStrokeWidth?: number;
   /** Finite nonnegative width. */
   readonly lineWidth?: number;
 }
@@ -16,6 +22,17 @@ export interface ResolvedCartesianStyle {
   /** Finite nonnegative size. */
   readonly fontSize: number;
   readonly title?: string;
+  /** Explicit visibility retains title text, including the empty string. */
+  readonly titleEnabled?: boolean;
+  readonly typography?: {
+    readonly title: CaptionTypography;
+    readonly legend: CaptionTypography;
+    readonly axis: CaptionTypography;
+  };
+  readonly line?: {
+    readonly connectMissingData: boolean;
+    readonly markers: LineMarkerStyle;
+  };
   readonly legend: {
     readonly visible: boolean;
     readonly position: "top" | "bottom" | "left" | "right";
@@ -27,7 +44,10 @@ export interface ResolvedCartesianStyle {
 }
 export type CartesianTranslationResult =
   | { readonly status: "supported"; readonly options: EChartsOption }
-  | { readonly status: "unsupported"; readonly diagnostics: readonly SnapshotDiagnostic[] }
+  | {
+      readonly status: "unsupported";
+      readonly diagnostics: readonly SnapshotDiagnostic[];
+    }
   | { readonly status: "invalid"; readonly diagnostics: readonly SnapshotDiagnostic[] };
 /** Unknown family and style inputs produce diagnostics without partial options. */
 export type TranslateCartesian = (
@@ -36,3 +56,53 @@ export type TranslateCartesian = (
   style: unknown,
 ) => CartesianTranslationResult;
 
+export interface CaptionTypography {
+  readonly color: string;
+  readonly fontFamily: string;
+  /** Finite nonnegative pixels. */
+  readonly fontSize: number;
+}
+/** Shape stays open so validation can distinguish unsupported from malformed. */
+export type LineMarkerStyle =
+  | { readonly enabled: false }
+  | { readonly enabled: true; readonly shape: string; readonly size: number };
+export type StyleValidation =
+  | { readonly status: "valid"; readonly style: ResolvedCartesianStyle }
+  | {
+      readonly status: "invalid" | "unsupported";
+      readonly diagnostics: readonly SnapshotDiagnostic[];
+    };
+export interface CartesianSeriesAppearance {
+  readonly itemStyle: {
+    readonly color?: string;
+    readonly borderColor?: string;
+    readonly borderWidth?: number;
+  };
+  readonly lineStyle?: { readonly color?: string; readonly width?: number };
+  readonly connectNulls?: boolean;
+  readonly showSymbol?: boolean;
+  readonly symbol?: "circle";
+  readonly symbolSize?: number;
+}
+export interface CartesianCaptionAppearance {
+  readonly title: EChartsOption["title"];
+  readonly legendText: CaptionTypography;
+  readonly axisLabelStyle: {
+    readonly color: string;
+    readonly fontFamily?: string;
+    readonly fontSize?: number;
+  };
+}
+export type ValidateCartesianStyle = (
+  input: unknown,
+  family: CartesianFamily,
+) => StyleValidation;
+export type SeriesAppearance = (
+  style: ResolvedCartesianStyle,
+  seriesId: string,
+  paletteIndex: number,
+  family: CartesianFamily,
+) => CartesianSeriesAppearance;
+export type CaptionAppearance = (
+  style: ResolvedCartesianStyle,
+) => CartesianCaptionAppearance;
