@@ -1,0 +1,141 @@
+{
+  "reference": {
+    "workspaceSource": "38dffc33389aca0e4a87e0e88d42f7067aa220df",
+    "image": "sha256:f48eb1c9b32e1f84d5199dafc943bc1fc10f3b1745ab29860975d002dc5c8a3f",
+    "inputs": [
+      {
+        "path": "artifacts/parity/grid-runtime-next/rows.json",
+        "sha256": "ac0f1cf7d3b2800ea6f4438b4f77c806bfea17e8abe48b287d848e80d592c491"
+      },
+      {
+        "path": "artifacts/parity/grid-runtime-next/fixture.json",
+        "sha256": "4e11f88fc7eed6fb70117600f431a74cc35634fbbfa42e10252af13b29d85ea0"
+      },
+      {
+        "path": "artifacts/parity/grid-runtime-next/ordinary.json",
+        "sha256": "99340b6f1ad053c5eeb40413eea397d0c055776d84b03de261b6c4b5070e41ea"
+      },
+      {
+        "path": "artifacts/parity/grid-runtime-next/filtered-sorted-bounds.json",
+        "sha256": "aa23464d3f245bb7a2463021c96af5972b9dd6d0d26b0f83a95925a34f8279fa"
+      },
+      {
+        "path": "artifacts/parity/grid-runtime-next/hidden-selected.json",
+        "sha256": "388321a7ac139b25a2eaa1b61c6bdf292b14860bf6039bf4c74bff4fe9a404ed"
+      },
+      {
+        "path": "artifacts/parity/grid-runtime-next/formatted-margin.json",
+        "sha256": "7b6be22d95f5610e819305b8c7baa1d9c84826a59f00aed9bd0f58e20e75477c"
+      },
+      {
+        "path": "artifacts/parity/grid-runtime-next/synthetic-value-getter.json",
+        "sha256": "d7da21374964be492fdef6877a75a2a770069f0ef7914e003628de4eb9d33f47"
+      },
+      {
+        "path": "artifacts/parity/grid-runtime-next/assert.mjs",
+        "sha256": "173ef56821024b3adf4904e57438d4a1a4238cabfdc58c44481799521980a12e"
+      }
+    ]
+  },
+  "rows": [
+    {
+      "rowKey": "obs-A",
+      "period": "2024-Q1",
+      "region": "North",
+      "revenue": 100,
+      "operatingIncome": 20,
+      "margin": 0.2
+    },
+    {
+      "rowKey": "obs-B",
+      "period": "2024-Q1",
+      "region": "South",
+      "revenue": 0,
+      "operatingIncome": 0,
+      "margin": 0
+    },
+    {
+      "rowKey": "obs-C",
+      "period": "2024-Q2",
+      "region": "North",
+      "revenue": -5.5,
+      "operatingIncome": -2,
+      "margin": -0.1
+    },
+    {
+      "rowKey": "obs-D",
+      "period": "2024-Q3",
+      "region": "South",
+      "revenue": 75.25,
+      "operatingIncome": null,
+      "margin": 0.125
+    },
+    {
+      "rowKey": "obs-E",
+      "period": "2024-Q4",
+      "region": "North",
+      "revenue": 140,
+      "operatingIncome": 30,
+      "margin": 0.2142857143
+    },
+    {
+      "rowKey": "obs-F",
+      "period": "2025-Q1",
+      "region": "South",
+      "revenue": 160,
+      "operatingIncome": 40,
+      "margin": 0.25
+    }
+  ],
+  "columns": [
+    {
+      "id": "period",
+      "role": "category"
+    },
+    {
+      "id": "revenue",
+      "role": "numeric",
+      "unit": "USD",
+      "scale": 1000000
+    },
+    {
+      "id": "operatingIncome",
+      "role": "numeric",
+      "unit": "USD",
+      "scale": 1000000
+    }
+  ],
+  "ordinary": {
+    "selectedColumnIds": ["period", "revenue", "operatingIncome"],
+    "ids": ["0", "1", "2", "3", "4", "5"],
+    "categories": ["2024-Q1", "2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4", "2025-Q1"],
+    "revenue": [100, 0, -5.5, 75.25, 140, 160],
+    "operatingIncome": [20, 0, -2, null, 30, 40]
+  },
+  "bounded": {
+    "selectedColumnIds": ["period", "operatingIncome", "revenue"],
+    "rowStartIndex": 1,
+    "rowEndIndex": 3,
+    "displayedIds": ["5", "4", "0", "3", "1"],
+    "ids": ["4", "0", "3"],
+    "categories": ["2024-Q4", "2024-Q1", "2024-Q3"],
+    "operatingIncome": [30, 20, null],
+    "revenue": [140, 100, 75.25]
+  },
+  "hidden": {
+    "selectedColumnIds": ["period", "revenue"]
+  },
+  "experiments": {
+    "normalizedPercent": {
+      "scope": "Dimensionless display experiment only; no mixed-unit mapper acceptance",
+      "raw": 0.2,
+      "apiFormatted": "0.20",
+      "rendered": "20.0 %"
+    },
+    "getter": {
+      "scope": "Synthetic public column definition instrumentation; arbitrary application getter configuration remains unverified",
+      "rawRevenue": 100,
+      "revenue": [200, 0, -11, 150.5, 280, 320]
+    }
+  }
+}

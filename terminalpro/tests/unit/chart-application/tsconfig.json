@@ -4,5 +4,8 @@
     "../../../src/components/General/Table/Chart/application/**/*.ts",
     "./**/*.ts",
     "./**/*.tsx"
-  ]
+  ],
+  "compilerOptions": {
+    "resolveJsonModule": true
+  }
 }
