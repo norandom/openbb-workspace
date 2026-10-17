@@ -16,6 +16,7 @@ export default defineConfig({
         resolve(import.meta.dirname, "fixture.html"),
         resolve(import.meta.dirname, "host.html"),
         resolve(import.meta.dirname, "cartesian.html"),
+        resolve(import.meta.dirname, "appearance.html"),
       ],
     },
   },
