@@ -507,3 +507,134 @@ describe("explicit Cartesian appearance helpers", () => {
     expect(validateCartesianStyle(style, "line")).toEqual({ status: "valid", style });
   });
 });
+
+describe("Cartesian mapper appearance integration", () => {
+  it.each([
+    "groupedColumn",
+    "stackedColumn",
+    "line",
+  ])("joins captions and identity overrides for %s", (family) => {
+    const mapped = options(family, snapshot, markerStyle);
+    expect(mapped.title).toStrictEqual(expectedCaptions.title);
+    expect(mapped.legend).toMatchObject({ textStyle: expectedCaptions.legendText });
+    expect(mapped.xAxis).toMatchObject({ axisLabel: expectedCaptions.axisLabelStyle });
+    expect(mapped.yAxis).toMatchObject({ axisLabel: expectedCaptions.axisLabelStyle });
+    const series = mapped.series as Record<string, unknown>[];
+    expect(series[0]).toMatchObject(
+      family === "line" ? expectedRevenueAppearance : expectedRevenueColumnAppearance,
+    );
+    if (family !== "line")
+      for (const key of [
+        "connectNulls",
+        "showSymbol",
+        "symbol",
+        "symbolSize",
+        "lineStyle",
+      ])
+        expect(series[0]).not.toHaveProperty(key);
+    else expect(series[0]).not.toHaveProperty("stack");
+  });
+  it("retains title text across visibility changes including empty text", () => {
+    for (const entry of retainedTitleCases)
+      expect(options("line", snapshot, entry.style).title).toMatchObject(
+        entry.expected,
+      );
+  });
+  it("keeps null observations identical across connection and marker changes without mutation", () => {
+    const input = structuredClone(snapshot);
+    const styling = structuredClone(markerStyle);
+    const before = JSON.stringify({ input, styling });
+    const disconnected = options("line", input, styling).series as Record<
+      string,
+      unknown
+    >[];
+    const connected = options("line", input, {
+      ...styling,
+      line: { connectMissingData: true, markers: { enabled: false } },
+    }).series as Record<string, unknown>[];
+    expect(disconnected.map((item) => item.data)).toStrictEqual(
+      connected.map((item) => item.data),
+    );
+    expect(disconnected[1]?.data).toStrictEqual([-40.125, null, null]);
+    expect(disconnected[0]).toMatchObject({
+      connectNulls: false,
+      showSymbol: true,
+      symbol: "circle",
+      symbolSize: 7,
+    });
+    expect(connected[0]).toMatchObject({ connectNulls: true, showSymbol: false });
+    expect(JSON.stringify({ input, styling })).toBe(before);
+  });
+  it("reassigns palette fallbacks by selection while retaining ID overrides", () => {
+    const input = { ...snapshot, selectedColumnIds: ["costs", "period", "revenue"] };
+    expect(options("line", input, enabledPaletteMarkerStyle).series).toMatchObject([
+      {
+        id: "costs",
+        lineStyle: { color: appearanceStyle.palette[0] },
+        itemStyle: { color: appearanceStyle.palette[0] },
+      },
+      {
+        id: "revenue",
+        lineStyle: { color: appearanceStyle.palette[1] },
+        itemStyle: { color: appearanceStyle.palette[1] },
+      },
+    ]);
+    expect(options("line", input, markerStyle).series).toMatchObject([
+      {},
+      { id: "revenue", ...expectedRevenueAppearance },
+    ]);
+  });
+  it.each([
+    "groupedColumn",
+    "stackedColumn",
+    "line",
+  ])("preserves legacy exact series shape for %s", (family) => {
+    const series = options(family).series as Record<string, unknown>[];
+    expect(series[0]).toStrictEqual({
+      id: "revenue",
+      name: "revenue",
+      data: [123.456789, 0, -5.25],
+      itemStyle: { color: "#145da0", borderWidth: family === "line" ? undefined : 2 },
+      type: family === "line" ? "line" : "bar",
+      ...(family === "line"
+        ? { connectNulls: false, lineStyle: { color: "#145da0", width: 2 } }
+        : {}),
+      ...(family === "stackedColumn"
+        ? { stack: "total", stackStrategy: "samesign" }
+        : {}),
+    });
+    expect(options(family).title).not.toHaveProperty("show");
+    expect(options(family).xAxis).toMatchObject({
+      axisLabel: { color: style.textColor },
+    });
+    expect(
+      (options(family).xAxis as { axisLabel: object }).axisLabel,
+    ).not.toHaveProperty("fontFamily");
+  });
+  it("rejects malformed and unsupported appearance without partial options", () => {
+    const square = {
+      ...markerStyle,
+      line: {
+        connectMissingData: true,
+        markers: { enabled: true, shape: "square", size: 7 },
+      },
+    };
+    for (const [styling, status, path] of [
+      [{ ...markerStyle, typography: null }, "invalid", ["style", "typography"]],
+      [square, "unsupported", ["style", "line", "markers", "shape"]],
+    ] as const) {
+      const result = translateCartesian(snapshot, "line", styling);
+      expect(result).toMatchObject({ status, diagnostics: [{ path }] });
+      expect(result).not.toHaveProperty("options");
+    }
+    expect(translateCartesian(snapshot, "groupedColumn", square).status).toBe(
+      "supported",
+    );
+    expect(
+      translateCartesian(snapshot, "stackedColumn", {
+        ...square,
+        series: { revenue: { markerStrokeWidth: null } },
+      }).status,
+    ).toBe("invalid");
+  });
+});

@@ -4,52 +4,21 @@ import type {
   SnapshotColumn,
   SnapshotDiagnostic,
 } from "../compatibility/snapshotTypes";
-import type { ResolvedCartesianStyle, TranslateCartesian } from "./cartesianTypes";
+import {
+  captionAppearance,
+  seriesAppearance,
+  validateCartesianStyle,
+} from "./cartesianStyle";
+import type {
+  CartesianFamily,
+  ResolvedCartesianStyle,
+  TranslateCartesian,
+} from "./cartesianTypes";
 
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 const dimension = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value) && value >= 0;
-const positions = ["top", "bottom", "left", "right"];
-
-function styleValid(value: unknown): value is ResolvedCartesianStyle {
-  if (!record(value)) return false;
-  if (
-    ![value.background, value.textColor, value.fontFamily].every(
-      (item) => typeof item === "string",
-    )
-  )
-    return false;
-  if (
-    !Array.isArray(value.palette) ||
-    value.palette.length === 0 ||
-    !value.palette.every((item: unknown) => typeof item === "string")
-  )
-    return false;
-  if (
-    !dimension(value.fontSize) ||
-    !dimension(value.precision) ||
-    !Number.isInteger(value.precision) ||
-    value.precision > 20
-  )
-    return false;
-  if (value.title !== undefined && typeof value.title !== "string") return false;
-  if (
-    !record(value.legend) ||
-    typeof value.legend.visible !== "boolean" ||
-    typeof value.legend.position !== "string" ||
-    !positions.includes(value.legend.position)
-  )
-    return false;
-  if (!record(value.series)) return false;
-  return Object.values(value.series).every(
-    (override) =>
-      record(override) &&
-      (override.color === undefined || typeof override.color === "string") &&
-      (override.lineWidth === undefined || dimension(override.lineWidth)),
-  );
-}
-
 function diagnostic(
   code: string,
   path: readonly (string | number)[],
@@ -120,27 +89,21 @@ function tooltip(
 function seriesOptions(
   snapshot: ChartSnapshot,
   columns: readonly SnapshotColumn[],
-  family: string,
+  family: CartesianFamily,
   style: ResolvedCartesianStyle,
 ): (BarSeriesOption | LineSeriesOption)[] {
-  return columns.map((column) => {
-    const override = style.series[column.id];
+  return columns.map((column, index) => {
     const common = {
       id: column.id,
       // ECharts legend selection addresses names, so names must also use stable IDs.
       name: column.id,
       data: snapshot.rows.map((row) => row.values[column.id] ?? null),
-      itemStyle: {
-        color: override?.color,
-        borderWidth: family === "line" ? undefined : override?.lineWidth,
-      },
+      ...seriesAppearance(style, column.id, index, family),
     };
     if (family === "line") {
       return {
         ...common,
         type: "line",
-        connectNulls: false,
-        lineStyle: { color: override?.color, width: override?.lineWidth },
       };
     }
     if (family === "stackedColumn")
@@ -152,9 +115,10 @@ function seriesOptions(
 function buildOptions(
   snapshot: ChartSnapshot,
   columns: readonly SnapshotColumn[],
-  family: string,
+  family: CartesianFamily,
   style: ResolvedCartesianStyle,
 ): EChartsOption {
+  const captions = captionAppearance(style);
   const labels = new Map(columns.map((column) => [column.id, column.label]));
   return {
     backgroundColor: style.background,
@@ -164,33 +128,19 @@ function buildOptions(
       fontFamily: style.fontFamily,
       fontSize: style.fontSize,
     },
-    title:
-      style.title === undefined
-        ? undefined
-        : {
-            text: style.title,
-            textStyle: {
-              color: style.textColor,
-              fontFamily: style.fontFamily,
-              fontSize: style.fontSize,
-            },
-          },
+    title: captions.title,
     legend: {
       show: style.legend.visible,
       [style.legend.position]: 0,
       data: columns.map((column) => column.id),
       formatter: (name: string) => labels.get(name) ?? name,
-      textStyle: {
-        color: style.textColor,
-        fontFamily: style.fontFamily,
-        fontSize: style.fontSize,
-      },
+      textStyle: captions.legendText,
     },
     xAxis: {
       type: "category",
       data: snapshot.rows.map((_, index) => String(index)),
       axisLabel: {
-        color: style.textColor,
+        ...captions.axisLabelStyle,
         formatter: (value: string) =>
           String(snapshot.rows[Number(value)]?.category ?? ""),
       },
@@ -204,7 +154,7 @@ function buildOptions(
     yAxis: {
       type: "value",
       axisLabel: {
-        color: style.textColor,
+        ...captions.axisLabelStyle,
         formatter: (value: number) => value.toFixed(style.precision),
       },
     },
@@ -242,13 +192,8 @@ export const translateCartesian: TranslateCartesian = (snapshot, family, style) 
     };
   }
   try {
-    if (!styleValid(style))
-      return {
-        status: "invalid",
-        diagnostics: [
-          diagnostic("invalid-style", ["style"], "Resolved style fields are invalid."),
-        ],
-      };
+    const validated = validateCartesianStyle(style, family as CartesianFamily);
+    if (validated.status !== "valid") return validated;
     const columns = snapshot.selectedColumnIds.flatMap((id) =>
       snapshot.columns.filter((column) => column.id === id && column.role === "number"),
     );
@@ -256,7 +201,12 @@ export const translateCartesian: TranslateCartesian = (snapshot, family, style) 
     if (diagnostics.length) return { status: "unsupported", diagnostics };
     return {
       status: "supported",
-      options: buildOptions(snapshot, columns, family, style),
+      options: buildOptions(
+        snapshot,
+        columns,
+        family as CartesianFamily,
+        validated.style,
+      ),
     };
   } catch {
     return {
