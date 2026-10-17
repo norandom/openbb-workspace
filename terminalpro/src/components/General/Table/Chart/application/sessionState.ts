@@ -114,31 +114,60 @@ export const selectSessionBaseline: SelectSessionBaseline = (input) => {
     : invalid(result.error);
 };
 
+function isTooltipMode(event: unknown): boolean {
+  const fields = record(event);
+  return (
+    !!fields &&
+    Object.keys(fields).length === 2 &&
+    fields.kind === "tooltip-mode" &&
+    (fields.value === "single" ||
+      fields.value === "shared" ||
+      fields.value === "compact")
+  );
+}
+
 export const applyColumnEdit: ApplyColumnEdit = (input) => {
   const checked = validateSessionStamp(input.command.stamp, input.currentStamp);
   if (checked.status !== "ready") return checked;
-  const mapped = mapColumnEditorEvent({
-    chartType: input.command.chartType,
-    event: input.command.event,
-  });
-  if (!mapped.valid) return invalid(mapped.error);
-  const reducerInput = {
-    storage: input.storage,
-    stateKey: checked.stamp.address.stateKey,
-    currentModel: input.currentModel,
-    resolvedOptions: input.resolvedOptions,
-    eventOptions: mapped.value,
-    chartType: input.command.chartType,
-    totalSeries: input.totalSeries,
-    isPivotMode: input.isPivotMode,
-  };
-  const validated = validateIntegratedInput(reducerInput);
-  if (!validated.valid) return invalid(validated.error);
-  return {
-    status: "ready",
-    stamp: checked.stamp,
-    value: reduceIntegratedState(validated.value),
-  };
+  try {
+    const command = record(input.command);
+    const chartType = command?.chartType;
+    if (!command || (chartType !== "groupedColumn" && chartType !== "stackedColumn"))
+      return invalid("Column command chartType must be groupedColumn or stackedColumn");
+    // Only this exact valid event lacks reference behavior for the stacked family.
+    if (chartType === "stackedColumn" && isTooltipMode(command.event))
+      return {
+        status: "unresolved",
+        diagnostics: [
+          {
+            code: "unresolved-family",
+            path: ["command", "chartType"],
+            message: "tooltip-mode is unresolved for stackedColumn",
+          },
+        ],
+      };
+    const mapped = mapColumnEditorEvent({ chartType, event: command.event });
+    if (!mapped.valid) return invalid(mapped.error);
+    const reducerInput = {
+      storage: input.storage,
+      stateKey: checked.stamp.address.stateKey,
+      currentModel: input.currentModel,
+      resolvedOptions: input.resolvedOptions,
+      eventOptions: mapped.value,
+      chartType,
+      totalSeries: input.totalSeries,
+      isPivotMode: input.isPivotMode,
+    };
+    const validated = validateIntegratedInput(reducerInput);
+    if (!validated.valid) return invalid(validated.error);
+    return {
+      status: "ready",
+      stamp: checked.stamp,
+      value: reduceIntegratedState(validated.value),
+    };
+  } catch {
+    return invalid("Column command or event could not be safely inspected");
+  }
 };
 
 export const applyRangeTransition: ApplyRangeTransition = (input) => {

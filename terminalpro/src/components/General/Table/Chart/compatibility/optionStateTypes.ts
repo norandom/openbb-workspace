@@ -32,7 +32,8 @@ export type ColumnEditorEvent =
       readonly kind: "legend-position";
       readonly value: "top" | "bottom" | "left" | "right";
     }
-  | { readonly kind: "stroke-width"; readonly value: number };
+  | { readonly kind: "stroke-width"; readonly value: number }
+  | { readonly kind: "tooltip-mode"; readonly value: "single" | "shared" | "compact" };
 export interface ColumnEditorInput {
   readonly chartType: "groupedColumn" | "stackedColumn";
   readonly event: ColumnEditorEvent;

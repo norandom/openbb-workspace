@@ -80,6 +80,17 @@ export const mapColumnEditorEvent: MapColumnEditorEvent = (input) => {
     const event = dataFields(fields.event, ["kind", "value"]);
     if (!event)
       return { valid: false, error: "event must contain kind and value data fields" };
+    if (event.kind === "tooltip-mode") {
+      if (fields.chartType !== "groupedColumn")
+        return { valid: false, error: "tooltip-mode is unresolved for stackedColumn" };
+      const { value } = event;
+      if (value === "single" || value === "shared" || value === "compact")
+        return { valid: true, value: { bar: { tooltip: { mode: value } } } };
+      return {
+        valid: false,
+        error: "event.value for tooltip-mode must be single, shared or compact",
+      };
+    }
     return mapEvent(event);
   } catch {
     return { valid: false, error: "input or event could not be safely inspected" };

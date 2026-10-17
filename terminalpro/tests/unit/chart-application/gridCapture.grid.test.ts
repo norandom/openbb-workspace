@@ -11,6 +11,7 @@ type Row = Record<string, unknown>;
 let api: GridApi<Row>;
 let host: HTMLDivElement;
 beforeEach(() => {
+  vi.useFakeTimers();
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -22,10 +23,18 @@ beforeEach(() => {
   host = document.createElement("div");
   document.body.append(host);
 });
-afterEach(() => {
-  api?.destroy();
-  host.remove();
-  vi.unstubAllGlobals();
+afterEach(async () => {
+  try {
+    api?.destroy();
+    // AG Grid's row-removal animation can dispatch events after destroy().
+    // Run both that callback and its queued events while jsdom still exists.
+    await vi.runAllTimersAsync();
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    host.remove();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  }
 });
 async function grid(extra: ColDef<Row>[] = []) {
   api = createGrid<Row>(host, {

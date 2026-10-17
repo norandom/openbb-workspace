@@ -17,6 +17,68 @@ function patch(event: ColumnEditorEvent, chartType = "groupedColumn"): RuntimeOp
 }
 
 describe("column editor patches", () => {
+  it.each([
+    "single",
+    "shared",
+    "compact",
+  ] as const)("maps grouped tooltip %s to only the original bar mode leaf", (value) => {
+    const event: ColumnEditorEvent = { kind: "tooltip-mode", value };
+    const before = cloneDeep(event);
+    expect(patch(event)).toEqual({ bar: { tooltip: { mode: value } } });
+    expect(event).toEqual(before);
+    expect(mapColumnEditorEvent({ chartType: "stackedColumn", event }).valid).toBe(
+      false,
+    );
+  });
+  it.each([
+    "Multiple",
+    "multiple",
+    "Single",
+    "Compact",
+    "",
+    null,
+    undefined,
+    true,
+    1,
+    { path: "bar.tooltip.mode", value: "shared" },
+  ])("rejects tooltip labels and malformed stored modes: %j", (value) => {
+    for (const chartType of ["groupedColumn", "stackedColumn"]) {
+      expect(
+        mapColumnEditorEvent({ chartType, event: { kind: "tooltip-mode", value } }),
+      ).toMatchObject({ valid: false });
+    }
+  });
+  it("rejects extra tooltip paths and descriptor traps without reading values", () => {
+    let reads = 0;
+    const accessor = {
+      kind: "tooltip-mode",
+      get value() {
+        reads += 1;
+        return "shared";
+      },
+    };
+    const hostile = new Proxy(
+      {},
+      {
+        getPrototypeOf() {
+          throw new Error("inspection trap");
+        },
+      },
+    );
+    for (const event of [
+      accessor,
+      hostile,
+      { kind: "tooltip-mode", value: "shared", path: "series.tooltip" },
+      { kind: "tooltip-mode", value: "shared", [Symbol("extra")]: true },
+      Object.create({ kind: "tooltip-mode", value: "shared" }),
+      Object.defineProperty({ kind: "tooltip-mode" }, "value", { value: "shared" }),
+    ]) {
+      expect(mapColumnEditorEvent({ chartType: "groupedColumn", event }).valid).toBe(
+        false,
+      );
+    }
+    expect(reads).toBe(0);
+  });
   const cases: [ColumnEditorEvent, RuntimeOptions][] = [
     [
       { kind: "title-text", value: "Synthetic Revenue and EPS" },

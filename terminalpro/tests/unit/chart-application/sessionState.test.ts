@@ -6,7 +6,11 @@ import {
   selectSessionBaseline,
   validateSessionStamp,
 } from "../../../src/components/General/Table/Chart/application/sessionState";
-import type { SessionStamp } from "../../../src/components/General/Table/Chart/application/types";
+import type {
+  ColumnEditInput,
+  SessionStamp,
+} from "../../../src/components/General/Table/Chart/application/types";
+import { selectOptionBaseline } from "../../../src/components/General/Table/Chart/compatibility/optionState";
 
 const stamp = (widgetId = "widget", stateKey = "partition"): SessionStamp => ({
   address: { widgetId, stateKey, stateAddress: JSON.stringify([widgetId, stateKey]) },
@@ -15,6 +19,197 @@ const stamp = (widgetId = "widget", stateKey = "partition"): SessionStamp => ({
   renderRevision: 0,
 });
 describe("addressed chart session", () => {
+  const tooltipInput = (event: unknown, chartType = "groupedColumn"): ColumnEditInput =>
+    ({
+      command: { stamp: stamp(), chartType, event },
+      currentStamp: stamp(),
+      storage: {},
+      resolvedOptions: {},
+      totalSeries: 2,
+      isPivotMode: false,
+    }) as ColumnEditInput;
+  it.each([
+    "single",
+    "shared",
+    "compact",
+  ] as const)("applies tooltip %s through the real reducer using latest storage and saved baseline", (value) => {
+    const storage = {
+      rootUnknown: { retained: true },
+      other: { chartModel: { chartType: "line" } },
+      partition: {
+        latest: true,
+        line: { cellRange: { columns: ["period", "profit"] } },
+        chartModel: { previousModelField: true },
+      },
+    };
+    const baseline = selectOptionBaseline({
+      kind: "initialize",
+      stateAddress: stamp().address.stateAddress,
+      initialChartType: "groupedColumn",
+      partitionModel: {
+        savedModel: true,
+        chartOptions: {
+          theme: "stock",
+          common: { padding: { top: 9 } },
+          unknownOption: { retained: true },
+          line: { series: { strokeWidth: 7 } },
+          bar: {
+            title: { text: "Earlier edit", enabled: false },
+            legend: { position: "right" },
+            tooltip: { mode: "single", unknown: true },
+          },
+        },
+      },
+    });
+    if (!baseline.valid) throw new Error(baseline.error);
+    const renderedOptions = {
+      bar: { title: { text: "Rendered only" }, fill: "#abcdef" },
+    };
+    const input = {
+      ...tooltipInput({ kind: "tooltip-mode", value }),
+      storage,
+      currentModel: {
+        ...baseline.value.model,
+        chartOptions: renderedOptions,
+        destination: true,
+      },
+      resolvedOptions: baseline.value.options,
+    };
+    const before = JSON.stringify({ input, baseline, renderedOptions });
+    const result = applyColumnEdit(input);
+    expect(result).toEqual({
+      status: "ready",
+      stamp: stamp(),
+      value: {
+        ...storage,
+        chartType: "groupedColumn",
+        totalSeries: 2,
+        isPivotMode: false,
+        partition: {
+          ...storage.partition,
+          chartModel: {
+            previousModelField: true,
+            savedModel: true,
+            destination: true,
+            chartType: "groupedColumn",
+            chartOptions: {
+              common: { padding: { top: 9 } },
+              unknownOption: { retained: true },
+              line: { series: { strokeWidth: 7 } },
+              bar: {
+                title: { text: "Earlier edit", enabled: false },
+                legend: { position: "right" },
+                tooltip: { mode: value, unknown: true },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain("Rendered only");
+    expect(JSON.stringify({ input, baseline, renderedOptions })).toBe(before);
+  });
+  it.each([
+    "single",
+    "shared",
+    "compact",
+  ])("reports valid stacked tooltip %s as unresolved before touching storage", (value) => {
+    const input = {
+      ...tooltipInput({ kind: "tooltip-mode", value }, "stackedColumn"),
+      storage: new Proxy(
+        {},
+        {
+          get() {
+            throw new Error("unexpected storage read");
+          },
+          ownKeys() {
+            throw new Error("unexpected storage enumeration");
+          },
+        },
+      ),
+    };
+    expect(applyColumnEdit(input)).toMatchObject({
+      status: "unresolved",
+      diagnostics: [
+        {
+          path: ["command", "chartType"],
+          message: expect.stringContaining("stackedColumn"),
+        },
+      ],
+    });
+  });
+  it("rejects malformed tooltip events and hostile descriptors without writes or getters", () => {
+    let reads = 0;
+    const eventGetter = {
+      kind: "tooltip-mode",
+      get value() {
+        reads += 1;
+        return "shared";
+      },
+    };
+    const revoked = Proxy.revocable({}, {});
+    revoked.revoke();
+    const hostile = new Proxy(
+      {},
+      {
+        ownKeys() {
+          throw new Error("event own keys");
+        },
+      },
+    );
+    const descriptorTrap = new Proxy(
+      { kind: "tooltip-mode", value: "shared" },
+      {
+        getOwnPropertyDescriptor() {
+          throw new Error("event descriptor");
+        },
+      },
+    );
+    for (const event of [
+      eventGetter,
+      hostile,
+      descriptorTrap,
+      revoked.proxy,
+      null,
+      [],
+      { kind: "tooltip-mode", value: "Multiple" },
+      { kind: "tooltip-mode", value: "shared", extra: true },
+      { kind: "tooltip-mode", value: "shared", [Symbol("extra")]: true },
+      Object.create({ kind: "tooltip-mode", value: "shared" }),
+      Object.defineProperty({ kind: "tooltip-mode" }, "value", { value: "shared" }),
+    ]) {
+      for (const family of ["groupedColumn", "stackedColumn"]) {
+        const input = tooltipInput(event, family);
+        const storage = { partition: { retained: true } };
+        expect(applyColumnEdit({ ...input, storage }).status).toBe("invalid");
+        expect(storage).toEqual({ partition: { retained: true } });
+      }
+    }
+    expect(reads).toBe(0);
+  });
+  it("validates every stale stamp dimension before inspecting a tooltip event", () => {
+    const event = new Proxy(
+      {},
+      {
+        getPrototypeOf() {
+          throw new Error("stale event inspection");
+        },
+      },
+    );
+    for (const currentStamp of [
+      stamp("other"),
+      stamp("widget", "other"),
+      { ...stamp(), generation: 2 },
+      { ...stamp(), dataRevision: 1 },
+      { ...stamp(), renderRevision: 1 },
+    ]) {
+      for (const family of ["groupedColumn", "stackedColumn"]) {
+        expect(
+          applyColumnEdit({ ...tooltipInput(event, family), currentStamp }),
+        ).toEqual({ status: "stale" });
+      }
+    }
+  });
   it("never inspects storage for delayed edits or range events from an obsolete session", () => {
     const original = stamp();
     const storage = new Proxy(
