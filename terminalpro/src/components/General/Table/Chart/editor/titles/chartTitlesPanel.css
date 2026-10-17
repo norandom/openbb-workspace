@@ -1,0 +1,177 @@
+.chart-titles-panel {
+  color: var(--text-heading);
+  font-size: 12px;
+}
+.chart-titles-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 1px solid var(--general-border-primary);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.chart-caption-section {
+  margin: 0;
+  padding: 4px 12px 12px;
+  border: 0;
+  min-width: 0;
+}
+.chart-caption-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  gap: 8px;
+}
+.chart-caption-toggle .BB-Switch {
+  position: relative;
+  width: 28px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--toggle-bg, #555);
+}
+.chart-caption-toggle .BB-Switch[data-state="checked"] {
+  background: var(--tab-action-active, #29a5d4);
+}
+.chart-caption-toggle .BB-Switch > span {
+  display: block;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1px solid var(--toggle-bg, #777);
+  background: var(--surface-card);
+  border-radius: 50%;
+  transform: translateX(0);
+}
+.chart-caption-toggle .BB-Switch[data-state="checked"] > span {
+  transform: translateX(10px);
+}
+.chart-caption-fields {
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+}
+.chart-caption-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  color: var(--text-body, var(--text-heading));
+}
+.chart-caption-row :is(input:not([type="range"]), select) {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  height: 32px;
+  padding: 6px 8px;
+  background: var(--input-bg, var(--surface-card));
+  border: 1px solid var(--general-border-primary);
+  border-radius: 0;
+  color: inherit;
+  font: inherit;
+}
+.chart-caption-row select[aria-label] {
+  border: 0;
+  padding: 0 4px;
+  background: transparent;
+}
+.chart-caption-row select option {
+  background: var(--surface-card);
+  color: var(--text-heading);
+}
+.chart-caption-spacing {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.chart-caption-spacing input[type="range"] {
+  min-width: 0;
+  width: 100%;
+  accent-color: var(--text-caption);
+}
+.chart-caption-spacing input:last-child {
+  width: 44px;
+  flex-shrink: 0;
+}
+.chart-caption-color-value {
+  display: flex;
+  min-width: 0;
+  gap: 5px;
+  padding-left: 8px;
+  align-items: center;
+  height: 32px;
+  border: 1px solid var(--general-border-primary);
+  background: var(--input-bg, var(--surface-card));
+}
+.chart-caption-color-value input[aria-label] {
+  border: 0;
+  background: transparent;
+}
+.chart-caption-color-value button {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--general-border-primary);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.chart-caption-picker {
+  box-sizing: border-box;
+  width: 190px;
+  padding: 8px;
+  border: 1px solid var(--general-border-primary);
+  background: var(--surface-card);
+  color: var(--text-heading);
+  box-shadow: 0 2px 6px #0006;
+  z-index: 50;
+}
+.chart-caption-picker .react-colorful {
+  width: 100%;
+  height: 190px;
+}
+.chart-caption-picker .react-colorful__saturation {
+  border-radius: 0;
+  border-bottom: 0;
+}
+.chart-caption-picker :is(.react-colorful__hue, .react-colorful__alpha) {
+  height: 12px;
+  border-radius: 0;
+  margin-top: 8px;
+}
+.chart-caption-picker .react-colorful__pointer {
+  width: 12px;
+  height: 12px;
+}
+.chart-caption-picker input {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 8px;
+  height: 32px;
+  border: 1px solid var(--general-border-primary);
+  background: var(--input-bg, var(--surface-card));
+  color: inherit;
+  padding: 6px 8px;
+  font: inherit;
+}
+.chart-caption-error {
+  color: var(--alert-error, #ef6666);
+  font-size: 11px;
+}
+.chart-titles-panel [aria-invalid="true"] {
+  border-color: var(--alert-error, #ef6666);
+}
+.chart-titles-panel :is(button, input, select):focus-visible {
+  outline: 2px solid var(--text-heading);
+  outline-offset: 1px;
+}
