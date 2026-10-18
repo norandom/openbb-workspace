@@ -99,6 +99,9 @@ export function projectApplicationSession(
           categories: inputs.columns
             .filter((column) => column.role === "category")
             .map((column) => ({ value: column.id, label: column.label })),
+          availableSeries: inputs.columns
+            .filter((column) => column.role === "number")
+            .map((column) => ({ value: column.id, label: column.label })),
           aggregationMethods: SETUP_AGGREGATIONS.map((value) => ({
             value,
             label: value[0].toUpperCase() + value.slice(1),

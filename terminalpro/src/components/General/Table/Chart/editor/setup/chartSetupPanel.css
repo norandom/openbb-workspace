@@ -19,4 +19,7 @@
 .chart-setup-series-label { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: 1; }
 .chart-setup-remove > span { display: block; width: 13px; height: 13px; border-radius: 50%; background: var(--text-caption); color: var(--surface-card); line-height: 12px; font-weight: bold; }
 .chart-setup-transpose { margin-top: 26px; }
+.chart-setup-add { position: relative; margin-top: 8px; }
+.chart-setup-add select { appearance: none; padding-right: 28px; }
+.chart-setup-add > span { position: absolute; right: 10px; top: 9px; font-size: 18px; pointer-events: none; }
 .chart-setup-panel :is(button, select):focus-visible { outline: 2px solid var(--text-heading); outline-offset: 1px; }

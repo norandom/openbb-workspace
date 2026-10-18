@@ -56,6 +56,17 @@ function ready(result: ReturnType<typeof transition>) {
   return result.value;
 }
 describe("ordinary setup range and model transitions", () => {
+  it("appends removed stable IDs and retains aggregation, transpose and original range metadata", () => {
+    const current = { ...selection, seriesIds: ["b"], aggFunc: "min" as const, switchCategorySeries: true };
+    const result = ready(transition({ kind: "series-add", id: "a" }, current));
+    expect(result.selection).toEqual({ ...current, seriesIds: ["b", "a"] });
+    expect(result.range).toMatchObject({ columnIds: ["category", "b", "a"], rowStartIndex: 2, rowEndIndex: 6, originalRange: { unknown: { keep: true } } });
+    expect(result.model).toMatchObject({ aggFunc: "min", unknown: { keep: 3 }, cellRange: { columns: ["category", "b", "a"], unknown: { keep: true } } });
+    expect(result.recapture).toBeUndefined();
+  });
+  it.each(["a", "category", "unknown"])("rejects a duplicate or nonnumeric addition %s", (id) => {
+    expect(transition({ kind: "series-add", id }).status).toBe("invalid");
+  });
   it("retains own undefined chartOptions in an accepted runtime model", () => {
     const checked = validateIntegratedInput({
       storage: {},

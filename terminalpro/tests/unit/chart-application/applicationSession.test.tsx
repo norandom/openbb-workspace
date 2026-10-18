@@ -73,6 +73,28 @@ function ready(session: ReturnType<typeof useApplicationChartSession>) {
   return session.projection.value;
 }
 describe("live chart session through the existing Widget owner", () => {
+  it("re-adds retained values and captures an initially unselected numeric field as one fresh frame", () => {
+    const test = fixture({ unknownRoot: { keep: true } });
+    const inputs = { ...test.inputs, columns: [...test.inputs.columns, { id: "extra", label: "Revenue", role: "number" as const }] };
+    (test.rows[0] as any).extra = -7;
+    (test.rows[1] as any).extra = 9;
+    const { result } = renderHook(() => useApplicationChartSession(inputs), { wrapper: test.wrapper });
+    act(() => result.current.hostProps.onResize({ width: 800, height: 500 }));
+    expect(ready(result.current).setupProps.availableSeries?.map((choice) => choice.value)).toEqual(["revenue", "income", "extra"]);
+    act(() => result.current.onSetup({ kind: "series-remove", id: "income" }));
+    act(() => result.current.onSetup({ kind: "series-add", id: "income" }));
+    expect(ready(result.current).snapshot.rows[0].values.income).toBe(20);
+    test.rows[0].revenue = 333;
+    act(() => result.current.onSetup({ kind: "series-add", id: "extra" }));
+    expect(ready(result.current).snapshot.rows[0].values).toEqual({ revenue: 333, income: 20, extra: -7 });
+    expect(ready(result.current).setupProps.value.series.map((series) => series.id)).toEqual(["revenue", "income", "extra"]);
+    const storage = test.owner().widget.storage;
+    const afterReads = vi.mocked(inputs.api!.getCellValue).mock.calls.length;
+    for (const id of ["extra", "period", "unknown"]) act(() => result.current.onSetup({ kind: "series-add", id }));
+    expect(test.owner().widget.storage).toBe(storage);
+    expect(vi.mocked(inputs.api!.getCellValue).mock.calls.length).toBe(afterReads);
+    expect((storage as any).unknownRoot).toEqual({ keep: true });
+  });
   it.each([
     "groupedColumn",
     "stackedColumn",

@@ -4,6 +4,7 @@ import { validateSynchronousEditorStamp } from "../../../src/components/General/
 import type { ApplicationAxisRuntime } from "../../../src/components/General/Table/Chart/application/axisStructureTypes";
 import type { SessionStamp } from "../../../src/components/General/Table/Chart/application/types";
 import { applyApplicationEditorTransaction } from "../../../src/components/General/Table/Chart/application/applicationSessionEdit";
+import { applyApplicationSetupTransaction } from "../../../src/components/General/Table/Chart/application/applicationSessionSetup";
 import { selectApplicationSession } from "../../../src/components/General/Table/Chart/application/applicationSessionSelection";
 import { sessionFixture } from "./applicationSessionFixture";
 import type { ApplicationEditorCommand } from "../../../src/components/General/Table/Chart/compatibility/editorBindings/types";
@@ -34,6 +35,24 @@ const runtime = (): ApplicationAxisRuntime => ({
   ],
 });
 describe("live session transaction contracts", () => {
+  it("requires a complete fresh stamped capture for a newly selected numeric field", () => {
+    const context = sessionFixture({ rootUnknown: { keep: true } });
+    const extended = { ...context, inputs: { ...context.inputs, columns: [...context.inputs.columns, { id: "extra", label: "Revenue", role: "number" as const }] } };
+    const apply = (capture?: any) => applyApplicationSetupTransaction({ rootUnknown: { keep: true } }, extended, context.local.stamp, { kind: "series-add", id: "extra" }, capture);
+    expect(apply().status).toBe("waiting");
+    const fresh = { ...context.capture, selectedColumnIds: [...context.capture.selectedColumnIds, "extra"], columns: [...context.capture.columns, extended.inputs.columns.at(-1)!], rows: context.capture.rows.map((row) => ({ ...row, values: { ...row.values, revenue: 999, extra: -7 } })) };
+    const recapture = { status: "ready", stamp: context.local.stamp, value: fresh };
+    const result = apply(recapture);
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") return;
+    expect(result.value.capture.rows[0].values).toEqual({ revenue: 999, income: 20, extra: -7 });
+    expect(result.value.local.range.columnIds).toEqual(["period", "revenue", "income", "extra"]);
+    expect(result.value.storage.rootUnknown).toEqual({ keep: true });
+    expect(apply({ ...recapture, stamp: { ...context.local.stamp, generation: 99 } }).status).toBe("stale");
+    expect(apply({ ...recapture, value: { ...fresh, dataRevision: 99 } }).status).toBe("invalid");
+    expect(apply({ ...recapture, value: { ...fresh, categoryColumnId: "other" } }).status).toBe("invalid");
+    expect(apply({ ...recapture, value: { ...fresh, selectedColumnIds: ["period", "extra"] } }).status).toBe("invalid");
+  });
   it("rehydrates immediate grid edits from latest storage without copying effective defaults", () => {
     const storage = {
       rootUnknown: { retained: true },

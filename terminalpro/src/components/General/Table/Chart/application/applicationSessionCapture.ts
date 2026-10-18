@@ -13,6 +13,7 @@ function capture(
   inputs: ApplicationSessionInputs,
   state: ApplicationSessionState,
   categoryId?: string,
+  additionalSeriesIds: readonly string[] = [],
 ): SessionResult<ChartSnapshot> {
   if (!inputs.api) return { status: "waiting" };
   const context = {
@@ -27,7 +28,7 @@ function capture(
     state.capture?.selectedColumnIds.filter(
       (id) => id !== state.capture?.categoryColumnId,
     ) ?? setup.seriesIds;
-  const columnIds = [categoryColumnId, ...numeric];
+  const columnIds = [categoryColumnId, ...new Set([...numeric, ...setup.seriesIds, ...additionalSeriesIds])];
   const captured = captureDisplayedChart({
     api: inputs.api,
     stamp: state.local.stamp,
@@ -49,9 +50,10 @@ export function captureApplicationSession(
   inputs: ApplicationSessionInputs,
   state: ApplicationSessionState,
   categoryId?: string,
+  additionalSeriesIds: readonly string[] = [],
 ): SessionResult<ChartSnapshot> {
   try {
-    return capture(inputs, state, categoryId);
+    return capture(inputs, state, categoryId, additionalSeriesIds);
   } catch (error) {
     return {
       status: "invalid",

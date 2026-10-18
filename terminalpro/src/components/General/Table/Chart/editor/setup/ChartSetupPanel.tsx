@@ -13,11 +13,12 @@ export type ChartSetupState = {
 export type ChartSetupEdit =
   | { kind: "category" | "aggregation-method"; value: string }
   | { kind: "aggregate" | "switch-category-series"; value: boolean }
-  | { kind: "series-remove"; id: string }
+  | { kind: "series-remove" | "series-add"; id: string }
   | { kind: "series-order"; ids: readonly string[] };
 export type ChartSetupPanelProps = {
   value: ChartSetupState;
   categories: readonly ChartSetupChoice[];
+  availableSeries?: readonly ChartSetupChoice[];
   aggregationMethods: readonly ChartSetupChoice[];
   onEdit: (edit: ChartSetupEdit) => void;
 };
@@ -69,7 +70,8 @@ function Series({ series, onEdit }: Pick<ChartSetupState, "series"> & Pick<Chart
   </div>)}</div>;
 }
 
-export function ChartSetupPanel({ value, categories, aggregationMethods, onEdit }: ChartSetupPanelProps) {
+export function ChartSetupPanel({ value, categories, availableSeries = [], aggregationMethods, onEdit }: ChartSetupPanelProps) {
+  const unselected = availableSeries.filter((choice) => !value.series.some((series) => series.id === choice.value));
   return <div className="chart-setup-panel">
     <Group label={value.switchCategorySeries ? "Series Labels" : "Categories"}>
       <Choice label="Category" value={value.categoryId} choices={categories} onChange={(next) => onEdit({ kind: "category", value: next })} />
@@ -79,6 +81,13 @@ export function ChartSetupPanel({ value, categories, aggregationMethods, onEdit 
       </>}
     </Group>
     <Group label={value.switchCategorySeries ? "Category Values" : "Series"}><Series series={value.series} onEdit={onEdit} />
+      {unselected.length > 0 && <div className="chart-setup-add"><select aria-label="Add a series" value="" onChange={(event) => {
+        const choice = unselected.find((_, index) => String(index) === event.target.value);
+        if (choice) onEdit({ kind: "series-add", id: choice.value });
+      }}>
+        <option value="" disabled>Add a series</option>
+        {unselected.map((choice, index) => <option key={choice.value} value={String(index)}>{choice.label}</option>)}
+      </select><span aria-hidden="true">+</span></div>}
       <div className="chart-setup-switch chart-setup-transpose"><Switch label="Switch Category / Series" checked={value.switchCategorySeries} onCheckedChange={(next) => onEdit({ kind: "switch-category-series", value: next })} /></div>
     </Group>
   </div>;

@@ -4,6 +4,21 @@ import { afterEach, expect, it, vi } from "vitest";
 import { ChartSetupPanel, type ChartSetupState } from "../../src/components/General/Table/Chart/editor/setup/ChartSetupPanel";
 
 afterEach(cleanup);
+it("offers an unselected stable ID with the original add placeholder", () => {
+  const p = props();
+  render(<ChartSetupPanel {...p} availableSeries={[{ value: "a", label: "Revenue" }, { value: "d", label: "Revenue" }]} />);
+  const select = screen.getByRole("combobox", { name: "Add a series" });
+  expect(select.querySelectorAll("option")).toHaveLength(2);
+  fireEvent.change(select, { target: { value: "0" } });
+  expect(p.onEdit).toHaveBeenCalledExactlyOnceWith({ kind: "series-add", id: "d" });
+  expect((select as HTMLSelectElement).value).toBe("");
+});
+it("keeps an empty stable ID distinct from the add placeholder", () => {
+  const p = props();
+  render(<ChartSetupPanel {...p} availableSeries={[{ value: "", label: "Empty ID" }]} />);
+  fireEvent.change(screen.getByRole("combobox", { name: "Add a series" }), { target: { value: "0" } });
+  expect(p.onEdit).toHaveBeenCalledExactlyOnceWith({ kind: "series-add", id: "" });
+});
 const value: ChartSetupState = { categoryId: "period", aggregate: true, aggregationMethod: "sum", series: [{ id: "a", label: "Revenue" }, { id: "b", label: "Revenue" }, { id: "c", label: "Margin" }], switchCategorySeries: false };
 function props(current = value) { return { value: current, categories: [{ value: "period", label: "Period" }, { value: "region", label: "Region" }], aggregationMethods: [{ value: "sum", label: "Sum" }, { value: "mean", label: "Mean" }], onEdit: vi.fn() }; }
 it("emits exact controlled choices and switches without changing supplied state", () => {

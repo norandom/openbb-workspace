@@ -42,6 +42,7 @@ export function applyApplicationSetupTransaction(
         categoryIds: context.inputs.columns
           .filter((column) => column.role === "category")
           .map((column) => column.id),
+        numericIds: context.inputs.columns.filter((column) => column.role === "number").map((column) => column.id),
         range: selected.range,
         model: selected.baseline.model,
       },
@@ -55,8 +56,13 @@ export function applyApplicationSetupTransaction(
         return recapture ?? { status: "waiting" };
       const fresh = validateSessionStamp(recapture.stamp, context.local.stamp);
       if (fresh.status !== "ready") return fresh;
+      if (recapture.value.stateAddress !== fresh.stamp.address.stateAddress || recapture.value.dataRevision !== fresh.stamp.dataRevision)
+        return invalidSession("Recapture observations do not match the current frame");
       if (recapture.value.categoryColumnId !== transition.selection.categoryId)
         return invalidSession("Category recapture does not match the requested column");
+      const required = new Set([...transition.selection.seriesIds, ...context.capture.selectedColumnIds.filter((id) => id !== context.capture.categoryColumnId)]);
+      if ([...required].some((id) => !recapture.value.selectedColumnIds.includes(id) || !recapture.value.columns.some((column) => column.id === id && column.role === "number")))
+        return invalidSession("Series recapture omits required numeric columns");
       const retained = retainOrdinarySetupCapture(recapture.value);
       if (retained.status !== "ready") return retained;
       capture = retained.value;

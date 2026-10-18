@@ -99,9 +99,15 @@ export function useApplicationChartSession(inputs: ApplicationSessionInputs) {
       family: inputs.family,
       intent,
     } as ApplicationSessionCommand);
+    const addedId = intent.panel === "setup" && intent.edit.kind === "series-add" ? intent.edit.id : undefined;
     const recapture =
       intent.panel === "setup" && intent.edit.kind === "category"
         ? captureApplicationSession(inputs, current, intent.edit.value)
+        : addedId !== undefined &&
+            inputs.columns.some((column) => column.id === addedId && column.role === "number") &&
+            !current.local.range.columnIds.includes(addedId) &&
+            !current.capture?.selectedColumnIds.includes(addedId)
+          ? captureApplicationSession(inputs, current, undefined, [addedId])
         : undefined;
     owner.transact(token, (widget, previous: ApplicationSessionState) =>
       execute(widget, previous, inputs, command, recapture),

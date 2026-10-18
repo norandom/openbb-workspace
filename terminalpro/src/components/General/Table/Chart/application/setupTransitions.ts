@@ -17,6 +17,7 @@ export interface SetupTransitionInput {
   readonly capture: ChartSnapshot;
   readonly selection: SetupSelection;
   readonly categoryIds: readonly string[];
+  readonly numericIds?: readonly string[];
   readonly range: ResolvedRange;
   readonly model: ChartModel;
 }
@@ -25,6 +26,12 @@ function nextSelection(
   edit: ChartSetupEdit,
 ): SetupSelection | undefined {
   const current = input.selection;
+  if (edit.kind === "series-add") {
+    const numericIds = input.numericIds ?? input.capture.columns.filter((column) => column.role === "number").map((column) => column.id);
+    return numericIds.includes(edit.id) && !current.seriesIds.includes(edit.id)
+      ? { ...current, seriesIds: [...current.seriesIds, edit.id] }
+      : undefined;
+  }
   if (edit.kind === "category") {
     if (!input.categoryIds.includes(edit.value)) return;
     const { aggFunc, ...rest } = current;
@@ -117,6 +124,7 @@ function transition(
   const change =
     edit.kind === "category" ||
     edit.kind === "series-order" ||
+    edit.kind === "series-add" ||
     edit.kind === "series-remove"
       ? "range"
       : "model";
@@ -150,7 +158,7 @@ function transition(
       range,
       model: model as ChartModel,
       change,
-      ...(selection.categoryId === source.value.categoryColumnId
+      ...(selection.categoryId === source.value.categoryColumnId && selection.seriesIds.every((id) => source.value.selectedColumnIds.includes(id))
         ? {}
         : { recapture: { categoryColumnId: selection.categoryId, columnIds } }),
     },
