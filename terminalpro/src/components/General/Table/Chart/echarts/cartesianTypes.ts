@@ -3,7 +3,16 @@ import type { ChartDisplayPolicy } from "../application/types";
 import type { EChartsOption } from "echarts";
 import type { ChartSnapshot, SnapshotDiagnostic } from "../compatibility/snapshotTypes";
 
-export type CartesianFamily = "groupedColumn" | "stackedColumn" | "line";
+export type CartesianFamily =
+  | "groupedColumn"
+  | "stackedColumn"
+  | "groupedBar"
+  | "stackedBar"
+  | "line";
+
+export function isHorizontalBarFamily(family: string): boolean {
+  return family === "groupedBar" || family === "stackedBar";
+}
 export interface CartesianSeriesStyle {
   readonly color?: string;
   readonly fill?: string;

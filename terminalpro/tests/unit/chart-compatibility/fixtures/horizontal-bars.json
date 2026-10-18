@@ -1,0 +1,33 @@
+{
+  "provenance": {
+    "workspace": "38dffc33389aca0e4a87e0e88d42f7067aa220df",
+    "agChartsVersion": "12.1.1",
+    "communitySha256": "237912c75d2c7e8219fced7bb79e5ed8fca0f620d6f4d259cdfa58748445fcd1",
+    "enterpriseSha256": "dc8e6a2a500d577438dad28a10cfdb30b8524218a9ec617a6a2adf7400cc5f7f",
+    "numericalBasis": "Community BarSeries.processData/getSeriesDomain, buildGroupAccFn, CartesianChart.sizeAxis; source-derived expectations, not runtime capture"
+  },
+  "series": ["First", "Second", "Third"],
+  "rows": [
+    { "category": "Alpha", "values": [7, 3, -2] },
+    { "category": "Beta", "values": [-4, -6, 5] },
+    { "category": "Gamma", "values": [0, 8, -3] },
+    { "category": "Delta", "values": [null, 2, -1] }
+  ],
+  "categoryOrderTopToBottom": ["Alpha", "Beta", "Gamma", "Delta"],
+  "groupedEndpoints": [
+    [[0, 7], [0, 3], [0, -2]],
+    [[0, -4], [0, -6], [0, 5]],
+    [[0, 0], [0, 8], [0, -3]],
+    [null, [0, 2], [0, -1]]
+  ],
+  "stackedEndpoints": [
+    [[0, 7], [7, 10], [0, -2]],
+    [[0, -4], [-4, -10], [0, 5]],
+    [[0, 0], [0, 8], [0, -3]],
+    [null, [0, 2], [0, -1]]
+  ],
+  "display": { "labelsAndTooltips": "raw-observation", "missingLabel": null, "zeroLabel": 0 },
+  "axes": { "category": { "direction": "y", "position": "left" }, "number": { "direction": "x", "position": "bottom" } },
+  "navigator": { "target": "numeric-x", "retainCategoryRows": true },
+  "miniature": { "ownerApprovedRepair": true, "orientation": "horizontal", "extent": "full-data", "preserveSeriesAndStacking": true }
+}
