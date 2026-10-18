@@ -54,12 +54,19 @@ export function expectApplicationDiagnostics(
 // Observe public canvas drawing without changing chart data or renderer options.
 export async function observeDrawnText(page: Page) {
   const install = () => {
-    const target = window as typeof window & { chartDrawnText: string[] };
+    const target = window as typeof window & { chartDrawnText: string[]; chartDrawnAngles: Record<string, number> };
     target.chartDrawnText = [];
+    target.chartDrawnAngles = {};
     const draw = CanvasRenderingContext2D.prototype.fillText;
     CanvasRenderingContext2D.prototype.fillText = function (...args) {
-      if (this.canvas.closest('[class*="widget-file-"]'))
-        target.chartDrawnText.push(String(args[0]));
+      if (this.canvas.closest('[class*="widget-file-"]')) {
+        const text = String(args[0]);
+        target.chartDrawnText.push(text);
+        if (["A", "B", "C"].includes(text)) {
+          const { a, b } = this.getTransform();
+          target.chartDrawnAngles[text] = Math.atan2(b, a) * 180 / Math.PI;
+        }
+      }
       if (target.chartDrawnText.length > 3000) target.chartDrawnText.splice(0, 1000);
       return draw.apply(this, args);
     };
@@ -77,5 +84,13 @@ export async function drawnText(page: Page) {
 export async function resetDrawnText(page: Page) {
   await page.evaluate(() => {
     (window as typeof window & { chartDrawnText: string[] }).chartDrawnText = [];
+    (window as typeof window & { chartDrawnAngles: Record<string, number> }).chartDrawnAngles = {};
   });
+}
+
+export async function expectManualCategoryRotation(page: Page) {
+  await expect.poll(() => page.evaluate(() => {
+    const angles = (window as typeof window & { chartDrawnAngles: Record<string, number> }).chartDrawnAngles;
+    return ["A", "B", "C"].every((label) => Math.abs(angles[label] - 45) < 0.1);
+  })).toBe(true);
 }

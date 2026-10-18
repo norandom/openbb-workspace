@@ -22,8 +22,8 @@ export function customizeLeaves(family: Family) {
     },
     axes: {
       category: {
-        bottom: { line: { enabled: true, width: 2 + offset } },
-        top: { line: { enabled: true, width: 2 + offset } },
+        bottom: { line: { enabled: true, width: 2 + offset }, label: { autoRotate: false, rotation: 45 } },
+        top: { line: { enabled: true, width: 2 + offset }, label: { autoRotate: false, rotation: 45 } },
       },
       number: {
         left: { line: { enabled: true, width: 5 + offset } },
@@ -94,6 +94,12 @@ export async function exerciseCustomize(editor: Locator, family: Family) {
   }
   await expand(editor, "Horizontal Axis");
   await number(editor.getByRole("region", { name: "Horizontal Axis", exact: true }).locator(":scope > div"), "Thickness", leaves.axes.category.bottom.line.width);
+  const horizontalLabels = editor.getByRole("region", { name: "Horizontal Axis", exact: true }).getByRole("group", { name: "Labels", exact: true });
+  await horizontalLabels.getByRole("checkbox", { name: "Auto Rotate", exact: true }).uncheck();
+  const rotation = horizontalLabels.getByRole("spinbutton", { name: "Label rotation", exact: true });
+  await rotation.fill("45");
+  await rotation.blur();
+  await expect(rotation).toHaveValue("45");
   await expand(editor, "Vertical Axis");
   await number(editor.getByRole("region", { name: "Vertical Axis", exact: true }).locator(":scope > div"), "Thickness", leaves.axes.number.left.line.width);
   return leaves;

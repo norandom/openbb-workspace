@@ -1,4 +1,4 @@
-import { drawnText, expectApplicationDiagnostics, observeApplication, observeDrawnText, resetDrawnText } from "./diagnostics";
+import { drawnText, expectApplicationDiagnostics, expectManualCategoryRotation, observeApplication, observeDrawnText, resetDrawnText } from "./diagnostics";
 import {
   expand,
   openEditor,
@@ -36,8 +36,10 @@ test("ordinary imported chart edits reach rendering and dashboard storage", asyn
     await expect.poll(() => drawnText(page)).toEqual(expect.arrayContaining(["A", "B", "C"]));
     for (const family of ["Grouped Column", "Stacked Column", "Line"]) {
       await selectFamily(editor, family);
+      await resetDrawnText(page);
       await exerciseCustomize(editor, family === "Grouped Column" ? "groupedColumn" : family === "Stacked Column" ? "stackedColumn" : "line");
       await setChartTitle(page, editor, `${family} observations`);
+      await expectManualCategoryRotation(page);
     }
     await editor.getByRole("textbox", { name: "Title", exact: true }).blur();
     for (const dark of [false, true]) {
@@ -65,6 +67,7 @@ test("ordinary imported chart edits reach rendering and dashboard storage", asyn
     try {
       expectSavedTitles(reopened.content);
       expectSavedCustomize(reopened.content, customizations);
+      await expectManualCategoryRotation(reopened.page);
       expectApplicationDiagnostics(reopened.diagnostics);
     } finally {
       await reopened.context.close();
@@ -75,6 +78,7 @@ test("ordinary imported chart edits reach rendering and dashboard storage", asyn
     try {
       expectSavedTitles(restarted.content);
       expectSavedCustomize(restarted.content, customizations);
+      await expectManualCategoryRotation(restarted.page);
       const restoredEditor = restarted.widget.getByRole("complementary", {
         name: "Chart editor",
       });
