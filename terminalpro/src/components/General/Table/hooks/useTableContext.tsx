@@ -206,7 +206,21 @@ const CommunityGrid = forwardRef<AgGridElement, AgGridProps>((props, ref) => {
     initialState,
   ] = useUpdateColumnState(props.onGridReady, props.onGridPreDestroyed);
   useSyncTableData(rest.gridOptions);
+  // Grid definition changes reload columns and restore saved state. Keep their
+  // identities stable while filter/sort notifications update the display.
+  const definitions = useMemo(
+    () => communityGridOptions({
+      columnDefs: rest.columnDefs,
+      defaultColDef: rest.defaultColDef,
+      gridOptions: rest.gridOptions,
+    }),
+    [rest.columnDefs, rest.defaultColDef, rest.gridOptions],
+  );
   const options = communityGridOptions(rest);
+  // Absent local defaults must not replace globally configured filter actions.
+  if ("columnDefs" in options) options.columnDefs = definitions.columnDefs;
+  if ("defaultColDef" in options) options.defaultColDef = definitions.defaultColDef;
+  if ("gridOptions" in options) options.gridOptions = definitions.gridOptions;
   const pagination = communityPaginationOptions(
     rest.rowData?.length ?? 0,
     storage,

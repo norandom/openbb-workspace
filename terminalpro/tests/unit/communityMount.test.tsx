@@ -52,6 +52,38 @@ vi.mock("ag-grid-react", () => ({ AgGridReact: forwardRef((props: any, ref: any)
 afterEach(() => { cleanup(); fixture.widget = { storage: {}, data: { table: {} } }; fixture.updates = []; fixture.tablePagination = false; vi.clearAllMocks(); });
 
 describe("Community callers", () => {
+  it("preserves global filter action buttons when the caller omits default definitions", () => {
+    setGlobalGridOptions();
+    const defaults = structuredClone({ filterParams: fixture.options.defaultColDef.filterParams });
+    render(<Table><AgGridProvider rowData={[{ currency: "USD" }]} columnDefs={[{ field: "currency", filter: true }]} /></Table>);
+    expect(fixture.props).not.toHaveProperty("defaultColDef");
+    expect(fixture.props).not.toHaveProperty("gridOptions");
+    act(() => fixture.props.onFilterChanged({ api }));
+    expect(fixture.props).not.toHaveProperty("defaultColDef");
+    expect(fixture.options.defaultColDef.filterParams).toEqual(defaults.filterParams);
+    expect(defaults.filterParams.buttons).toEqual(["apply", "clear", "reset", "cancel"]);
+  });
+  it("keeps sanitized definitions stable during filter and sort notifications and replaces changed definitions", () => {
+    const rows = [{ currency: "USD", revenue: 10 }];
+    const columns = [{ field: "currency", filter: true }];
+    const defaults = { sortable: true, filter: true, filterParams: { buttons: ["apply", "clear", "reset", "cancel"], closeOnApply: true } };
+    const options = { defaultColDef: { filter: true }, columnDefs: columns };
+    const view = render(<Table><AgGridProvider rowData={rows} columnDefs={columns} defaultColDef={defaults} gridOptions={options} /></Table>);
+    const original = fixture.props;
+    act(() => fixture.props.onFilterChanged({ api }));
+    expect(fixture.props.columnDefs).toBe(original.columnDefs);
+    expect(fixture.props.defaultColDef).toBe(original.defaultColDef);
+    expect(fixture.props.defaultColDef.filterParams).toEqual(defaults.filterParams);
+    expect(fixture.props.gridOptions).toBe(original.gridOptions);
+    act(() => fixture.props.onSortChanged({ api }));
+    expect(fixture.props.columnDefs).toBe(original.columnDefs);
+    const nextColumns = [{ field: "revenue", cellDataType: "number", filter: true }];
+    view.rerender(<Table><AgGridProvider rowData={rows.slice()} columnDefs={nextColumns} defaultColDef={{ sortable: false }} gridOptions={{ columnDefs: nextColumns }} /></Table>);
+    expect(fixture.props.columnDefs).not.toBe(original.columnDefs);
+    expect(fixture.props.columnDefs).toEqual([{ field: "revenue", cellDataType: "number", filter: "agNumberColumnFilter" }]);
+    expect(fixture.props.defaultColDef).toEqual({ sortable: false });
+    expect(fixture.props.gridOptions.columnDefs).toEqual(fixture.props.columnDefs);
+  });
   it("blocks unsupported standalone series without mounting or changing saved data", () => {
     fixture.widget.storage = { chart_params: { chartType: "waterfall", yKey: ["income"] }, content: [{ income: 10 }] };
     const before = structuredClone(fixture.widget);
