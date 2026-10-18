@@ -74,7 +74,10 @@ it("mounts, updates complete requests, exports, and disconnects its owner", () =
     revision: 2,
   });
   expect(ref.current?.exportImage({ pixelRatio: 2 })).toContain("data:image/png");
-  expect(owners[0].exportImage).toHaveBeenCalledWith({ pixelRatio: 2 });
+  expect(owners[0].exportImage).toHaveBeenCalledWith({ pixelRatio: 2 }, 2);
+  expect(() => ref.current?.exportImage(undefined, 1)).toThrow(
+    "Chart image is unavailable",
+  );
   act(() => root.render(null));
   expect(disconnect).toHaveBeenCalledTimes(1);
   expect(owners[0].dispose).toHaveBeenCalledTimes(1);

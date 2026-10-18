@@ -1,14 +1,14 @@
 import type { AgChartProps } from "ag-charts-react";
 import type { AgChartThemeOverrides } from "ag-charts-community";
-import { useEffect, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo } from "react";
 import type {
   CellRangeParams,
   ChartModel,
   ChartOptionsChangedEvent,
 } from "ag-grid-community";
-import type { ExtraActionT } from "~/components/DraggableCard/NavBar";
+import type { ExtraAction, ExtraActionT } from "~/components/DraggableCard/NavBar";
 import { useWidgetContext } from "~/components/Widget.context";
-import { useAgGridContext } from "../../hooks/useTableContext";
+import { AgGridContext, useAgGridContext } from "../../hooks/useTableContext";
 import { getSeriesType } from "../utils";
 import { callerGeneratedOptions } from "../caller/generatedOptions";
 const EMPTY_OPTIONS = {};
@@ -112,18 +112,127 @@ export function getDefaultChartOptions(
   return defaultOptions as AgChartThemeOverrides;
 }
 
-// Action adapters retain their established imports; their live join is owned separately.
 export function useChartCloseButtonListener() {
-  return () => {};
+  const { updateWidget } = useWidgetContext();
+  return useCallback(
+    () =>
+      updateWidget?.((previous) => ({
+        ...previous,
+        storage: { ...previous.storage, chartSettingsOpen: false },
+      })),
+    [updateWidget],
+  );
 }
 export function useChartToolPanelAction(): ExtraActionT[] {
-  return [];
+  const { updateWidget } = useWidgetContext();
+  return useMemo(
+    () => [
+      {
+        icon: "chart-rounded",
+        id: "open-chart-settings-button",
+        label: "Chart settings",
+        onClick: () =>
+          updateWidget?.((previous) => ({
+            ...previous,
+            storage: {
+              ...previous.storage,
+              chartSettingsOpen: !previous.storage?.chartSettingsOpen,
+            },
+          })),
+      },
+    ],
+    [updateWidget],
+  );
 }
-export function useChartBarFillQuickAction(): undefined {
-  return undefined;
+export function useChartBarFillQuickAction(): ExtraAction | undefined {
+  const { widget, updateWidget } = useWidgetContext();
+  // Ellipsis is shared by non-table widgets, which have no grid provider.
+  const grid = useContext(AgGridContext);
+  const chartRef = grid?.applicationChartRef;
+  const summary = grid?.gridState?.applicationChartSummary;
+  const storage = widget?.storage ?? {};
+  const type =
+    summary?.family ??
+    chartRef?.current?.family ??
+    storage.chartType ??
+    storage.chartView?.chartType;
+  const count =
+    summary?.seriesCount ?? chartRef?.current?.seriesCount ?? storage.totalSeries;
+  if (!type || getSeriesType(type) !== "bar" || !storage.chartView?.enabled) return;
+  const disabled = count > 1;
+  return {
+    icon: "chart-icon",
+    id: "distinct-bar-colors",
+    label: storage.chartBarFillEnabled ? "Single bar color" : "Distinct bar colors",
+    disabled,
+    tooltipMessage: disabled
+      ? "Cannot toggle bar colors with multiple series present."
+      : undefined,
+    onClick: () =>
+      updateWidget?.((previous) => {
+        const current = chartRef?.current;
+        if (current && current.validateCurrent(current.stamp).status !== "ready")
+          return previous;
+        const type =
+          current?.family ??
+          previous.storage?.chartType ??
+          previous.storage?.chartView?.chartType;
+        if (
+          !type ||
+          getSeriesType(type) !== "bar" ||
+          !previous.storage?.chartView?.enabled ||
+          (current?.seriesCount ?? previous.storage?.totalSeries) > 1
+        )
+          return previous;
+        return {
+          ...previous,
+          storage: {
+            ...previous.storage,
+            chartBarFillEnabled: !previous.storage?.chartBarFillEnabled,
+          },
+        };
+      }),
+  };
 }
 export function useChartQuickActions(): ExtraActionT[] {
-  return [];
+  const { widget, updateWidget } = useWidgetContext();
+  const storage = widget?.storage ?? {};
+  if (!storage.chartView?.enabled) return [];
+  return (
+    [
+      [
+        "chartNavigatorEnabled",
+        "chartMiniChartEnabled",
+        "toggle-chart-navigator",
+        "navigator",
+        "chart-icon",
+      ],
+      [
+        "chartMiniChartEnabled",
+        "chartNavigatorEnabled",
+        "toggle-chart-mini-chart",
+        "mini chart",
+        "mini-chart-icon",
+      ],
+    ] as const
+  ).map(([key, other, id, name, icon]) => ({
+    icon,
+    id,
+    label: `${storage[key] ? "Hide" : "Show"} ${name}`,
+    onClick: () =>
+      updateWidget?.((previous) => {
+        if (!previous.storage?.chartView?.enabled) return previous;
+        const enabled = !previous.storage[key];
+        return {
+          ...previous,
+          storage: {
+            ...previous.storage,
+            [key]: enabled,
+            ...(enabled ? { [other]: false } : {}),
+          },
+        };
+      }),
+  }));
 }
 export default function useChartOptions(props: any = EMPTY_OPTIONS): {
   chartThemeOverrides?: any;

@@ -16,6 +16,7 @@ import useChartOptions, {
 } from "./Chart/hooks/useChartOptions";
 import { getCSVData, getExcelData, getExcelWorkBook } from "./fileData";
 import { AgGridProvider, getSideBarOptions, useAgGridContext } from "./hooks";
+import { useAgExportFuncs } from "./hooks/communityActions";
 import type { AgGridEvents } from "./hooks/types";
 import { useColumnVisibility } from "./hooks/useColumnVisibility";
 import { useCopilotFilteredWidgetData } from "./hooks/useCopilotFilteredData";
@@ -136,6 +137,7 @@ export default function AgGridFile() {
   );
   const agChartViewProps = useChartOptions();
   const chartToolPanelActions = useChartToolPanelAction();
+  const exportFns = useAgExportFuncs();
 
   useCopilotFilteredWidgetData(rowData, dataUpdatedAt, fileType);
 
@@ -196,13 +198,7 @@ export default function AgGridFile() {
         )
       }
       loading={isLoading}
-      exportFns={{
-        csvFunction: (title = "report") => {
-          gridRef.current?.api.exportDataAsCsv({
-            fileName: `${title}.csv`,
-          });
-        },
-      }}
+      exportFns={exportFns}
       error={error || rowData?.length === 0}
       extraNavbarElements={!!widget?.storage?.chartView && <ChartViewButton />}
       errorMessage={error?.message}

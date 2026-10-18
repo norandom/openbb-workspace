@@ -8,7 +8,7 @@ import {
 } from "./lifecycle";
 
 export interface EChartsHostHandle {
-  exportImage(options?: ChartImageOptions): string;
+  exportImage(options?: ChartImageOptions, expectedRevision?: number): string;
 }
 export interface EChartsHostProps extends ChartRenderRequest {
   className?: string;
@@ -31,9 +31,10 @@ export const EChartsHost = forwardRef<EChartsHostHandle, EChartsHostProps>(
     useImperativeHandle(
       ref,
       () => ({
-        exportImage(imageOptions) {
-          if (!owner.current) throw new Error("Chart image is unavailable");
-          return owner.current.exportImage(imageOptions);
+        exportImage(imageOptions, expectedRevision = latest.current.revision) {
+          if (!owner.current || expectedRevision !== latest.current.revision)
+            throw new Error("Chart image is unavailable");
+          return owner.current.exportImage(imageOptions, expectedRevision);
         },
       }),
       [],

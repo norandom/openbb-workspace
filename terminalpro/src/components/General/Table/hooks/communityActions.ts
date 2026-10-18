@@ -3,15 +3,32 @@ import type { ExtraActionT } from "~/components/DraggableCard/NavBar";
 import { useWidgetContext } from "~/components/Widget.context";
 import { useAgGridContext } from "./useTableContext";
 export function useAgExportFuncs() {
-  const gridRef = useAgGridContext()?.gridRef;
+  const { gridRef, applicationChartRef } = useAgGridContext();
+  const { widget } = useWidgetContext();
+  const enabled = Boolean(widget?.storage?.chartView?.enabled);
 
   return useMemo(
     () => ({
       csvFunction: (title = "report") => {
         gridRef.current?.api.exportDataAsCsv({ fileName: `${title}.csv` });
       },
+      ...(enabled
+        ? {
+            pngFunction: (title = "report") => {
+              const chart = applicationChartRef.current;
+              if (!chart || chart.validateCurrent(chart.stamp).status !== "ready")
+                throw new Error("Chart image is unavailable");
+              const image = chart.host.exportImage(undefined, chart.revision);
+              const link = document.createElement("a");
+              link.download = `${title}.png`;
+              link.href = image;
+              link.click();
+              link.remove();
+            },
+          }
+        : {}),
     }),
-    [gridRef],
+    [gridRef, applicationChartRef, enabled],
   );
 }
 

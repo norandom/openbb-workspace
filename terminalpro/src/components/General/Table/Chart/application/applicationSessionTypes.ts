@@ -85,6 +85,7 @@ export interface ApplicationSessionState {
   readonly viewport?: { readonly width: number; readonly height: number };
   readonly dataKey: string;
   readonly appearanceKey: string;
+  readonly actionKey: string;
   readonly appearance: Pick<
     ApplicationSessionInputs,
     "theme" | "generated" | "precision"

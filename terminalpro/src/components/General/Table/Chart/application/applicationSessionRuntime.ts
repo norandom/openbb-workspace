@@ -25,6 +25,12 @@ export const sessionDataKey = (input: ApplicationSessionInputs) =>
   ]);
 export const sessionAppearanceKey = (input: ApplicationSessionInputs) =>
   JSON.stringify([input.theme, input.generated, input.precision]);
+export const sessionActionKey = (storage: ChartStorageOutput) =>
+  JSON.stringify([
+    Boolean(storage.chartNavigatorEnabled),
+    Boolean(storage.chartMiniChartEnabled),
+    Boolean(storage.chartBarFillEnabled),
+  ]);
 export function nextSessionStamp(
   stamp: ApplicationSessionState["local"]["stamp"],
   change: "data" | "render",
@@ -74,6 +80,7 @@ export function initialApplicationSession(
     ...(error === undefined ? {} : { error }),
     dataKey: sessionDataKey(inputs),
     appearanceKey: sessionAppearanceKey(inputs),
+    actionKey: sessionActionKey(storage),
     appearance: {
       theme: cloneDeep(inputs.theme),
       generated: cloneDeep(inputs.generated),
@@ -108,6 +115,7 @@ export function synchronizeApplicationSession(
   const after = sessionSetup(baseline.model, range, context);
   const dataKey = sessionDataKey(inputs);
   const appearanceKey = sessionAppearanceKey(inputs);
+  const actionKey = sessionActionKey(storage);
   const dataChanged =
     state.dataKey !== dataKey ||
     !isEqual(before, after) ||
@@ -115,6 +123,7 @@ export function synchronizeApplicationSession(
   const optionsChanged =
     !isEqual(baseline, state.local.baseline) ||
     appearanceKey !== state.appearanceKey ||
+    actionKey !== state.actionKey ||
     state.error !== undefined;
   const modelChanged = !isEqual(baseline.model, state.local.baseline.model);
   if (!dataChanged && !optionsChanged) return state;
@@ -122,6 +131,7 @@ export function synchronizeApplicationSession(
     ...state,
     dataKey,
     appearanceKey,
+    actionKey,
     error: undefined,
     appearance: {
       theme: cloneDeep(inputs.theme),

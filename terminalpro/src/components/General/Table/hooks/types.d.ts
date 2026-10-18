@@ -83,6 +83,10 @@ export declare type GridStateT = Partial<ManagedGridOptions> & {
   chartThemeOverrides?: AgChartThemeOverrides;
   dataRevision?: number | null;
   displayRevision?: number;
+  applicationChartSummary?: {
+    family: "groupedColumn" | "stackedColumn" | "line";
+    seriesCount: number;
+  };
 };
 
 export declare type AgGridContextValue = {

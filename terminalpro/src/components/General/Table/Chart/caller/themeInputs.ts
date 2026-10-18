@@ -140,6 +140,14 @@ export function projectCallerTheme(
   return {
     name,
     mode,
+    ...(params.borderColor === undefined
+      ? {}
+      : { navigatorBorderColor: params.borderColor }),
+    navigatorFont: {
+      fontFamily: params.fontFamily ?? "Verdana, sans-serif",
+      fontSize: Math.round(((params.fontSize ?? 12) * 10) / 12),
+      fontWeight: params.fontWeight ?? 400,
+    },
     overrides,
     colors: {
       base: dark ? "ag-default-dark" : "ag-default",

@@ -16,6 +16,7 @@ import {
   contextFor,
   nextSessionStamp,
   sessionAppearanceKey,
+  sessionActionKey,
   sessionDataKey,
 } from "./applicationSessionRuntime";
 import { sessionSetup } from "./applicationSessionSelection";
@@ -73,7 +74,8 @@ export function useApplicationChartSession(inputs: ApplicationSessionInputs) {
   const current =
     state &&
     state.dataKey === sessionDataKey(inputs) &&
-    state.appearanceKey === sessionAppearanceKey(inputs)
+    state.appearanceKey === sessionAppearanceKey(inputs) &&
+    state.actionKey === sessionActionKey(owner.widget.storage as ChartStorageOutput)
       ? state
       : undefined;
   const projection = useMemo(

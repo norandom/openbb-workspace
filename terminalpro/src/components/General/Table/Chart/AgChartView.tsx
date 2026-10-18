@@ -201,7 +201,7 @@ function PendingCallerChart({
 function LiveCallerChart({ inputs }: { inputs: ApplicationSessionInputs }) {
   const session = useApplicationChartSession(inputs);
   const dock = useCallerDock(inputs.family);
-  const { applicationChartRef } = useAgGridContext();
+  const { applicationChartRef, updateAgGrid } = useAgGridContext();
   const { updateWidget } = useWidgetContext();
   const host = useRef<EChartsHostHandle>(null);
   const ready =
@@ -213,6 +213,8 @@ function LiveCallerChart({ inputs }: { inputs: ApplicationSessionInputs }) {
             host: host.current,
             stamp: ready.stamp,
             revision: ready.revision,
+            family: inputs.family,
+            seriesCount: session.seriesCount ?? 0,
             validateCurrent: session.validateCurrent,
           }
         : null;
@@ -221,7 +223,26 @@ function LiveCallerChart({ inputs }: { inputs: ApplicationSessionInputs }) {
       if (applicationChartRef.current === registration)
         applicationChartRef.current = null;
     };
-  }, [ready, session.validateCurrent, applicationChartRef]);
+  }, [
+    ready,
+    session.validateCurrent,
+    session.seriesCount,
+    inputs.family,
+    applicationChartRef,
+  ]);
+  const isReady = ready !== undefined;
+  useLayoutEffect(() => {
+    const summary = isReady
+      ? { family: inputs.family, seriesCount: session.seriesCount ?? 0 }
+      : undefined;
+    updateAgGrid((previous) => ({ ...previous, applicationChartSummary: summary }));
+    return () =>
+      updateAgGrid((previous) =>
+        previous.applicationChartSummary === summary
+          ? { ...previous, applicationChartSummary: undefined }
+          : previous,
+      );
+  }, [isReady, inputs.family, session.seriesCount, updateAgGrid]);
   useEffect(() => {
     if (session.seriesCount !== 0) return;
     updateWidget?.((previous) => ({

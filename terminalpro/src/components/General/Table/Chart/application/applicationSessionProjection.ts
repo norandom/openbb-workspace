@@ -1,5 +1,7 @@
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import { translateCartesian } from "../echarts/cartesian";
+import { cartesianNavigator } from "../echarts/cartesianNavigator";
+import { cartesianBarColors } from "../echarts/cartesianBarColors";
 import { selectApplicationSession } from "./applicationSessionSelection";
 import { contextFor } from "./applicationSessionRuntime";
 import type {
@@ -66,7 +68,20 @@ export function projectApplicationSession(
       value: {
         stamp: state.local.stamp,
         revision: state.local.stamp.renderRevision,
-        options: translated.options,
+        options: cartesianNavigator(
+          cartesianBarColors(
+            translated.options,
+            projected.snapshot,
+            inputs.family,
+            Boolean(storage.chartBarFillEnabled),
+            inputs.theme,
+            selected.style,
+          ),
+          Boolean(storage.chartNavigatorEnabled),
+          Boolean(storage.chartMiniChartEnabled),
+          inputs.theme,
+          state.viewport,
+        ),
         editor: selected.editor,
         model: selected.baseline.model,
         snapshot: projected.snapshot,

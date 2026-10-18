@@ -22,6 +22,7 @@ import {
 } from "../../../src/components/General/Table/hooks/useTableContext";
 import { WidgetTransactionContext } from "../../../src/components/WidgetTransaction.context";
 import { useWidgetUpdates } from "../../../src/components/widgetSync/useWidgetUpdates";
+import { useChartBarFillQuickAction } from "../../../src/components/General/Table/Chart/hooks/useChartOptions";
 
 const fixture = vi.hoisted(() => ({
   options: {} as any,
@@ -41,6 +42,8 @@ const fixture = vi.hoisted(() => ({
   },
   visible: [2, 0],
   store: vi.fn(),
+  exportFns: {} as any,
+  exportImage: vi.fn(() => "data:image/png;base64,fixture"),
 }));
 const widgetContext = createContext<any>(null);
 vi.mock("~/components/Widget.context", () => ({
@@ -114,12 +117,15 @@ vi.mock("~/components/General/Table/utils", () => ({
   clearCellSelection: () => {},
 }));
 vi.mock("~/components/DraggableCard", () => ({
-  default: ({ children, extraNavbarElements }: any) => (
-    <section>
-      {extraNavbarElements}
-      {children}
-    </section>
-  ),
+  default: ({ children, extraNavbarElements, exportFns }: any) => {
+    fixture.exportFns = exportFns;
+    return (
+      <section>
+        {extraNavbarElements}
+        {children}
+      </section>
+    );
+  },
 }));
 vi.mock("~/components/DraggableCard/SetLoadingOnResize", () => ({
   AgGridSetLoadingOnResize: ({ children }: any) => children,
@@ -151,11 +157,7 @@ vi.mock("~/components/General/Table/components/NoRowsOverlay", () => ({
 vi.mock("~/components/General/Table/Chart/echarts/EChartsHost", () => ({
   EChartsHost: forwardRef((props: any, ref: any) => {
     fixture.options = props.options;
-    useImperativeHandle(
-      ref,
-      () => ({ exportImage: () => "data:image/png;base64,fixture" }),
-      [],
-    );
+    useImperativeHandle(ref, () => ({ exportImage: fixture.exportImage }), []);
     useLayoutEffect(() => {
       props.onResize({ width: 800, height: 500 });
     }, []);
@@ -203,18 +205,26 @@ vi.mock("ag-grid-react", () => ({
 }));
 function Probe() {
   const { applicationChartRef } = useAgGridContext();
+  const bar = useChartBarFillQuickAction();
   return (
-    <button
-      onClick={() =>
-        expect(
-          applicationChartRef.current?.validateCurrent(
-            applicationChartRef.current.stamp,
-          ).status,
-        ).toBe("ready")
-      }
-    >
-      Check current chart
-    </button>
+    <>
+      {bar && (
+        <button disabled={bar.disabled} onClick={bar.onClick}>
+          {bar.label}
+        </button>
+      )}
+      <button
+        onClick={() =>
+          expect(
+            applicationChartRef.current?.validateCurrent(
+              applicationChartRef.current.stamp,
+            ).status,
+          ).toBe("ready")
+        }
+      >
+        Check current chart
+      </button>
+    </>
   );
 }
 function Owner({
@@ -289,6 +299,47 @@ afterEach(() => {
   };
 });
 describe("ordinary table joins the production session", () => {
+  it("refreshes imported chart color eligibility from the ready session without root derived fields", async () => {
+    fixture.fileMode = true;
+    fixture.processed.columnDefs.push({
+      field: "costs",
+      chartDataType: "series",
+      cellDataType: "number",
+    } as any);
+    fixture.processed.rowData.forEach((row) => Object.assign(row, { costs: 10 }));
+    render(<Owner file enabled settingsOpen />);
+    await waitFor(() => expect(fixture.options.series).toHaveLength(2));
+    expect(
+      (screen.getByRole("button", { name: "Distinct bar colors" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(fixture.owner.widget.storage.chartType).toBeUndefined();
+    expect(fixture.owner.widget.storage.totalSeries).toBeUndefined();
+    expect(fixture.exportFns.pngFunction).toBeTypeOf("function");
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Set Up" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Remove costs" }));
+    await waitFor(() => expect(fixture.options.series).toHaveLength(1));
+    await waitFor(() =>
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Distinct bar colors",
+          }) as HTMLButtonElement
+        ).disabled,
+      ).toBe(false),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Distinct bar colors" }));
+    await waitFor(() =>
+      expect(fixture.options.series[0].data[0].itemStyle.color).toBe("#fac858"),
+    );
+    expect(
+      (screen.getByRole("button", { name: "Single bar color" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+  });
   it("returns to the table after live removal of the last series, but reopens an initial one-column range with source defaults", async () => {
     render(
       <Owner

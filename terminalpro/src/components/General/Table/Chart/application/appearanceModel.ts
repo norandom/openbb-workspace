@@ -1,6 +1,9 @@
 import type { RuntimeOptions, ValidationResult } from "../compatibility/legacyTypes";
 import type { OptionBaseline } from "../compatibility/optionStateTypes";
-import type { CartesianFamily, ResolvedCartesianStyle } from "../echarts/cartesianTypes";
+import type {
+  CartesianFamily,
+  ResolvedCartesianStyle,
+} from "../echarts/cartesianTypes";
 import type { AppearanceColorTokens } from "./appearanceContracts";
 import type { ApplicationAxisRuntime } from "./axisStructureTypes";
 import type { ChartCaptionState } from "../editor/titles/ChartTitlesPanel";
@@ -67,6 +70,12 @@ export interface ResolvedApplicationAppearance {
 export interface ApplicationThemeInput {
   readonly name: string;
   readonly mode: "light" | "dark";
+  readonly navigatorBorderColor?: string;
+  readonly navigatorFont?: {
+    readonly fontFamily: string;
+    readonly fontSize: number;
+    readonly fontWeight: string | number;
+  };
   readonly colors: AppearanceColorTokens;
   /** Data-only selected stock/custom theme overrides, with application aliases resolved. */
   readonly overrides: RuntimeOptions;

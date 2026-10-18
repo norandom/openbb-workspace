@@ -23,7 +23,7 @@ export interface ChartLifecycle {
   /** Recheck DOM size, initialize pending work when sized, otherwise defer. */
   resize(): LifecycleResult;
   /** PNG data URL; throws when unsized/unmounted/disposed or public-library export fails. */
-  exportImage(options?: ChartImageOptions): string;
+  exportImage(options?: ChartImageOptions, expectedRevision?: number): string;
   /** Idempotent terminal cleanup; pending work and callbacks cannot revive this owner. */
   dispose(): void;
 }
@@ -31,6 +31,7 @@ export interface ChartLifecycle {
 export type CreateChartLifecycle = (container: HTMLDivElement) => ChartLifecycle;
 
 import { type ECharts, init } from "echarts";
+import { hasNavigator, retainNavigatorExtent } from "./cartesianNavigator";
 
 export const createChartLifecycle: CreateChartLifecycle = (container) => {
   let instance: ECharts | undefined;
@@ -38,6 +39,7 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   let appliedRevision: number | undefined;
   let mounted = false;
   let disposed = false;
+  let navigatorListening = false;
 
   function sized(): boolean {
     return container.clientWidth > 0 && container.clientHeight > 0;
@@ -47,16 +49,34 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
     const previous = instance;
     instance = undefined;
     appliedRevision = undefined;
+    navigatorListening = false;
     previous?.dispose();
+  }
+
+  function refreshNavigatorMask(): void {
+    if (disposed || !instance || !pending || !hasNavigator(pending.options)) return;
+    const options = retainNavigatorExtent(pending.options, instance.getOption());
+    if (options.graphic) instance.setOption({ graphic: options.graphic });
   }
 
   function apply(request: ChartRenderRequest, resizing = false): LifecycleResult {
     if (!sized()) return "deferred";
     try {
       instance ??= init(container);
+      if (hasNavigator(request.options) && !navigatorListening) {
+        instance.on("datazoom", refreshNavigatorMask);
+        navigatorListening = true;
+      }
       if (resizing) instance.resize();
       if (appliedRevision !== request.revision) {
-        instance.setOption(request.options, { notMerge: true });
+        const options =
+          appliedRevision !== undefined &&
+          pending &&
+          hasNavigator(pending.options) &&
+          hasNavigator(request.options)
+            ? retainNavigatorExtent(request.options, instance.getOption())
+            : request.options;
+        instance.setOption(options, { notMerge: true });
         appliedRevision = request.revision;
       }
       return "applied";
@@ -73,7 +93,8 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   }
 
   function accept(request: ChartRenderRequest): LifecycleResult {
-    if (!Number.isFinite(request.revision)) throw new Error("Chart revision must be finite");
+    if (!Number.isFinite(request.revision))
+      throw new Error("Chart revision must be finite");
     if (pending && request.revision <= pending.revision) return "stale";
     const result = apply(request);
     pending = request;
@@ -83,7 +104,8 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   function mount(request: ChartRenderRequest): LifecycleResult {
     if (disposed) return "disposed";
     if (mounted) return accept(request);
-    if (!Number.isFinite(request.revision)) throw new Error("Chart revision must be finite");
+    if (!Number.isFinite(request.revision))
+      throw new Error("Chart revision must be finite");
     mounted = true;
     pending = request;
     return apply(request);
@@ -101,8 +123,19 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
     return apply(pending, true);
   }
 
-  function exportImage(options: ChartImageOptions = {}): string {
-    if (disposed || !instance || !sized()) throw new Error("Chart image is unavailable");
+  function exportImage(
+    options: ChartImageOptions = {},
+    expectedRevision?: number,
+  ): string {
+    if (
+      disposed ||
+      !instance ||
+      !sized() ||
+      !pending ||
+      appliedRevision !== pending.revision ||
+      (expectedRevision !== undefined && expectedRevision !== appliedRevision)
+    )
+      throw new Error("Chart image is unavailable");
     return instance.getDataURL({ ...options, type: "png" });
   }
 
