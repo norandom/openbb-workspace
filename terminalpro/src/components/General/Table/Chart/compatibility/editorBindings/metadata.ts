@@ -1,9 +1,21 @@
 import type {
+  ApplicationAxisId,
   ResolvedApplicationAppearance,
   ResolvedFontStyle,
 } from "../../application/appearanceModel";
 import type { AxisBinding, EditorMetadata } from "./types";
 import { fontPairs } from "./valueMapping";
+
+/** Position choices originate from concrete bindings, before appearance leaves are applied. */
+export function horizontalAxisId(axes: Readonly<Record<ApplicationAxisId, {
+  readonly fields: { readonly positions?: readonly { readonly value: string }[] };
+}>>): ApplicationAxisId {
+  return axes.category.fields.positions?.some(({ value }) => value === "top" || value === "bottom") === false
+    ? "number" : "category";
+}
+export function verticalAxisId(horizontal: ApplicationAxisId): ApplicationAxisId {
+  return horizontal === "category" ? "number" : "category";
+}
 
 const originalFonts = [
   "Arial, sans-serif",
@@ -137,6 +149,8 @@ export function createEditorMetadata(
   style: ResolvedApplicationAppearance,
   bindings: Readonly<Record<"category" | "number", AxisBinding>>,
 ): EditorMetadata {
+  const horizontal = bindings.category.direction === "x" ? "category" : "number";
+  const vertical = verticalAxisId(horizontal);
   return {
     titles: {
       ...typographyMetadata(
@@ -149,8 +163,8 @@ export function createEditorMetadata(
       optionsByCaption: {
         title: captionOptions(style.title),
         subtitle: captionOptions(style.subtitle),
-        horizontalAxisTitle: captionOptions(style.axes.category.title),
-        verticalAxisTitle: captionOptions(style.axes.number.title),
+        horizontalAxisTitle: captionOptions(style.axes[horizontal].title),
+        verticalAxisTitle: captionOptions(style.axes[vertical].title),
       },
     },
     legend: {

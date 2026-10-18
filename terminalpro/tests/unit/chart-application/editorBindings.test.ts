@@ -23,6 +23,8 @@ describe("original appearance edit leaves", () => {
   it.each([
     "groupedColumn",
     "stackedColumn",
+    "groupedBar",
+    "stackedBar",
     "line",
   ])("writes only the %s partition", (family) => {
     expect(

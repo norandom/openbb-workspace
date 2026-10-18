@@ -119,11 +119,11 @@ describe("complete original saved field contract", () => {
       value: { line: { series: { connectMissingData: false } } },
     });
   });
-  it("original reducer retains unknown, inactive and alternating style branches", () => {
+  it.each(["line", "groupedBar", "stackedBar"] as const)("%s reducer retains unknown, inactive and alternating style branches", (family) => {
     const baseline = {
       custom: { x: 1 },
-      bar: { series: { unknown: "retained" } },
-      line: {
+      [family === "line" ? "bar" : "line"]: { series: { unknown: "retained" } },
+      [family === "line" ? "line" : "bar"]: {
         axes: {
           number: {
             left: {
@@ -146,7 +146,7 @@ describe("complete original saved field contract", () => {
         firstStyle: { stroke: "blue", lineDash: [2] },
         edit: { field: "color", value: "red" },
       },
-      "line",
+      family,
     );
     if (!patch.valid) throw new Error(patch.error);
     const result = reduceIntegratedState({
@@ -155,7 +155,7 @@ describe("complete original saved field contract", () => {
       currentModel: { chartId: "id" },
       resolvedOptions: baseline,
       eventOptions: patch.value,
-      chartType: "line",
+      chartType: family,
       totalSeries: 2,
       isPivotMode: false,
     });
@@ -166,8 +166,8 @@ describe("complete original saved field contract", () => {
           other: "retained",
           chartOptions: {
             custom: { x: 1 },
-            bar: { series: { unknown: "retained" } },
-            line: {
+            [family === "line" ? "bar" : "line"]: { series: { unknown: "retained" } },
+            [family === "line" ? "line" : "bar"]: {
               axes: {
                 number: {
                   left: {
@@ -186,7 +186,8 @@ describe("complete original saved field contract", () => {
         },
       },
     });
-    expect(baseline.line.axes.number.left.gridLine.style[0].stroke).toBe("blue");
+    const retained = baseline[family === "line" ? "line" : "bar"];
+    expect(retained.axes?.number.left.gridLine.style[0].stroke).toBe("blue");
   });
   it("fresh hydration uses the newly accepted companion color, not the prior render", () => {
     const selection = bindingSelection();

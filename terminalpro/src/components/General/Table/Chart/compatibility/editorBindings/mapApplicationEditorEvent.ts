@@ -1,3 +1,4 @@
+import { isHorizontalBarFamily } from "../../echarts/cartesianTypes";
 import type { RuntimeOptions } from "../legacyTypes";
 import type { ApplicationEditorEvent, MapApplicationEditorEvent } from "./types";
 import { axisLeaf, fontLeaf, legendLeaf } from "./valueMapping";
@@ -116,7 +117,7 @@ function eventPatch(event: ApplicationEditorEvent): RuntimeOptions {
 }
 export const mapApplicationEditorEvent: MapApplicationEditorEvent = (event, family) => {
   try {
-    if (!["groupedColumn", "stackedColumn", "line"].includes(family))
+    if (!["groupedColumn", "stackedColumn", "line"].includes(family) && !isHorizontalBarFamily(family))
       throw new Error("Unsupported chart family");
     validateEvent(event);
     return {

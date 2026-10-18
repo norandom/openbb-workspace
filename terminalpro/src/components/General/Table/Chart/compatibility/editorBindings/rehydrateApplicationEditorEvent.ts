@@ -57,9 +57,9 @@ function hydrate(
     const caption = intent.edit.caption;
     const axis: ApplicationAxisId | undefined =
       caption === "horizontalAxisTitle"
-        ? "category"
+        ? (input.bindings.category.direction === "x" ? "category" : "number")
         : caption === "verticalAxisTitle"
-          ? "number"
+          ? (input.bindings.category.direction === "y" ? "category" : "number")
           : undefined;
     const font = axis
       ? appearance.axes[axis].title

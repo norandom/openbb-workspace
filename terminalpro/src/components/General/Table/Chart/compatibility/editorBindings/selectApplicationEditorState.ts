@@ -1,9 +1,10 @@
+import { isHorizontalBarFamily } from "../../echarts/cartesianTypes";
 import type {
   ApplicationAxisId,
   ResolvedCaption,
 } from "../../application/appearanceModel";
 import type { EditorSelectionInput, SelectApplicationEditorState } from "./types";
-import { displayFont, fontWeightKey } from "./metadata";
+import { displayFont, fontWeightKey, horizontalAxisId, verticalAxisId } from "./metadata";
 
 function caption(value: ResolvedCaption) {
   return {
@@ -73,9 +74,11 @@ function seriesControls(input: EditorSelectionInput) {
 }
 export const selectApplicationEditorState: SelectApplicationEditorState = (input) => {
   try {
-    if (!["groupedColumn", "stackedColumn", "line"].includes(input.family))
+    if (!["groupedColumn", "stackedColumn", "line"].includes(input.family) && !isHorizontalBarFamily(input.family))
       throw new Error("Unsupported editor family");
     const appearance = input.style.application;
+    const horizontal = horizontalAxisId(input.metadata.axes);
+    const vertical = verticalAxisId(horizontal);
     const {
       fontWeight: _legendWeight,
       fontStyle: _legendStyle,
@@ -94,8 +97,8 @@ export const selectApplicationEditorState: SelectApplicationEditorState = (input
           value: {
             title: caption(appearance.title),
             subtitle: caption(appearance.subtitle),
-            horizontalAxisTitle: caption(appearance.axes.category.title),
-            verticalAxisTitle: caption(appearance.axes.number.title),
+            horizontalAxisTitle: caption(appearance.axes[horizontal].title),
+            verticalAxisTitle: caption(appearance.axes[vertical].title),
           },
         },
         legend: {

@@ -1,3 +1,4 @@
+import { horizontalAxisId } from "../compatibility/editorBindings/metadata";
 import type { ApplicationAxisId } from "../application/appearanceModel";
 import type {
   ApplicationAxisStructureEvent,
@@ -40,7 +41,7 @@ export function ApplicationAxisEditor({
   }
   return (
     <ApplicationEditorGroup
-      label={axis === "category" ? "Horizontal Axis" : "Vertical Axis"}
+      label={axis === horizontalAxisId(state.axes) ? "Horizontal Axis" : "Vertical Axis"}
     >
       <ChartAxisFieldsPanel {...values.fields} onEdit={editAxis} />
       {eligibility.grid && (

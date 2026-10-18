@@ -1,3 +1,4 @@
+import { horizontalAxisId, verticalAxisId } from "../compatibility/editorBindings/metadata";
 import type {
   ApplicationAxisStructureEvent,
   ApplicationEditorIntent,
@@ -67,6 +68,7 @@ function Series({ state, onIntent }: ApplicationCustomizeEditorProps) {
 }
 export function ApplicationCustomizeEditor(props: ApplicationCustomizeEditorProps) {
   const { state, onIntent } = props;
+  const horizontal = horizontalAxisId(state.axes);
   return (
     <>
       <ApplicationEditorGroup label="Chart Style">
@@ -90,8 +92,8 @@ export function ApplicationCustomizeEditor(props: ApplicationCustomizeEditorProp
         />
       )}
       <Series {...props} />
-      <ApplicationAxisEditor {...props} axis="category" />
-      <ApplicationAxisEditor {...props} axis="number" />
+      <ApplicationAxisEditor {...props} axis={horizontal} />
+      <ApplicationAxisEditor {...props} axis={verticalAxisId(horizontal)} />
     </>
   );
 }
