@@ -5,6 +5,14 @@ export interface ChartRenderRequest {
   readonly options: EChartsOption;
   /** Finite revision supplied by the caller. Only strictly newer revisions replace accepted work. */
   readonly revision: number;
+  /** Paired with projectLegendSelection; stable across render revisions, reset per session/family. */
+  readonly legendScope?: string;
+  /** Keys equal main-series names/IDs. The callback closes over immutable current inputs. */
+  readonly projectLegendSelection?: (
+    selected: Readonly<Record<string, boolean>>,
+  ) => EChartsOption;
+  /** Interaction failures invalidate export before reaching the existing host error channel. */
+  readonly onError?: (error: unknown) => void;
 }
 export type LifecycleResult = "applied" | "deferred" | "stale" | "disposed";
 export interface ChartImageOptions {

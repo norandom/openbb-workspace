@@ -1,5 +1,5 @@
 import type { GridApi } from "ag-grid-community";
-import type { EChartsOption } from "echarts";
+import type { ChartRenderRequest } from "../echarts/lifecycle";
 import type {
   ApplicationEditorCommand,
   ApplicationEditorState,
@@ -99,10 +99,8 @@ export type ApplicationSessionCommand =
       readonly family: CartesianFamily;
       readonly intent: { readonly panel: "setup"; readonly edit: ChartSetupEdit };
     };
-export interface ApplicationSessionReady {
+export interface ApplicationSessionReady extends ChartRenderRequest {
   readonly stamp: SessionStamp;
-  readonly revision: number;
-  readonly options: EChartsOption;
   readonly editor: ApplicationEditorState;
   readonly setupProps: Omit<ChartSetupPanelProps, "onEdit">;
   readonly model: ChartModel;

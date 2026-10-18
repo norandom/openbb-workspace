@@ -1,0 +1,275 @@
+{
+  "provenance": {
+    "workspaceRevision": "38dffc33389aca0e4a87e0e88d42f7067aa220df",
+    "agGridEnterprise": {
+      "version": "34.1.1",
+      "sha256": "ff634fef7612738444a1618604ea88c0625328f271382f2fb3aaf9a26926d30c"
+    },
+    "agChartsCommunity": {
+      "version": "12.1.1",
+      "sha256": "237912c75d2c7e8219fced7bb79e5ed8fca0f620d6f4d259cdfa58748445fcd1"
+    },
+    "agChartsEnterprise": {
+      "version": "12.1.1",
+      "sha256": "dc8e6a2a500d577438dad28a10cfdb30b8524218a9ec617a6a2adf7400cc5f7f"
+    },
+    "expectations": "Independent hand calculation from max(positive sum, absolute negative sum); source-derived arithmetic, not browser geometry measurement"
+  },
+  "series": [
+    "First",
+    "Second",
+    "Third"
+  ],
+  "rows": [
+    {
+      "category": "Alpha",
+      "raw": [
+        7,
+        3,
+        -2
+      ],
+      "all": {
+        "denominator": 10,
+        "segments": [
+          70,
+          30,
+          -20
+        ],
+        "endpoints": [
+          [
+            0,
+            70
+          ],
+          [
+            70,
+            100
+          ],
+          [
+            0,
+            -20
+          ]
+        ]
+      },
+      "secondHidden": {
+        "denominator": 7,
+        "segments": [
+          100,
+          null,
+          -28.571428571428573
+        ],
+        "endpoints": [
+          [
+            0,
+            100
+          ],
+          null,
+          [
+            0,
+            -28.571428571428573
+          ]
+        ]
+      }
+    },
+    {
+      "category": "Beta",
+      "raw": [
+        -4,
+        -6,
+        5
+      ],
+      "all": {
+        "denominator": 10,
+        "segments": [
+          -40,
+          -60,
+          50
+        ],
+        "endpoints": [
+          [
+            0,
+            -40
+          ],
+          [
+            -40,
+            -100
+          ],
+          [
+            0,
+            50
+          ]
+        ]
+      },
+      "secondHidden": {
+        "denominator": 5,
+        "segments": [
+          -80,
+          null,
+          100
+        ],
+        "endpoints": [
+          [
+            0,
+            -80
+          ],
+          null,
+          [
+            0,
+            100
+          ]
+        ]
+      }
+    },
+    {
+      "category": "Gamma",
+      "raw": [
+        0,
+        8,
+        -3
+      ],
+      "all": {
+        "denominator": 8,
+        "segments": [
+          0,
+          100,
+          -37.5
+        ],
+        "endpoints": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            100
+          ],
+          [
+            0,
+            -37.5
+          ]
+        ]
+      },
+      "secondHidden": {
+        "denominator": 3,
+        "segments": [
+          0,
+          null,
+          -100
+        ],
+        "endpoints": [
+          [
+            0,
+            0
+          ],
+          null,
+          [
+            0,
+            -100
+          ]
+        ]
+      }
+    },
+    {
+      "category": "Delta",
+      "raw": [
+        null,
+        2,
+        -1
+      ],
+      "all": {
+        "denominator": 2,
+        "segments": [
+          null,
+          100,
+          -50
+        ],
+        "endpoints": [
+          null,
+          [
+            0,
+            100
+          ],
+          [
+            0,
+            -50
+          ]
+        ]
+      },
+      "secondHidden": {
+        "denominator": 1,
+        "segments": [
+          null,
+          null,
+          -100
+        ],
+        "endpoints": [
+          null,
+          null,
+          [
+            0,
+            -100
+          ]
+        ]
+      }
+    },
+    {
+      "category": "ZeroOnly",
+      "raw": [
+        0,
+        0,
+        null
+      ],
+      "all": {
+        "denominator": 0,
+        "segments": [
+          null,
+          null,
+          null
+        ],
+        "endpoints": [
+          null,
+          null,
+          null
+        ]
+      }
+    },
+    {
+      "category": "AllMissing",
+      "raw": [
+        null,
+        null,
+        null
+      ],
+      "all": {
+        "denominator": 0,
+        "segments": [
+          null,
+          null,
+          null
+        ],
+        "endpoints": [
+          null,
+          null,
+          null
+        ]
+      }
+    }
+  ],
+  "overview": "Always use all expectations above, independent of main Second-hidden membership",
+  "missingSemantics": "null denotes no normalized node; hidden and missing remain distinguishable using raw observation plus membership. Raw zero stays zero when denominator positive. Never replace missing financial observation with zero.",
+  "observed": {
+    "defaultAxisLabels": "rounded percentages",
+    "normalizedColumnMini": "visible vertical full stacks",
+    "normalizedBarMini": "absent empty strip",
+    "zeroOnly": "Original normalizedColumn: no bars; single 0% numeric tick visible. Exact numeric domain not inferred from this one tick.",
+    "allMissing": "Ordinary all-missing CSV has disabled chart-view button; displayed chart fallback not observed.",
+    "legendLifetime": "Second unchecked before save200; restored normalizedColumn canvas and Alpha data after reload; Second checked. Miniature off throughout."
+  },
+  "unsettled": [
+    "All-missing displayed chart fallback: ordinary CSV cannot enter chart view"
+  ],
+  "sourceDecisions": {
+    "axis": "Default Math.round(value)+percent formatter precedes custom format string",
+    "crosshair": "Original renderer formatNumberMagnitude(normalized coordinate,0), without automatic percent suffix",
+    "savedSelection": "Exact target range chart model omits native per-series selection; source getChartModel serializes options/ranges/theme, not runtime visibility"
+  }
+}

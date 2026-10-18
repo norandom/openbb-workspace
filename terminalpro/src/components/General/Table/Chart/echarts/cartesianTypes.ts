@@ -8,10 +8,22 @@ export type CartesianFamily =
   | "stackedColumn"
   | "groupedBar"
   | "stackedBar"
+  | "normalizedColumn"
+  | "normalizedBar"
   | "line";
 
 export function isHorizontalBarFamily(family: string): boolean {
   return family === "groupedBar" || family === "stackedBar";
+}
+export function isHorizontalCartesianFamily(family: string): boolean {
+  return isHorizontalBarFamily(family) || family === "normalizedBar";
+}
+export function isNormalizedFamily(family: string): boolean {
+  return family === "normalizedColumn" || family === "normalizedBar";
+}
+export function isCartesianFamily(family: string): family is CartesianFamily {
+  return family === "groupedColumn" || family === "stackedColumn" ||
+    family === "line" || isHorizontalCartesianFamily(family) || isNormalizedFamily(family);
 }
 export interface CartesianSeriesStyle {
   readonly color?: string;
@@ -126,6 +138,9 @@ export type CartesianObservationPolicy =
 
 export interface CartesianMappingContext {
   readonly observations: CartesianObservationPolicy;
+  /** Native legend keys are stable numeric column IDs; absent IDs are enabled.
+   * Only drawn main geometry uses this map; raw data and the full overview do not. */
+  readonly legendSelection?: Readonly<Record<string, boolean>>;
   readonly display: ChartDisplayPolicy;
   /** Produced by the ordinary Set Up adapter; never serialized with the chart model. */
   readonly setupProjection?: OrdinarySetupProjection;
