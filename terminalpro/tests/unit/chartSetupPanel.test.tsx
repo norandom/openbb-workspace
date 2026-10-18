@@ -76,3 +76,14 @@ it("dragging preserves every current ID and ignores stale or cancelled sources",
   fireEvent.drop(screen.getByRole("button", { name: "Reorder Margin" }), { dataTransfer: transfer });
   expect(p.onEdit).not.toHaveBeenCalled();
 });
+it("uses the original category and series headings when inverted", () => {
+  render(<ChartSetupPanel {...props({ ...value, switchCategorySeries: true })} />);
+  expect(screen.getByRole("button", { name: "Category Values" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Series Labels" })).toBeTruthy();
+});
+it("omits aggregation controls only for the original default category", () => {
+  render(<ChartSetupPanel {...props({ ...value, categoryId: "AG-GRID-DEFAULT-CATEGORY" })} />);
+  expect(screen.queryByRole("switch", { name: "Aggregate" })).toBeNull();
+  expect(screen.queryByLabelText("Aggregation method")).toBeNull();
+  expect(screen.getByRole("switch", { name: "Switch Category / Series" })).toBeTruthy();
+});

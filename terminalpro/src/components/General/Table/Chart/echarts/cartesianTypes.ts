@@ -118,4 +118,11 @@ export type CartesianObservationPolicy =
 export interface CartesianMappingContext {
   readonly observations: CartesianObservationPolicy;
   readonly display: ChartDisplayPolicy;
+  /** Produced by the ordinary Set Up adapter; never serialized with the chart model. */
+  readonly setupProjection?: OrdinarySetupProjection;
 }
+
+export type SetupAggregation = "sum" | "first" | "last" | "min" | "max" | "count" | "avg";
+export type OrdinarySetupProjection =
+  | { readonly kind: "ordinary-aggregate"; readonly aggFunc: SetupAggregation }
+  | { readonly kind: "ordinary-switch"; readonly aggFunc?: SetupAggregation };

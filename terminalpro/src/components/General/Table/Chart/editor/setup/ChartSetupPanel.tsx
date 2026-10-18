@@ -71,12 +71,14 @@ function Series({ series, onEdit }: Pick<ChartSetupState, "series"> & Pick<Chart
 
 export function ChartSetupPanel({ value, categories, aggregationMethods, onEdit }: ChartSetupPanelProps) {
   return <div className="chart-setup-panel">
-    <Group label="Categories">
+    <Group label={value.switchCategorySeries ? "Series Labels" : "Categories"}>
       <Choice label="Category" value={value.categoryId} choices={categories} onChange={(next) => onEdit({ kind: "category", value: next })} />
-      <div className="chart-setup-switch"><Switch label="Aggregate" checked={value.aggregate} onCheckedChange={(next) => onEdit({ kind: "aggregate", value: next })} /></div>
-      {value.aggregate && <Choice label="Aggregation method" value={value.aggregationMethod} choices={aggregationMethods} onChange={(next) => onEdit({ kind: "aggregation-method", value: next })} />}
+      {value.categoryId !== "AG-GRID-DEFAULT-CATEGORY" && <>
+        <div className="chart-setup-switch"><Switch label="Aggregate" checked={value.aggregate} onCheckedChange={(next) => onEdit({ kind: "aggregate", value: next })} /></div>
+        {value.aggregate && <Choice label="Aggregation method" value={value.aggregationMethod} choices={aggregationMethods} onChange={(next) => onEdit({ kind: "aggregation-method", value: next })} />}
+      </>}
     </Group>
-    <Group label="Series"><Series series={value.series} onEdit={onEdit} />
+    <Group label={value.switchCategorySeries ? "Category Values" : "Series"}><Series series={value.series} onEdit={onEdit} />
       <div className="chart-setup-switch chart-setup-transpose"><Switch label="Switch Category / Series" checked={value.switchCategorySeries} onCheckedChange={(next) => onEdit({ kind: "switch-category-series", value: next })} /></div>
     </Group>
   </div>;
