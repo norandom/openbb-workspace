@@ -28,12 +28,17 @@ export interface CaptionChoice<T> {
   value: T;
   label: string;
 }
-export interface ChartTitlesPanelProps {
-  value: Record<ChartCaptionId, ChartCaptionState>;
+export interface CaptionTypographyChoices {
   fonts: readonly CaptionChoice<string>[];
   weights: readonly CaptionChoice<string>[];
   sizes: readonly CaptionChoice<number>[];
+}
+export interface CaptionOptions extends CaptionTypographyChoices {
   spacingBounds: { min: number; max: number; step: number };
+}
+export interface ChartTitlesPanelProps extends CaptionOptions {
+  value: Record<ChartCaptionId, ChartCaptionState>;
+  optionsByCaption?: Readonly<Record<ChartCaptionId, CaptionOptions>>;
   onEdit: (edit: ChartCaptionEdit) => void;
 }
 const captions: readonly [ChartCaptionId, string][] = [
@@ -69,7 +74,11 @@ export function ChartTitlesPanel(props: ChartTitlesPanelProps) {
               />
             </div>
             {props.value[caption].enabled && (
-              <CaptionFields {...props} caption={caption} />
+              <CaptionFields
+                {...props}
+                {...props.optionsByCaption?.[caption]}
+                caption={caption}
+              />
             )}
           </fieldset>
         ))}
