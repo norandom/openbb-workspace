@@ -11,6 +11,8 @@ import { ChartBackgroundPanel, type ChartBackgroundState } from "../../General/T
 import { ChartTooltipsPanel, type ChartTooltipsState } from "../../General/Table/Chart/editor/tooltips/ChartTooltipsPanel";
 import { ChartSeriesStylePanel, type SeriesStyleField } from "../../General/Table/Chart/editor/series/ChartSeriesStylePanel";
 import { ChartShadowPanel, type ChartShadowState } from "../../General/Table/Chart/editor/shadow/ChartShadowPanel";
+import { ChartLabelsPanel, type ChartLabelsState } from "../../General/Table/Chart/editor/labels/ChartLabelsPanel";
+import { ChartMarkersPanel, type ChartMarkersState } from "../../General/Table/Chart/editor/markers/ChartMarkersPanel";
 import type { ReactNode } from "react";
 
 const initialSetup: ChartSetupState = {
@@ -35,17 +37,20 @@ const fonts = ["Verdana, sans-serif", "Arial, sans-serif"].map((value) => ({ val
 const weights = [{ value: "predefined", label: "Predefined" }, { value: "normal", label: "Normal" }, { value: "bold", label: "Bold" }, { value: "italic", label: "Italic" }, { value: "bold-italic", label: "Bold Italic" }];
 const range = (max: number) => ({ min: 0, max, step: 1 });
 
-export function ChartEditorControlsPreview({ dark = false }: { dark?: boolean }) {
+export function ChartEditorControlsPreview({ dark = false, seriesType = "bar" }: { dark?: boolean; seriesType?: "bar" | "line" }) {
   const [open, setOpen] = useState(true);
   const [tab, setTab] = useState<ChartEditorTab>("setup");
-  const [selectedType, setSelectedType] = useState("groupedColumn");
+  const [selectedType, setSelectedType] = useState(seriesType === "line" ? "line" : "groupedColumn");
+  const isLine = ["line", "stackedLine", "normalizedLine"].includes(selectedType);
   const [themeKey, setThemeKey] = useState(0);
   const [setup, setSetup] = useState(initialSetup);
   const [padding, setPadding] = useState({ top: 20, right: 20, bottom: 20, left: 20 });
   const [background, setBackground] = useState<ChartBackgroundState>({ visible: true, fill: dark ? "#151518" : "#FFFFFF" });
   const [tooltips, setTooltips] = useState<ChartTooltipsState>({ enabled: true, mode: "shared" });
-  const [seriesStyle, setSeriesStyle] = useState<Record<SeriesStyleField, number>>({ strokeWidth: 0, lineDash: 0, strokeOpacity: 1, fillOpacity: 1 });
+  const [seriesStyle, setSeriesStyle] = useState<Record<SeriesStyleField, number>>({ strokeWidth: seriesType === "line" ? 2 : 0, lineDash: 0, strokeOpacity: 1, fillOpacity: 1 });
   const [shadow, setShadow] = useState<ChartShadowState>({ enabled: false, color: "#00000080", blur: 5, xOffset: 3, yOffset: 3 });
+  const [labels, setLabels] = useState<ChartLabelsState>({ enabled: false, font: "Verdana, sans-serif", weight: "predefined", size: 12, color: dark ? "#FFFFFF" : "#000000" });
+  const [markers, setMarkers] = useState<ChartMarkersState>({ enabled: true, shape: "circle", size: 7, strokeWidth: 0 });
   const [legend, setLegend] = useState<ChartLegendState>({
     enabled: true, font: "Verdana, sans-serif", weight: "predefined", size: 11,
     color: dark ? "#FFFFFF" : "#000000", position: "top", spacing: 20,
@@ -71,7 +76,7 @@ export function ChartEditorControlsPreview({ dark = false }: { dark?: boolean })
     ...current, [edit.caption]: { ...current[edit.caption], [edit.field]: edit.value },
   }));
   return <section>
-    <p>Production controls preview: Set Up, Titles, Legend, chart padding, Background, Tooltips, Series styling and Shadow. Labels, other family-specific controls, axes, live chart bindings and persistence remain pending. Menu choices are examples.</p>
+    <p>Production controls preview: Set Up, Titles, Legend, chart padding, Background, Tooltips, Series styling, Shadow, ordinary Labels and line Markers. This preview covers bar/line controls; other family-specific controls, axes, live chart bindings and persistence remain pending. Menu choices are examples.</p>
     <button ref={opener} type="button" onClick={() => setOpen(true)}>Chart settings</button>
     <button type="button" onClick={() => setThemeKey((value) => value + 1)}>Rebuild preview theme</button>
     <div style={{ height: 520, marginTop: 12 }}>
@@ -98,13 +103,19 @@ export function ChartEditorControlsPreview({ dark = false }: { dark?: boolean })
               modes={[{ value: "single", label: "Single" }, { value: "shared", label: "Multiple" }, { value: "compact", label: "Compact" }]}
               onEdit={({ field, value }) => setTooltips((current) => ({ ...current, [field]: value }))} />
             <ChartSeriesStylePanel controls={([
-              ["strokeWidth", "Stroke Width", 10, 1, "any"],
+              ["strokeWidth", isLine ? "Line Width" : "Stroke Width", 10, 1, "any"],
               ["lineDash", "Line Dash", 30, 1, "any"],
               ["strokeOpacity", "Line Opacity", 1, 0.05, 0.05],
               ["fillOpacity", "Fill Opacity", 1, 0.05, 0.05],
-            ] as const).map(([field, label, max, rangeStep, numberStep]) => ({ field, label, value: seriesStyle[field], min: 0, max: Math.max(max, seriesStyle[field]), rangeStep, numberStep }))}
+            ] as const).filter(([field]) => !isLine || field !== "fillOpacity").map(([field, label, max, rangeStep, numberStep]) => ({ field, label, value: seriesStyle[field], min: 0, max: Math.max(max, seriesStyle[field]), rangeStep, numberStep }))}
               onEdit={({ field, value }) => setSeriesStyle((current) => ({ ...current, [field]: value }))} />
-            <ChartShadowPanel value={shadow} onEdit={({ field, value }) => setShadow((current) => ({ ...current, [field]: value }))} />
+            {isLine && <ChartMarkersPanel value={markers}
+              shapes={["square", "circle", "cross", "diamond", "plus", "triangle", "heart"].map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) }))}
+              onEdit={({ field, value }) => setMarkers((current) => ({ ...current, [field]: value }))} />}
+            <ChartLabelsPanel value={labels} fonts={fonts} weights={weights}
+              sizes={[8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36].map((value) => ({ value, label: String(value) }))}
+              onEdit={({ field, value }) => setLabels((current) => ({ ...current, [field]: value }))} />
+            {!isLine && <ChartShadowPanel value={shadow} onEdit={({ field, value }) => setShadow((current) => ({ ...current, [field]: value }))} />}
           </CustomizeGroup>
         </>} />
     </div>
