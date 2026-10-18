@@ -1,126 +1,94 @@
-import type { BarSeriesOption, EChartsOption, LineSeriesOption } from "echarts";
+import type { EChartsOption } from "echarts";
 import type {
   ChartSnapshot,
   SnapshotColumn,
   SnapshotDiagnostic,
 } from "../compatibility/snapshotTypes";
 import {
-  captionAppearance,
-  seriesAppearance,
-  validateCartesianStyle,
-} from "./cartesianStyle";
+  contextDiagnostics,
+  mappingIssue,
+  sourceDiagnostics,
+  unitDiagnostics,
+} from "./cartesianAdmission";
+import { applicationAxes } from "./cartesianAxes";
+import { fallbackDisplay } from "./cartesianDisplay";
+import { cartesianGrid } from "./cartesianGrid";
+import { applicationLayout } from "./cartesianLayout";
+import { cartesianSeries } from "./cartesianSeries";
+import { captionAppearance, validateCartesianStyle } from "./cartesianStyle";
+import { cartesianTooltip } from "./cartesianTooltip";
 import type {
   CartesianFamily,
+  CartesianMappingContext,
   ResolvedCartesianStyle,
   TranslateCartesian,
 } from "./cartesianTypes";
 
-const record = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-const dimension = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value) && value >= 0;
-function diagnostic(
-  code: string,
-  path: readonly (string | number)[],
-  message: string,
-): SnapshotDiagnostic {
-  return { code, path, message };
-}
-
-function unitDiagnostics(
-  columns: readonly SnapshotColumn[],
-  descriptors: readonly SnapshotColumn[],
-): SnapshotDiagnostic[] {
-  const first = columns[0];
-  return columns.flatMap((column) => {
-    const index = descriptors.findIndex((descriptor) => descriptor.id === column.id);
-    if (!column.unit || !dimension(column.scale) || column.scale === 0) {
-      return [
-        diagnostic(
-          "unknown-unit",
-          ["columns", index, !column.unit ? "unit" : "scale"],
-          "Selected series require an explicit unit and positive scale.",
-        ),
-      ];
-    }
-    if (column.unit !== first?.unit || column.scale !== first?.scale) {
-      return [
-        diagnostic(
-          "incompatible-unit",
-          ["columns", index, column.unit !== first?.unit ? "unit" : "scale"],
-          "Selected series must share the same unit and scale; no conversion is applied.",
-        ),
-      ];
-    }
-    return [];
-  });
-}
-
-// Escape provider labels before passing them to ECharts' HTML tooltip renderer.
-function escapeHtml(value: string): string {
-  return value.replace(
-    /[&<>"']/g,
-    (character) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        character
-      ] ?? character,
-  );
-}
-
-function tooltip(
+function applicationSupport(
   snapshot: ChartSnapshot,
-  columns: readonly SnapshotColumn[],
-  precision: number,
-  params: unknown,
-): string {
-  const entries = Array.isArray(params) ? params : [params];
-  const index = entries.find(
-    (entry: unknown) => record(entry) && typeof entry.dataIndex === "number",
-  )?.dataIndex;
-  const row = typeof index === "number" ? snapshot.rows[index] : undefined;
-  if (!row) return "";
-  const lines = columns.map((column) => {
-    const value = row.values[column.id];
-    return `${escapeHtml(column.label)}: ${typeof value === "number" ? value.toFixed(precision) : "—"}`;
-  });
-  return [escapeHtml(String(row.category)), ...lines].join("<br/>");
-}
-
-function seriesOptions(
-  snapshot: ChartSnapshot,
-  columns: readonly SnapshotColumn[],
-  family: CartesianFamily,
   style: ResolvedCartesianStyle,
-): (BarSeriesOption | LineSeriesOption)[] {
-  return columns.map((column, index) => {
-    const common = {
-      id: column.id,
-      // ECharts legend selection addresses names, so names must also use stable IDs.
-      name: column.id,
-      data: snapshot.rows.map((row) => row.values[column.id] ?? null),
-      ...seriesAppearance(style, column.id, index, family),
-    };
-    if (family === "line") {
-      return {
-        ...common,
-        type: "line",
-      };
-    }
-    if (family === "stackedColumn")
-      return { ...common, type: "bar", stack: "total", stackStrategy: "samesign" };
-    return { ...common, type: "bar" };
-  });
+  context: CartesianMappingContext | undefined,
+): SnapshotDiagnostic[] {
+  const a = style.application;
+  if (!a) return [];
+  if (!context?.viewport)
+    return [
+      mappingIssue(
+        "missing-viewport",
+        ["context", "viewport"],
+        "Application rendering awaits positive host dimensions.",
+      ),
+    ];
+  const c = a.axes.category.fields;
+  const n = a.axes.number.fields;
+  if (n.type !== "number")
+    return [
+      mappingIssue(
+        "invalid-axis-type",
+        ["style", "application", "axes", "number", "fields", "type"],
+        "The numerical observation axis must retain its numerical interpretation.",
+      ),
+    ];
+  if (["top", "bottom"].includes(c.position) === ["top", "bottom"].includes(n.position))
+    return [
+      mappingIssue(
+        "invalid-axis-position",
+        ["style", "application", "axes"],
+        "Category and number axes must occupy orthogonal directions.",
+      ),
+    ];
+  if (c.type === "number" && snapshot.rows.some((r) => typeof r.category !== "number"))
+    return [
+      mappingIssue(
+        "invalid-category",
+        ["rows"],
+        "Number category axes require original numerical category observations.",
+      ),
+    ];
+  if (
+    c.type === "time" &&
+    snapshot.rows.some((r) => !Number.isFinite(new Date(r.category).getTime()))
+  )
+    return [
+      mappingIssue(
+        "invalid-category",
+        ["rows"],
+        "Time category axes require parseable original dates.",
+      ),
+    ];
+  return [];
 }
-
 function buildOptions(
   snapshot: ChartSnapshot,
   columns: readonly SnapshotColumn[],
   family: CartesianFamily,
   style: ResolvedCartesianStyle,
+  context: CartesianMappingContext | undefined,
 ): EChartsOption {
   const captions = captionAppearance(style);
+  const display = context?.display ?? fallbackDisplay(style.precision);
   const labels = new Map(columns.map((column) => [column.id, column.label]));
-  return {
+  const legacy: EChartsOption = {
     backgroundColor: style.background,
     color: [...style.palette],
     textStyle: {
@@ -132,8 +100,8 @@ function buildOptions(
     legend: {
       show: style.legend.visible,
       [style.legend.position]: 0,
-      data: columns.map((column) => column.id),
-      formatter: (name: string) => labels.get(name) ?? name,
+      data: columns.map((c) => c.id),
+      formatter: (name: string) => String(display.legend(labels.get(name) ?? name)),
       textStyle: captions.legendText,
     },
     xAxis: {
@@ -142,12 +110,14 @@ function buildOptions(
       axisLabel: {
         ...captions.axisLabelStyle,
         formatter: (value: string) =>
-          String(snapshot.rows[Number(value)]?.category ?? ""),
+          String(display.category(snapshot.rows[Number(value)]?.category ?? "")),
       },
       axisPointer: {
         label: {
           formatter: (params) =>
-            String(snapshot.rows[Number(params.value)]?.category ?? ""),
+            String(
+              display.crosshair(snapshot.rows[Number(params.value)]?.category ?? ""),
+            ),
         },
       },
     },
@@ -155,50 +125,92 @@ function buildOptions(
       type: "value",
       axisLabel: {
         ...captions.axisLabelStyle,
-        formatter: (value: number) => value.toFixed(style.precision),
+        formatter: (value: number) => String(display.numericAxis(value)),
       },
     },
-    tooltip: {
-      trigger: "axis",
-      formatter: (params) => tooltip(snapshot, columns, style.precision, params),
-    },
-    series: seriesOptions(snapshot, columns, family, style),
+    tooltip: cartesianTooltip(snapshot, columns, style, display),
+    series: cartesianSeries(snapshot, columns, family, style, display),
+  };
+  if (!style.application || !context?.viewport) return legacy;
+  const layout = applicationLayout(
+    style.application,
+    columns,
+    display,
+    family,
+    context.viewport,
+  );
+  const grid = layout.grid as {
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+  };
+  const plotViewport = {
+    width: Math.max(1, context.viewport.width - grid.left - grid.right),
+    height: Math.max(1, context.viewport.height - grid.top - grid.bottom),
+  };
+  return {
+    ...legacy,
+    ...cartesianGrid(style.application),
+    ...layout,
+    ...applicationAxes(
+      style.application.axes.category,
+      style.application.axes.number,
+      snapshot,
+      display,
+      plotViewport,
+    ),
   };
 }
-
-export const translateCartesian: TranslateCartesian = (snapshot, family, style) => {
-  if (!["groupedColumn", "stackedColumn", "line"].includes(family)) {
+export const translateCartesian: TranslateCartesian = (
+  snapshot,
+  family,
+  style,
+  context,
+) => {
+  if (!["groupedColumn", "stackedColumn", "line"].includes(family))
     return {
       status: "unsupported",
       diagnostics: [
-        diagnostic(
+        mappingIssue(
           "unsupported-family",
           ["family"],
           "Only groupedColumn, stackedColumn and line are supported.",
         ),
       ],
     };
-  }
-  if (snapshot.sourceMode !== "flat") {
-    return {
-      status: "unsupported",
-      diagnostics: [
-        diagnostic(
-          "unsupported-source",
-          ["sourceMode"],
-          "Only flat unaggregated observations are supported.",
-        ),
-      ],
-    };
-  }
   try {
+    const invalidContext = contextDiagnostics(context);
+    if (invalidContext.length)
+      return { status: "invalid", diagnostics: invalidContext };
+    const source = sourceDiagnostics(snapshot, context);
+    if (source.length) return { status: "unsupported", diagnostics: source };
     const validated = validateCartesianStyle(style, family as CartesianFamily);
     if (validated.status !== "valid") return validated;
     const columns = snapshot.selectedColumnIds.flatMap((id) =>
-      snapshot.columns.filter((column) => column.id === id && column.role === "number"),
+      snapshot.columns.filter((c) => c.id === id && c.role === "number"),
     );
-    const diagnostics = unitDiagnostics(columns, snapshot.columns);
-    if (diagnostics.length) return { status: "unsupported", diagnostics };
+    const units = unitDiagnostics(
+      columns,
+      snapshot.columns,
+      context?.observations.kind === "raw-observations",
+    );
+    if (units.length)
+      return {
+        status:
+          context !== undefined && units.some((d) => d.code === "invalid-unit")
+            ? "invalid"
+            : "unsupported",
+        diagnostics: units,
+      };
+    const support = applicationSupport(snapshot, validated.style, context);
+    if (support.length)
+      return {
+        status: support.some((d) => d.code.startsWith("invalid-"))
+          ? "invalid"
+          : "unsupported",
+        diagnostics: support,
+      };
     return {
       status: "supported",
       options: buildOptions(
@@ -206,16 +218,17 @@ export const translateCartesian: TranslateCartesian = (snapshot, family, style) 
         columns,
         family as CartesianFamily,
         validated.style,
+        context,
       ),
     };
   } catch {
     return {
       status: "invalid",
       diagnostics: [
-        diagnostic(
+        mappingIssue(
           "invalid-style",
           ["style"],
-          "Resolved style cannot be safely inspected.",
+          "Resolved style cannot be safely inspected or projected.",
         ),
       ],
     };

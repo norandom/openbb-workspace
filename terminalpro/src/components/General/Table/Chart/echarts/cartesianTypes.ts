@@ -120,6 +120,8 @@ export interface CartesianMappingContext {
   readonly display: ChartDisplayPolicy;
   /** Produced by the ordinary Set Up adapter; never serialized with the chart model. */
   readonly setupProjection?: OrdinarySetupProjection;
+  /** Current host dimensions keep inherited spacing and automatic label rotation responsive. */
+  readonly viewport?: { readonly width: number; readonly height: number };
 }
 
 export type SetupAggregation = "sum" | "first" | "last" | "min" | "max" | "count" | "avg";

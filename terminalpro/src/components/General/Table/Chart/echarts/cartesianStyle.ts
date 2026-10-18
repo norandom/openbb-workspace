@@ -1,4 +1,5 @@
 import type { SnapshotDiagnostic } from "../compatibility/snapshotTypes";
+import { applicationDiagnostics } from "./cartesianApplicationValidation";
 import type {
   CaptionAppearance,
   CaptionTypography,
@@ -177,10 +178,12 @@ function validate(input: unknown, family: CartesianFamily): StyleValidation {
   typographyDiagnostics(input.typography, diagnostics);
   lineDiagnostics(input.line, diagnostics);
   seriesDiagnostics(input.series, diagnostics);
+  diagnostics.push(...applicationDiagnostics(input.application));
   if (diagnostics.length) return { status: "invalid", diagnostics };
   const style = input as unknown as ResolvedCartesianStyle;
   if (
     family === "line" &&
+    style.application === undefined &&
     style.line?.markers.enabled &&
     style.line.markers.shape !== "circle"
   )
