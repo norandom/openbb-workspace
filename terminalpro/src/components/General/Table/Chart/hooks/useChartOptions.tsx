@@ -1,10 +1,17 @@
 import type { AgChartProps } from "ag-charts-react";
+import type { AgChartThemeOverrides } from "ag-charts-community";
+import { useEffect, useMemo } from "react";
 import type {
   CellRangeParams,
   ChartModel,
   ChartOptionsChangedEvent,
 } from "ag-grid-community";
 import type { ExtraActionT } from "~/components/DraggableCard/NavBar";
+import { useWidgetContext } from "~/components/Widget.context";
+import { useAgGridContext } from "../../hooks/useTableContext";
+import { getSeriesType } from "../utils";
+import { callerGeneratedOptions } from "../caller/generatedOptions";
+const EMPTY_OPTIONS = {};
 export function getDefaultChartOptions(
   chartOptions: AgChartProps["options"] | any,
   chartType: ChartModel["chartType"],
@@ -88,21 +95,24 @@ export function getDefaultChartOptions(
   ];
 
   for (const type of polars) {
-    defaultOptions[type] = {
+    (defaultOptions as Record<string, any>)[type] = {
       series: { ...series, label },
     };
   }
 
   const seriesType = getSeriesType(chartType);
 
-  if (!defaultOptions[seriesType]) {
-    defaultOptions[seriesType] = { ...options, series: { ...series, label } };
+  if (!(defaultOptions as Record<string, any>)[seriesType]) {
+    (defaultOptions as Record<string, any>)[seriesType] = {
+      ...options,
+      series: { ...series, label },
+    };
   }
 
   return defaultOptions as AgChartThemeOverrides;
 }
 
-// Legacy widgets retain these imports while Community tables expose no chart actions.
+// Action adapters retain their established imports; their live join is owned separately.
 export function useChartCloseButtonListener() {
   return () => {};
 }
@@ -115,11 +125,21 @@ export function useChartBarFillQuickAction(): undefined {
 export function useChartQuickActions(): ExtraActionT[] {
   return [];
 }
-export default function useChartOptions(_props: any = {}): {
+export default function useChartOptions(props: any = EMPTY_OPTIONS): {
   chartThemeOverrides?: any;
   onChartOptionsChanged?: any;
 } {
-  return {};
+  const { widgetFromJSON } = useWidgetContext();
+  const { updateAgGrid } = useAgGridContext();
+  const view = widgetFromJSON?.data?.table?.chartView;
+  const generated = useMemo(
+    () => callerGeneratedOptions(view, props.chartSeries, props.chartAxis),
+    [view, props.chartSeries, props.chartAxis],
+  );
+  useEffect(() => {
+    updateAgGrid({ chartThemeOverrides: generated as AgChartThemeOverrides });
+  }, [generated, updateAgGrid]);
+  return { chartThemeOverrides: generated };
 }
 export function getTotalSeries(
   params: ChartOptionsChangedEvent,

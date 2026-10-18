@@ -21,6 +21,7 @@ export const sessionDataKey = (input: ApplicationSessionInputs) =>
     input.range,
     input.categoryColumnId,
     input.columns,
+    input.rangePolicy,
   ]);
 export const sessionAppearanceKey = (input: ApplicationSessionInputs) =>
   JSON.stringify([input.theme, input.generated, input.precision]);

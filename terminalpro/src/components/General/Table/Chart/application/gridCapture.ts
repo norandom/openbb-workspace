@@ -6,6 +6,7 @@ import type {
   SnapshotRow,
 } from "../compatibility/snapshotTypes";
 import { validateSessionStamp } from "./sessionState";
+import { DEFAULT_SETUP_CATEGORY } from "./setupTypes";
 import type { CaptureDisplayedChart, GridCaptureInput, SessionResult } from "./types";
 
 // WeakMap identity lookup never inspects prototypes or properties of grid throws.
@@ -92,6 +93,8 @@ function checkModel(api: GridApi<Record<string, unknown>>): void {
 }
 function bounds(input: GridCaptureInput, count: number): [number, number] {
   const { rowStartIndex: start, rowEndIndex: end } = input.range;
+  // AG serializes both full-grid endpoints as null; keep the serialized range intact.
+  if (start == null && end == null) return [0, count - 1];
   for (const [key, value] of [
     ["rowStartIndex", start],
     ["rowEndIndex", end],
@@ -99,7 +102,6 @@ function bounds(input: GridCaptureInput, count: number): [number, number] {
     if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value)))
       fail("invalid", ["range", key], "Expected finite numeric bounds");
   }
-  if (start === undefined && end === undefined) return [0, count - 1];
   if (
     start === undefined ||
     end === undefined ||
@@ -131,11 +133,15 @@ function readRows(
     if (typeof node.id !== "string" || node.id.length === 0 || ids.has(node.id))
       fail("unresolved", [...path, "id"], "Expected a unique stable row ID");
     ids.add(node.id);
-    const category: unknown = input.api.getCellValue({
-      rowNode: node,
-      colKey: snapshot.categoryColumnId,
-      useFormatter: false,
-    });
+    // Original ChartDatasource numbers the selected displayed range from one.
+    const category: unknown =
+      input.categoryColumnId === DEFAULT_SETUP_CATEGORY
+        ? index - start + 1
+        : input.api.getCellValue({
+            rowNode: node,
+            colKey: snapshot.categoryColumnId,
+            useFormatter: false,
+          });
     if (
       typeof category !== "string" &&
       !(typeof category === "number" && Number.isFinite(category))

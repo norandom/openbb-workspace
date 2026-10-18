@@ -27,6 +27,7 @@ import type {
 import { validateSessionStamp } from "./sessionState";
 import { useApplicationSessionScope } from "./useApplicationSessionScope";
 import { useApplicationSessionFreshness } from "./useApplicationSessionFreshness";
+import { latestWidgetRangeInputs } from "./applicationSessionRange";
 
 function execute(
   widget: WidgetT,
@@ -35,6 +36,7 @@ function execute(
   command: ApplicationSessionCommand,
   recapture?: ReturnType<typeof captureApplicationSession>,
 ) {
+  inputs = latestWidgetRangeInputs(inputs, widget);
   if (!state.capture || state.dataKey !== sessionDataKey(inputs))
     return { widget, value: state };
   const context = contextFor(inputs, state);

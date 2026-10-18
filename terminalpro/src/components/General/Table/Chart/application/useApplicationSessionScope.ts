@@ -14,6 +14,7 @@ import {
 } from "./applicationSessionRuntime";
 import { captureApplicationSession } from "./applicationSessionCapture";
 import { validateSessionStamp } from "./sessionState";
+import { latestWidgetRangeInputs } from "./applicationSessionRange";
 
 function scopeValue(
   owner: WidgetTransactionAdapter,
@@ -44,7 +45,7 @@ function useScopeSynchronization(
           widget,
           value: synchronizeApplicationSession(
             widget.storage as ChartStorageOutput,
-            inputs,
+            latestWidgetRangeInputs(inputs, widget),
             value,
           ),
         };
@@ -137,7 +138,7 @@ export function useApplicationSessionScope(
     owner.register(identity, (widget) =>
       initialApplicationSession(
         widget.storage as ChartStorageOutput,
-        inputs,
+        latestWidgetRangeInputs(inputs, widget),
         nextGeneration,
       ),
     );

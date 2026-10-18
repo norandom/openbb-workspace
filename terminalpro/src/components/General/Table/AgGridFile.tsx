@@ -10,6 +10,10 @@ import type { Widget } from "~/lib/state/app";
 import { useShallowThemeStore } from "~/lib/state/theme";
 import { cn } from "~/lib/utils";
 import { getColumnDefs, getContextMenuItems, onPivotModeChanged } from "./AgGridUtils";
+import { ChartViewButton, ChartViewElement } from "./Chart/AgChartView";
+import useChartOptions, {
+  useChartToolPanelAction,
+} from "./Chart/hooks/useChartOptions";
 import { getCSVData, getExcelData, getExcelWorkBook } from "./fileData";
 import { AgGridProvider, getSideBarOptions, useAgGridContext } from "./hooks";
 import type { AgGridEvents } from "./hooks/types";
@@ -23,7 +27,7 @@ export default function AgGridFile() {
   const gridRef = useAgGridContext()?.gridRef;
   const decimalDigits = useShallowThemeStore((state) => state.decimalDigits);
 
-  const chartView = false;
+  const chartView = widget.storage?.chartView?.enabled;
   const decimalDigitsToUse = widget?.storage?.decimalDigits ?? decimalDigits;
   const currentSheet = widget?.storage?.currentSheet as Sheet;
   const fileType = getFileType(widget.endpoint.url);
@@ -130,6 +134,8 @@ export default function AgGridFile() {
     (params) => getContextMenuItems(params, { widgetId: widget?.id }),
     [],
   );
+  const agChartViewProps = useChartOptions();
+  const chartToolPanelActions = useChartToolPanelAction();
 
   useCopilotFilteredWidgetData(rowData, dataUpdatedAt, fileType);
 
@@ -198,6 +204,7 @@ export default function AgGridFile() {
         },
       }}
       error={error || rowData?.length === 0}
+      extraNavbarElements={!!widget?.storage?.chartView && <ChartViewButton />}
       errorMessage={error?.message}
       extraSettings={[
         {
@@ -216,9 +223,10 @@ export default function AgGridFile() {
             gridRef.current?.api?.autoSizeAllColumns();
           },
         },
-        ...[],
+        ...(chartView ? chartToolPanelActions : []),
       ]}
     >
+      {chartView && <ChartViewElement />}
       <div
         className={cn("grid", {
           "h-[calc(100%-5px)] min-h-[100px]": !chartView,
@@ -232,6 +240,7 @@ export default function AgGridFile() {
           paginationPageSizeSelector={[100, 500, 1000, 5000]}
           gridOptions={gridOptions}
           onColumnPivotModeChanged={onColumnPivotModeChanged}
+          {...agChartViewProps}
         />
       </div>
     </DraggableCard>

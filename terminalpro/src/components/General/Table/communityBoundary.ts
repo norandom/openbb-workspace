@@ -87,9 +87,6 @@ function ownReason(key: string, value: any): string | undefined {
     return "grouping or pivots";
   if (key === "rowModelType" && value && value !== "clientSide")
     return "remote row models";
-  if (key === "chartModel" && value && Object.keys(value).length)
-    return "integrated charts";
-  if (key === "chartView" && value?.enabled) return "integrated charts";
   if (key === "formulas" && Array.isArray(value) && value.length)
     return "legacy table formulas";
   return undefined;
@@ -120,6 +117,8 @@ export function unsupportedTableReason(
   if (!value || typeof value !== "object" || seen.has(value)) return undefined;
   seen.add(value);
   for (const [key, child] of Object.entries(value)) {
+    // Chart models are validated at the caller, not interpreted as grid options.
+    if (key === "chartModel" || key === "chartView") continue;
     const reason = ownReason(key, child) ?? unsupportedTableReason(child, seen);
     if (reason) return reason;
   }

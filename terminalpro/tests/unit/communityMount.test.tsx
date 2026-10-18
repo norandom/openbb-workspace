@@ -11,7 +11,6 @@ import { CustomHeader, setGlobalGridOptions } from "~/components/General/Table/A
 import { getColumnDefs } from "~/components/General/Table/AgGridUtils";
 import { colDefFormatter } from "~/components/General/Table/CellContent";
 import { ChartViewButton } from "~/components/General/Table/Chart/AgChartView";
-import useChartOptions, { useChartQuickActions, useChartToolPanelAction } from "~/components/General/Table/Chart/hooks/useChartOptions";
 
 const fixture = vi.hoisted(() => ({ widget: { storage: {}, data: { table: {} } } as any, props: {} as any, updates: [] as any[], options: {} as any, tablePagination: false }));
 const api = vi.hoisted(() => ({
@@ -26,6 +25,8 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("~/components/Widgets/dataProcessors", () => ({ WidgetDataProcessors: {} }));
 vi.mock("~/components/Tooltip", () => ({ default: ({ children }: any) => children }));
+vi.mock("~/components/Icon", () => ({ default: () => null }));
+vi.mock("~/hooks/useIsMobile", () => ({ default: () => false }));
 vi.mock("~/lib/constants", () => ({ BLOCKED_WIDGET_IDS: new Set() }));
 vi.mock("~/components/Widgets/Chart", () => ({ default: () => <div>Plotly widget retained</div> }));
 vi.mock("~/components/Widgets/AgChart", () => ({ default: () => <div>Standalone chart retained</div> }));
@@ -133,14 +134,18 @@ describe("Community callers", () => {
     render(<Suspense fallback={null}><RemoteTable /></Suspense>);
     expect(screen.getByRole("status").textContent).toContain("legacy charts or hierarchical/remote tables");
   });
-  it("hides shared integrated chart actions without touching stored configuration", () => {
+  it("restores the original no-series button predicate and always permits table return", () => {
     const before = structuredClone(fixture.widget);
-    expect(ChartViewButton()).toBeNull();
-    expect(useChartQuickActions()).toEqual([]);
-    expect(useChartToolPanelAction()).toEqual([]);
-    expect(useChartOptions()).toEqual({});
+    const view = render(<Table><ChartViewButton /></Table>);
+    expect((document.querySelector("#chart-view-button") as HTMLButtonElement).disabled).toBe(true);
     expect(fixture.widget).toEqual(before);
     expect(fixture.updates).toEqual([]);
+    fixture.widget.storage = { chartView: { enabled: true } };
+    view.rerender(<Table><ChartViewButton /></Table>);
+    const button = document.querySelector("#chart-view-button") as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    button.click();
+    expect(fixture.updates.at(-1).storage.chartView.enabled).toBe(false);
   });
 
   it("preserves percentage scale, currency prefixes and missing observations", () => {

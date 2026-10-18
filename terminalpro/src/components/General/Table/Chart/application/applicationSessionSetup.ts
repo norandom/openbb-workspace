@@ -11,6 +11,7 @@ import type {
 import { applyRangeTransition, validateSessionStamp } from "./sessionState";
 import { transitionOrdinarySetup } from "./setupTransitions";
 import { projectOrdinarySetup, retainOrdinarySetupCapture } from "./setupProjection";
+import { sessionRangeFrameKey } from "./applicationSessionRange";
 import type { SessionResult, SessionStamp } from "./types";
 
 export function applyApplicationSetupTransaction(
@@ -101,6 +102,9 @@ export function applyApplicationSetupTransaction(
           ...context.local,
           baseline: { ...selected.baseline, model: transition.model },
           range: transition.range,
+          ...(transition.change === "range"
+            ? { rangeFrameKey: sessionRangeFrameKey(context.inputs, storage) }
+            : {}),
           legendEnabled: transition.selection.seriesIds.length > 1,
         },
       },

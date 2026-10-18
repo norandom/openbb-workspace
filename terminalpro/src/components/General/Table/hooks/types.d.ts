@@ -34,6 +34,7 @@ import type {
 } from "react";
 import type { WidgetColumnDefT, WidgetT } from "~/components/types";
 import type { DispatchAction } from "~/hooks/useStateReducer";
+import type { ApplicationChartHandle } from "../Chart/caller/types";
 type CreateChartDataProps = {
   gridApi: AgGridElement["api"];
   rowData: any[];
@@ -81,11 +82,13 @@ export declare type GridStateT = Partial<ManagedGridOptions> & {
   resized?: { from?: number; to?: number };
   chartThemeOverrides?: AgChartThemeOverrides;
   dataRevision?: number | null;
+  displayRevision?: number;
 };
 
 export declare type AgGridContextValue = {
   gridRef: MutableRefObject<AgGridElement>;
   chartRef: MutableRefObject<ChartRef>;
+  applicationChartRef: MutableRefObject<ApplicationChartHandle | null>;
   chartViewElementRef: MutableRefObject<HTMLDivElement>;
   columnDefsRef: MutableRefObject<ColDef[]>;
   columnVisibility?: Record<string, boolean>;

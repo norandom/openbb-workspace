@@ -12,6 +12,10 @@ import * as sdkQuery from "~/lib/api/sdkComponents";
 import { useShallowThemeStore } from "~/lib/state/theme";
 import { cn, getJsonColDefs, getWidgetDataSource } from "~/lib/utils";
 import { getContextMenuItems, onPivotModeChanged } from "./AgGridUtils";
+import { ChartViewButton, ChartViewElement } from "./Chart/AgChartView";
+import useChartOptions, {
+  useChartToolPanelAction,
+} from "./Chart/hooks/useChartOptions";
 import {
   AgGridProvider,
   getSideBarOptions,
@@ -210,7 +214,7 @@ export default function AgGridTable() {
     },
   });
 
-  const chartView = false;
+  const chartView = widget.storage?.chartView?.enabled;
 
   const { rowData, columnDefs, gridOptions, isLoading, dataUpdatedAt, error } =
     useGetTableData(state, dispatch);
@@ -237,9 +241,12 @@ export default function AgGridTable() {
     [],
   );
 
+  const agChartViewProps = useChartOptions();
+  const chartToolPanelActions = useChartToolPanelAction();
+
   const extraSettings = useMemo(() => {
-    return [quickActions, ...[]];
-  }, [chartView, quickActions]);
+    return [quickActions, ...(chartView ? chartToolPanelActions : [])];
+  }, [chartView, quickActions, chartToolPanelActions]);
 
   const exportFns = useAgExportFuncs();
 
@@ -303,9 +310,15 @@ export default function AgGridTable() {
         </>
       }
       error={error || rowData?.length === 0}
+      extraNavbarElements={
+        (!!widget?.storage?.chartView ||
+          widget?.external ||
+          widgetFromJSON?.data?.table?.enableCharts) && <ChartViewButton />
+      }
       errorMessage={widget?.external ? error?.message : "No results found"}
       extraSettings={extraSettings}
     >
+      {chartView && <ChartViewElement />}
       <div
         className={cn("flex grow h-full", {
           "h-[calc(100%-20px)]": showCurrency && !chartView,
@@ -319,6 +332,7 @@ export default function AgGridTable() {
           getContextMenuItems={contextMenuItems}
           gridOptions={gridOptions}
           onColumnPivotModeChanged={onColumnPivotModeChanged}
+          {...agChartViewProps}
         />
       </div>
       <HideOnResize>

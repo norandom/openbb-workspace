@@ -21,6 +21,7 @@ import { resolveApplicationAppearance } from "./effectiveAppearance";
 import { projectOrdinarySetup } from "./setupProjection";
 import { SETUP_AGGREGATIONS, type SetupSelection } from "./setupTypes";
 import type { ResolvedRange } from "./types";
+import { resolveSessionRange } from "./applicationSessionRange";
 
 export function sessionBaseline(
   storage: ChartStorageOutput,
@@ -43,27 +44,7 @@ export function sessionRange(
   storage: ChartStorageOutput,
   context: ApplicationSessionContext,
 ): ResolvedRange {
-  const partition = storage[context.inputs.address.stateKey] as
-    | RuntimeOptions
-    | undefined;
-  const family = partition?.[context.inputs.family] as RuntimeOptions | undefined;
-  const stored = family?.cellRange as RuntimeOptions | undefined;
-  if (!stored) return context.inputs.range;
-  if (
-    !Array.isArray(stored.columns) ||
-    stored.columns.some((id) => typeof id !== "string")
-  )
-    throw new Error("Invalid original range columns");
-  return {
-    columnIds: stored.columns as string[],
-    originalRange: JSON.parse(JSON.stringify(stored)),
-    ...(stored.rowStartIndex === undefined
-      ? {}
-      : { rowStartIndex: stored.rowStartIndex as number }),
-    ...(stored.rowEndIndex === undefined
-      ? {}
-      : { rowEndIndex: stored.rowEndIndex as number }),
-  };
+  return resolveSessionRange(storage, context);
 }
 export function sessionSetup(
   model: ChartModel,

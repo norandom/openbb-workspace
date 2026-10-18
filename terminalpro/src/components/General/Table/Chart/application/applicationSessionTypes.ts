@@ -43,6 +43,11 @@ export interface ApplicationSessionInputs {
   readonly display: ChartDisplayPolicy;
   readonly precision: number;
   readonly initialAxes: ApplicationAxisRuntime;
+  readonly rangePolicy?: {
+    readonly generatedColumnIds: readonly string[];
+    readonly definitionColumnIds: readonly string[];
+    readonly configuredColumnIds?: readonly string[];
+  };
 }
 /** Transient concrete axes and control state stay outside Widget storage. */
 export interface ApplicationSessionLocal {
@@ -52,6 +57,8 @@ export interface ApplicationSessionLocal {
   readonly axes: ApplicationAxisRuntime;
   readonly manualRotations: Readonly<Record<ApplicationAxisId, number | undefined>>;
   readonly legendEnabled?: boolean;
+  /** Identifies a live accepted Set Up range, never a serialized preference. */
+  readonly rangeFrameKey?: string;
 }
 export interface ApplicationSessionContext {
   readonly inputs: ApplicationSessionInputs;

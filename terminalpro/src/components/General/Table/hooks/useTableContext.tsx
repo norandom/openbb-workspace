@@ -20,6 +20,8 @@ import { useStateReducer } from "~/hooks/useStateReducer";
 import { useShallowThemeStore } from "~/lib/state/theme";
 import { cn } from "~/lib/utils";
 import { useAgThemes } from "../Chart/themes";
+import { createCallerChartData } from "../Chart/caller/chartInputs";
+import type { ApplicationChartHandle } from "../Chart/caller/types";
 import {
   COMMUNITY_PAGE_SIZES,
   communityGridOptions,
@@ -69,6 +71,7 @@ const Table: FC<TableProps> = memo((props: TableProps) => {
   const gridRef = useRef<AgGridElement | null>(null);
   const columnDefsRef = useRef<ColDef<any, any>[]>([]);
   const chartRef = useRef<ChartRef>(null);
+  const applicationChartRef = useRef<ApplicationChartHandle | null>(null);
   const chartViewElementRef = useRef<HTMLDivElement>(null);
   const createRangeChartParamsCbRef = useRef<
     (params: CreateRangeChartParams) => CreateRangeChartParams
@@ -83,7 +86,7 @@ const Table: FC<TableProps> = memo((props: TableProps) => {
   const previousChartEnabledRef = useRef<boolean | undefined>(false);
   const isReallyTransposedRef = useRef(false);
 
-  const createChartData = undefined;
+  const createChartData = createCallerChartData;
 
   const [gridState, dispatch] = useStateReducer<GridStateT>({
     columnDefs: [],
@@ -119,6 +122,7 @@ const Table: FC<TableProps> = memo((props: TableProps) => {
       value={{
         gridRef,
         chartRef,
+        applicationChartRef,
         chartViewElementRef,
         columnDefsRef,
         columnVisibility,
@@ -184,7 +188,7 @@ export function useSyncTableData(gridOptions: any = EMPTY_OPTIONS) {
 
 const CommunityGrid = forwardRef<AgGridElement, AgGridProps>((props, ref) => {
   const { extraClassName, className = extraClassName, hideHeader, ...rest } = props;
-  const { gridRef } = useAgGridContext();
+  const { gridRef, updateAgGrid } = useAgGridContext();
   const composeRefs = useComposeRefs(gridRef, ref);
   const theme = useShallowThemeStore((s) => s.theme);
   const tablePagination = useShallowThemeStore((s) => s.tablePagination);
@@ -232,6 +236,14 @@ const CommunityGrid = forwardRef<AgGridElement, AgGridProps>((props, ref) => {
             onNewColumnsLoaded={onNewColumnsLoaded}
             onGridPreDestroyed={onGridPreDestroyed}
             onVirtualColumnsChanged={onVirtualColumnsChanged}
+            onFilterChanged={(event) => {
+              updateAgGrid({ displayRevision: (previous) => (previous ?? 0) + 1 });
+              props.onFilterChanged?.(event);
+            }}
+            onSortChanged={(event) => {
+              updateAgGrid({ displayRevision: (previous) => (previous ?? 0) + 1 });
+              props.onSortChanged?.(event);
+            }}
             initialState={initialState}
           />
         </div>

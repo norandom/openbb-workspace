@@ -48,6 +48,65 @@ function changeApi(data: GridCaptureInput, patch: object) {
   Object.assign(data.api, patch);
 }
 describe("ordinary displayed capture contract", () => {
+  it("retains original null full-range endpoints without coercing them to row zero", () => {
+    const data = input();
+    Object.assign(data.range, {
+      rowStartIndex: null,
+      rowEndIndex: null,
+      originalRange: {
+        columns: ["period", "value"],
+        rowStartIndex: null,
+        rowEndIndex: null,
+      },
+    });
+    expect(captureDisplayedChart(data)).toMatchObject({
+      status: "ready",
+      value: {
+        rows: [{ id: "a" }, { id: "b" }],
+        selectedRange: { rowStartIndex: null, rowEndIndex: null },
+      },
+    });
+  });
+  it("numbers the default category within a filtered/sorted inclusive range and reads raw values", () => {
+    const data = input();
+    const rows = [
+      { id: "source-c", value: -12 },
+      { id: "source-a", value: 0 },
+      { id: "source-d", value: 50 },
+    ];
+    Object.assign(data, {
+      categoryColumnId: "AG-GRID-DEFAULT-CATEGORY",
+      columns: [
+        { id: "AG-GRID-DEFAULT-CATEGORY", label: "(None)", role: "category" },
+        { id: "value", label: "Value", role: "number" },
+      ],
+      range: {
+        columnIds: ["AG-GRID-DEFAULT-CATEGORY", "value"],
+        rowStartIndex: 1,
+        rowEndIndex: 2,
+        originalRange: { columns: ["value"], rowStartIndex: 1, rowEndIndex: 2 },
+      },
+    });
+    changeApi(data, {
+      getDisplayedRowCount: () => 3,
+      getDisplayedRowAtIndex: (index: number) => rows[index],
+      getCellValue: vi.fn(({ rowNode, colKey }) => rowNode[colKey]),
+    });
+    const result = captureDisplayedChart(data);
+    expect(result).toMatchObject({
+      status: "ready",
+      value: {
+        rows: [
+          { id: "source-a", category: 1, values: { value: 0 } },
+          { id: "source-d", category: 2, values: { value: 50 } },
+        ],
+      },
+    });
+    expect(data.api.getCellValue).toHaveBeenCalledTimes(2);
+    expect(data.api.getCellValue).toHaveBeenCalledWith(
+      expect.objectContaining({ colKey: "value", useFormatter: false }),
+    );
+  });
   it("preserves order, duplicate categories, provenance and independent copies", () => {
     const data = input();
     const before = JSON.stringify({ ...data, api: null });
