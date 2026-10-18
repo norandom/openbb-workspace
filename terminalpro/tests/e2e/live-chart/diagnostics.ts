@@ -54,14 +54,18 @@ export function expectApplicationDiagnostics(
 // Observe public canvas drawing without changing chart data or renderer options.
 export async function observeDrawnText(page: Page) {
   const install = () => {
-    const target = window as typeof window & { chartDrawnText: string[]; chartDrawnAngles: Record<string, number> };
+    const target = window as typeof window & { chartDrawnText: string[]; chartDrawnAngles: Record<string, number>; chartDrawnAnchors: Record<string, { x: number; y: number }> };
     target.chartDrawnText = [];
     target.chartDrawnAngles = {};
+    target.chartDrawnAnchors = {};
     const draw = CanvasRenderingContext2D.prototype.fillText;
     CanvasRenderingContext2D.prototype.fillText = function (...args) {
       if (this.canvas.closest('[class*="widget-file-"]')) {
         const text = String(args[0]);
         target.chartDrawnText.push(text);
+        const anchor = this.getTransform().transformPoint(new DOMPoint(args[1], args[2]));
+        target.chartDrawnAnchors[text] = { x: anchor.x, y: anchor.y };
+        if (Object.keys(target.chartDrawnAnchors).length > 3000) target.chartDrawnAnchors = { [text]: { x: anchor.x, y: anchor.y } };
         if (["A", "B", "C"].includes(text)) {
           const { a, b } = this.getTransform();
           target.chartDrawnAngles[text] = Math.atan2(b, a) * 180 / Math.PI;
@@ -85,7 +89,16 @@ export async function resetDrawnText(page: Page) {
   await page.evaluate(() => {
     (window as typeof window & { chartDrawnText: string[] }).chartDrawnText = [];
     (window as typeof window & { chartDrawnAngles: Record<string, number> }).chartDrawnAngles = {};
+    (window as typeof window & { chartDrawnAnchors: Record<string, { x: number; y: number }> }).chartDrawnAnchors = {};
   });
+}
+
+export async function expectCategoryBelowLegend(page: Page, category: string, legend: string) {
+  await expect.poll(() => page.evaluate(({ category, legend }) => {
+    const anchors = (window as typeof window & { chartDrawnAnchors: Record<string, { x: number; y: number }> }).chartDrawnAnchors;
+    return anchors[category] !== undefined && anchors[legend] !== undefined &&
+      anchors[category].y > anchors[legend].y;
+  }, { category, legend })).toBe(true);
 }
 
 export async function expectManualCategoryRotation(page: Page) {
