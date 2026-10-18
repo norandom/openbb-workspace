@@ -1,3 +1,5 @@
+import type { ResolvedApplicationAppearance } from "../application/appearanceModel";
+import type { ChartDisplayPolicy } from "../application/types";
 import type { EChartsOption } from "echarts";
 import type { ChartSnapshot, SnapshotDiagnostic } from "../compatibility/snapshotTypes";
 
@@ -15,6 +17,7 @@ export interface CartesianSeriesStyle {
 }
 /** Explicit fixture-resolved styling; no legacy saved-option paths or defaults. */
 export interface ResolvedCartesianStyle {
+  readonly application?: ResolvedApplicationAppearance;
   readonly background: string;
   readonly palette: readonly string[];
   readonly textColor: string;
@@ -54,6 +57,7 @@ export type TranslateCartesian = (
   snapshot: ChartSnapshot,
   family: string,
   style: unknown,
+  context?: CartesianMappingContext,
 ) => CartesianTranslationResult;
 
 export interface CaptionTypography {
@@ -106,3 +110,12 @@ export type SeriesAppearance = (
 export type CaptionAppearance = (
   style: ResolvedCartesianStyle,
 ) => CartesianCaptionAppearance;
+
+export type CartesianObservationPolicy =
+  | { readonly kind: "declared-units" }
+  | { readonly kind: "raw-observations" };
+
+export interface CartesianMappingContext {
+  readonly observations: CartesianObservationPolicy;
+  readonly display: ChartDisplayPolicy;
+}
