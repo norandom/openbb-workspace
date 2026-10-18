@@ -15,6 +15,8 @@ import { ChartLabelsPanel, type ChartLabelsState } from "../../General/Table/Cha
 import { ChartMarkersPanel, type ChartMarkersState } from "../../General/Table/Chart/editor/markers/ChartMarkersPanel";
 import { ChartGridLinesPanel, type ChartGridLinesState } from "../../General/Table/Chart/editor/axis/ChartGridLinesPanel";
 import { ChartTicksPanel, type ChartTicksState } from "../../General/Table/Chart/editor/axis/ChartTicksPanel";
+import { ChartAxisFieldsPanel, type ChartAxisFieldsState } from "../../General/Table/Chart/editor/axis/ChartAxisFieldsPanel";
+import { ChartAxisLabelsPanel, type ChartAxisLabelsState } from "../../General/Table/Chart/editor/axis/ChartAxisLabelsPanel";
 import type { ReactNode } from "react";
 
 const initialSetup: ChartSetupState = {
@@ -37,6 +39,12 @@ function CustomizeGroup({ label, children }: { label: string; children: ReactNod
 }
 const fonts = ["Verdana, sans-serif", "Arial, sans-serif"].map((value) => ({ value, label: value }));
 const weights = [{ value: "predefined", label: "Predefined" }, { value: "normal", label: "Normal" }, { value: "bold", label: "Bold" }, { value: "italic", label: "Italic" }, { value: "bold-italic", label: "Bold Italic" }];
+const axisTypes = ["category", "number", "time"].map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) }));
+const timeFormats = [
+  ["DD/MM/YYYY", "%d/%m/%Y"], ["MM/DD/YYYY", "%m/%d/%Y"], ["DD/MM/YY", "%d/%m/%y"], ["MM/DD/YY", "%m/%d/%y"],
+  ["DD.M.YY", "%d.%e.%y"], ["M.DD.YY", "%e.%d.%y"], ["YYYY-MM-DD", "%Y-%m-%d"], ["DD MMMM YYYY", "%d %B %Y"],
+  ["HH:MM:SS", "%H:%M:%S"], ["HH:MM:SS AM/PM", "%I:%M:%S %p"],
+].map(([label, value]) => ({ label, value }));
 const range = (max: number) => ({ min: 0, max, step: 1 });
 
 export function ChartEditorControlsPreview({ dark = false, seriesType = "bar" }: { dark?: boolean; seriesType?: "bar" | "line" }) {
@@ -53,6 +61,12 @@ export function ChartEditorControlsPreview({ dark = false, seriesType = "bar" }:
   const [shadow, setShadow] = useState<ChartShadowState>({ enabled: false, color: "#00000080", blur: 5, xOffset: 3, yOffset: 3 });
   const [labels, setLabels] = useState<ChartLabelsState>({ enabled: false, font: "Verdana, sans-serif", weight: "predefined", size: 12, color: dark ? "#FFFFFF" : "#000000" });
   const [markers, setMarkers] = useState<ChartMarkersState>({ enabled: true, shape: "circle", size: 7, strokeWidth: 0 });
+  const [axisFields, setAxisFields] = useState<Record<string, ChartAxisFieldsState>>({
+    horizontal: { type: "category", timeFormat: "", position: "bottom", color: "#C1C1C2", thickness: 1 },
+    vertical: { type: "number", timeFormat: "", position: "left", color: "#C1C1C2", thickness: 0 },
+  });
+  const axisLabel = (autoRotate: boolean): ChartAxisLabelsState => ({ font: "Verdana, sans-serif", weight: "predefined", size: 12, color: dark ? "#FFFFFF" : "#000000", padding: 5, autoRotate, rotation: undefined });
+  const [axisLabels, setAxisLabels] = useState<Record<string, ChartAxisLabelsState>>({ horizontal: axisLabel(true), vertical: axisLabel(false) });
   const [axisDetails, setAxisDetails] = useState<Record<string, { grid: ChartGridLinesState; ticks: ChartTicksState }>>({
     horizontal: { grid: { enabled: false, color: "#515153", thickness: 1, lineDash: 0 }, ticks: { enabled: false, color: dark ? "#FFFFFF" : "#000000", width: 1, length: 6 } },
     vertical: { grid: { enabled: true, color: "#515153", thickness: 1, lineDash: 0 }, ticks: { enabled: false, color: dark ? "#FFFFFF" : "#000000", width: 1, length: 6 } },
@@ -82,7 +96,7 @@ export function ChartEditorControlsPreview({ dark = false, seriesType = "bar" }:
     ...current, [edit.caption]: { ...current[edit.caption], [edit.field]: edit.value },
   }));
   return <section>
-    <p>Production controls preview: Set Up, Titles, Legend, chart padding, Background, Tooltips, Series styling, Shadow, ordinary Labels and line Markers. This preview covers bar/line controls; axis Grid Lines and Ticks are also available. Remaining axis fields, family-specific controls, live chart bindings and persistence remain pending. Menu choices and inherited tick colors are synthetic examples.</p>
+    <p>Production controls preview: Set Up, Titles, Legend, chart padding, Background, Tooltips, Series styling, Shadow, ordinary Labels and line Markers. This preview covers bar/line controls; ordinary axis fields, Grid Lines, Ticks and Labels are also available. Family-specific controls, data-driven eligibility, full font menus, live chart bindings and persistence remain pending. Menu choices, label typography/padding, numeric category eligibility and inherited tick colors are synthetic examples.</p>
     <button ref={opener} type="button" onClick={() => setOpen(true)}>Chart settings</button>
     <button type="button" onClick={() => setThemeKey((value) => value + 1)}>Rebuild preview theme</button>
     <div style={{ height: 520, marginTop: 12 }}>
@@ -125,10 +139,17 @@ export function ChartEditorControlsPreview({ dark = false, seriesType = "bar" }:
           </CustomizeGroup>
           {(["horizontal", "vertical"] as const).map((axis) => (
             <CustomizeGroup key={axis} label={axis === "horizontal" ? "Horizontal Axis" : "Vertical Axis"}>
+              <ChartAxisFieldsPanel value={axisFields[axis]} types={axis === "horizontal" ? axisTypes : undefined}
+                timeFormats={axis === "horizontal" && axisFields[axis].type === "time" ? timeFormats : undefined}
+                positions={(axis === "horizontal" ? ["top", "bottom"] : ["left", "right"]).map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) }))}
+                onEdit={({ field, value }) => setAxisFields((current) => ({ ...current, [axis]: { ...current[axis], [field]: value, ...(field === "type" && value !== current[axis].type ? { timeFormat: value === "time" ? "%d %B %Y" : "" } : {}) } }))} />
               <ChartGridLinesPanel value={axisDetails[axis].grid}
                 onEdit={({ field, value }) => setAxisDetails((current) => ({ ...current, [axis]: { ...current[axis], grid: { ...current[axis].grid, [field]: value } } }))} />
               <ChartTicksPanel value={axisDetails[axis].ticks} showLength={true}
                 onEdit={({ field, value }) => setAxisDetails((current) => ({ ...current, [axis]: { ...current[axis], ticks: { ...current[axis].ticks, [field]: value } } }))} />
+              <ChartAxisLabelsPanel value={axisLabels[axis]} showAutoRotate={true} fonts={fonts} weights={weights}
+                sizes={[8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36].map((value) => ({ value, label: String(value) }))}
+                onEdit={({ field, value }) => setAxisLabels((current) => ({ ...current, [axis]: { ...current[axis], [field]: value } }))} />
             </CustomizeGroup>
           ))}
         </>} />
