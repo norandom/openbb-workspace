@@ -1,4 +1,5 @@
 import { waitFor } from "@testing-library/react";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "~/api/api";
 import {
@@ -13,6 +14,8 @@ import {
   shareDashboard,
 } from "~/api/dashboard.api";
 import { showNotificationWithRememberMe } from "~/lib/utils/toast";
+
+vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
 // Mock apiClient
 vi.mock("~/api/api", () => ({
@@ -203,6 +206,60 @@ describe("Dashboard API functions", () => {
       expect(showNotificationWithRememberMe).toHaveBeenCalled();
       expect(apiClient.post).toHaveBeenCalled();
     });
+  });
+
+  it("retains unsaved edits after a rejected save and saves them on retry", async () => {
+    const { diffItemsWithRemote } = await import("~/lib/utils");
+    const { useAppStore } = await import("~/lib/state/app");
+    const { useAuthStore } = await import("~/lib/state/auth");
+    const items = { dashboard: { chart: { title: "Edited chart" } } };
+    const cloud = { dashboard: { chart: { title: "Saved chart" } } };
+    const updateItemsStoredInCloud = vi.fn();
+    const state = { items, itemsStoredInCloud: cloud, updateItemsStoredInCloud };
+    vi.mocked(useAppStore.getState).mockReturnValue(state as any);
+    vi.mocked(diffItemsWithRemote).mockReturnValue(items as any);
+    vi.mocked(apiClient.post)
+      .mockRejectedValueOnce(new Error("Request failed with status code 500"))
+      .mockResolvedValueOnce({ data: {} });
+
+    await expect(saveDashboards({ withNotification: true })).resolves.toBeUndefined();
+    expect(state.items).toEqual(items);
+    expect(state.itemsStoredInCloud).toEqual(cloud);
+    expect(updateItemsStoredInCloud).not.toHaveBeenCalled();
+    expect(showNotificationWithRememberMe).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("Unable to save dashboards", {
+      description: "Your changes are still available. Try saving again.",
+      id: "save-dashboards",
+    });
+    expect(useAuthStore.getState().logout).not.toHaveBeenCalled();
+
+    await saveDashboards({ withNotification: true });
+    expect(apiClient.post).toHaveBeenNthCalledWith(2, "/pro/dash/sync", { items });
+    expect(updateItemsStoredInCloud).toHaveBeenCalledExactlyOnceWith(items);
+    expect(showNotificationWithRememberMe).toHaveBeenCalledOnce();
+  });
+
+  it("waits for persistence before updating the cloud snapshot or reporting success", async () => {
+    const { diffItemsWithRemote } = await import("~/lib/utils");
+    const { useAppStore } = await import("~/lib/state/app");
+    const items = { dashboard: { title: "Edited dashboard" } };
+    const updateItemsStoredInCloud = vi.fn();
+    vi.mocked(useAppStore.getState).mockReturnValue({
+      items, itemsStoredInCloud: {}, updateItemsStoredInCloud,
+    } as any);
+    vi.mocked(diffItemsWithRemote).mockReturnValue(items as any);
+    let finish!: (value: any) => void;
+    vi.mocked(apiClient.post).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    let settled = false;
+    const saving = saveDashboards({ withNotification: true }).then(() => { settled = true; });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    expect(updateItemsStoredInCloud).not.toHaveBeenCalled();
+    expect(showNotificationWithRememberMe).not.toHaveBeenCalled();
+    finish({ data: {} });
+    await saving;
+    expect(updateItemsStoredInCloud).toHaveBeenCalledExactlyOnceWith(items);
+    expect(showNotificationWithRememberMe).toHaveBeenCalledOnce();
   });
 
   it("should delete all dashboards", async () => {

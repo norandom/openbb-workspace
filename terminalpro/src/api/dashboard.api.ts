@@ -1,4 +1,5 @@
 import axiosRetry from "axios-retry";
+import { toast } from "sonner";
 import { type Items, useAppStore } from "~/lib/state/app";
 import { useAuthStore } from "~/lib/state/auth";
 import { useFeatureFlagsStore } from "~/lib/state/featureFlags";
@@ -126,16 +127,20 @@ export async function saveDashboards(params?: SaveDashboardsParams) {
 
     if (Object.keys(diff).length > 0) {
       // Send the differences to the server
-      postDashboards(diff).then((_res) => {
-        updateItemsStoredInCloud(items);
-        // Update the remote items to match the current items
-        if (withNotification) showNotificationWithRememberMe(notifyParams);
-        if (logout) useAuthStore.getState().logout();
-      });
+      await postDashboards(diff);
+      updateItemsStoredInCloud(items);
+      // Update the remote items to match the current items
+      if (withNotification) showNotificationWithRememberMe(notifyParams);
+      if (logout) useAuthStore.getState().logout();
       return;
     }
   } catch (_e) {
+    toast.error("Unable to save dashboards", {
+      description: "Your changes are still available. Try saving again.",
+      id: NotificationId.SaveDashboards,
+    });
     if (logout) useAuthStore.getState().logout();
+    return;
   }
   // If there are any differences, we need to sync them to the server
 
