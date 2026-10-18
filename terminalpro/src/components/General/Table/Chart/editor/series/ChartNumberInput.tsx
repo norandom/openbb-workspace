@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import "../titles/chartTitlesPanel.css";
+import "../legend/chartLegendPanel.css";
+import "./chartNumberInput.css";
 
 export interface ChartNumberInputProps {
   label: string;
@@ -36,7 +38,7 @@ export function ChartNumberInput({
     if (valid) onChange(input.valueAsNumber);
   }
   return (
-    <div className="chart-caption-row">
+    <div className="chart-titles-panel chart-legend-panel chart-caption-row">
       <span>{label}</span>
       <div className="chart-caption-spacing">
         <input
@@ -50,6 +52,7 @@ export function ChartNumberInput({
         />
         <input
           aria-label={`${label} value`}
+          className="chart-number-input"
           type="number"
           inputMode="decimal"
           min={min}

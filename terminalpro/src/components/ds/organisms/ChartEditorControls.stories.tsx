@@ -9,6 +9,8 @@ import { ChartPaddingPanel } from "../../General/Table/Chart/editor/padding/Char
 
 import { ChartBackgroundPanel, type ChartBackgroundState } from "../../General/Table/Chart/editor/background/ChartBackgroundPanel";
 import { ChartTooltipsPanel, type ChartTooltipsState } from "../../General/Table/Chart/editor/tooltips/ChartTooltipsPanel";
+import { ChartSeriesStylePanel, type SeriesStyleField } from "../../General/Table/Chart/editor/series/ChartSeriesStylePanel";
+import { ChartShadowPanel, type ChartShadowState } from "../../General/Table/Chart/editor/shadow/ChartShadowPanel";
 import type { ReactNode } from "react";
 
 const initialSetup: ChartSetupState = {
@@ -42,6 +44,8 @@ export function ChartEditorControlsPreview({ dark = false }: { dark?: boolean })
   const [padding, setPadding] = useState({ top: 20, right: 20, bottom: 20, left: 20 });
   const [background, setBackground] = useState<ChartBackgroundState>({ visible: true, fill: dark ? "#151518" : "#FFFFFF" });
   const [tooltips, setTooltips] = useState<ChartTooltipsState>({ enabled: true, mode: "shared" });
+  const [seriesStyle, setSeriesStyle] = useState<Record<SeriesStyleField, number>>({ strokeWidth: 0, lineDash: 0, strokeOpacity: 1, fillOpacity: 1 });
+  const [shadow, setShadow] = useState<ChartShadowState>({ enabled: false, color: "#00000080", blur: 5, xOffset: 3, yOffset: 3 });
   const [legend, setLegend] = useState<ChartLegendState>({
     enabled: true, font: "Verdana, sans-serif", weight: "predefined", size: 11,
     color: dark ? "#FFFFFF" : "#000000", position: "top", spacing: 20,
@@ -67,7 +71,7 @@ export function ChartEditorControlsPreview({ dark = false }: { dark?: boolean })
     ...current, [edit.caption]: { ...current[edit.caption], [edit.field]: edit.value },
   }));
   return <section>
-    <p>Production controls preview: Set Up, Titles, Legend, chart padding, Background and Tooltips. Remaining Series/axis controls, live chart bindings and persistence remain pending. Menu choices are examples.</p>
+    <p>Production controls preview: Set Up, Titles, Legend, chart padding, Background, Tooltips, Series styling and Shadow. Labels, other family-specific controls, axes, live chart bindings and persistence remain pending. Menu choices are examples.</p>
     <button ref={opener} type="button" onClick={() => setOpen(true)}>Chart settings</button>
     <button type="button" onClick={() => setThemeKey((value) => value + 1)}>Rebuild preview theme</button>
     <div style={{ height: 520, marginTop: 12 }}>
@@ -93,6 +97,14 @@ export function ChartEditorControlsPreview({ dark = false }: { dark?: boolean })
             <ChartTooltipsPanel value={tooltips}
               modes={[{ value: "single", label: "Single" }, { value: "shared", label: "Multiple" }, { value: "compact", label: "Compact" }]}
               onEdit={({ field, value }) => setTooltips((current) => ({ ...current, [field]: value }))} />
+            <ChartSeriesStylePanel controls={([
+              ["strokeWidth", "Stroke Width", 10, 1, "any"],
+              ["lineDash", "Line Dash", 30, 1, "any"],
+              ["strokeOpacity", "Line Opacity", 1, 0.05, 0.05],
+              ["fillOpacity", "Fill Opacity", 1, 0.05, 0.05],
+            ] as const).map(([field, label, max, rangeStep, numberStep]) => ({ field, label, value: seriesStyle[field], min: 0, max: Math.max(max, seriesStyle[field]), rangeStep, numberStep }))}
+              onEdit={({ field, value }) => setSeriesStyle((current) => ({ ...current, [field]: value }))} />
+            <ChartShadowPanel value={shadow} onEdit={({ field, value }) => setShadow((current) => ({ ...current, [field]: value }))} />
           </CustomizeGroup>
         </>} />
     </div>

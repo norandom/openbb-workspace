@@ -1,0 +1,10 @@
+.chart-number-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.chart-number-input::-webkit-inner-spin-button,
+.chart-number-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
