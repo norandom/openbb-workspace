@@ -1,0 +1,81 @@
+import type { Page } from "@playwright/test";
+import { expect } from "./toolchain";
+
+export async function observeApplication(page: Page) {
+  const errors: string[] = [];
+  const failures: { path: string; status: number }[] = [];
+  const consoleErrors: { message: string; path?: string }[] = [];
+  const requestFailures: { path: string; reason: string }[] = [];
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Runtime.enable");
+  await cdp.send("Log.enable");
+  page.on("pageerror", (error) => errors.push(error.stack || error.message));
+  page.on("response", (response) => {
+    if (response.status() >= 400)
+      failures.push({
+        path: new URL(response.url()).pathname,
+        status: response.status(),
+      });
+  });
+  page.on("requestfailed", (request) => {
+    requestFailures.push({ path: new URL(request.url()).pathname, reason: request.failure()?.errorText ?? "unknown" });
+  });
+  cdp.on("Log.entryAdded", ({ entry }) => {
+    if (entry.level === "error") consoleErrors.push({ message: entry.text, path: entry.url ? new URL(entry.url).pathname : undefined });
+  });
+  cdp.on("Runtime.consoleAPICalled", ({ type, args }) => {
+    if (type === "error") consoleErrors.push({ message: args.map((arg) => arg.type === "string" ? String(arg.value) : `[${arg.type}]`).join(" ") });
+  });
+  return { errors, failures, consoleErrors, requestFailures };
+}
+
+export function expectApplicationDiagnostics(
+  diagnostics: Awaited<ReturnType<typeof observeApplication>>,
+  injectedSaveFailures = 0,
+) {
+  const missingDatafeed = "/assets/js/datafeeds/udf/dist/bundle.js";
+  const savePath = "/api/pro/dash/sync";
+  expect(diagnostics.errors).toEqual([]);
+  expect(diagnostics.requestFailures.filter(({ path, reason }) =>
+    !(path === missingDatafeed && reason === "net::ERR_ABORTED" &&
+      diagnostics.failures.some((failure) => failure.path === path && failure.status === 404)),
+  )).toEqual([]);
+  expect(diagnostics.failures.filter(({ path, status }) =>
+    !(path === missingDatafeed && status === 404) &&
+    !(path === savePath && status === 500),
+  )).toEqual([]);
+  expect(diagnostics.failures.filter(({ path, status }) => path === savePath && status === 500)).toHaveLength(injectedSaveFailures);
+  expect(diagnostics.consoleErrors.filter(({ message, path }) =>
+    !(path === missingDatafeed && /Failed to load resource.*404/.test(message)) &&
+    !(injectedSaveFailures > 0 && path === savePath && /Failed to load resource.*500/.test(message)),
+  )).toEqual([]);
+}
+
+// Observe public canvas drawing without changing chart data or renderer options.
+export async function observeDrawnText(page: Page) {
+  const install = () => {
+    const target = window as typeof window & { chartDrawnText: string[] };
+    target.chartDrawnText = [];
+    const draw = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function (...args) {
+      if (this.canvas.closest('[class*="widget-file-"]'))
+        target.chartDrawnText.push(String(args[0]));
+      if (target.chartDrawnText.length > 3000) target.chartDrawnText.splice(0, 1000);
+      return draw.apply(this, args);
+    };
+  };
+  await page.addInitScript(install);
+  await page.evaluate(install);
+}
+
+export async function drawnText(page: Page) {
+  return page.evaluate(
+    () => (window as typeof window & { chartDrawnText: string[] }).chartDrawnText,
+  );
+}
+
+export async function resetDrawnText(page: Page) {
+  await page.evaluate(() => {
+    (window as typeof window & { chartDrawnText: string[] }).chartDrawnText = [];
+  });
+}
