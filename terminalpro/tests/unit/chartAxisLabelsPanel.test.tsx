@@ -1,0 +1,73 @@
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
+import { ChartAxisLabelsPanel } from "../../src/components/General/Table/Chart/editor/axis/ChartAxisLabelsPanel";
+import { ChartAxisRotationInput } from "../../src/components/General/Table/Chart/editor/axis/ChartAxisRotationInput";
+afterEach(cleanup);
+const initial = { font: "custom", weight: "normal", size: 12, color: "#12345680", padding: 5, autoRotate: false, rotation: -45 };
+const choices = { fonts: [{ value: "Arial", label: "Arial" }], weights: [{ value: "bold", label: "Bold" }], sizes: [{ value: 16, label: "16" }] };
+it("renders plain labels and caller typography choices with exact edits", () => {
+  const onEdit = vi.fn();
+  const { container } = render(<ChartAxisLabelsPanel {...choices} value={initial} onEdit={onEdit} showAutoRotate />);
+  expect(screen.queryByRole("switch")).toBeNull();
+  expect(screen.getAllByRole("combobox").map((input) => input.getAttribute("aria-label"))).toEqual(["Font", "Weight", "Size"]);
+  expect((screen.getByLabelText("Font") as HTMLSelectElement).value).toBe("custom");
+  expect(container.querySelector(".chart-legend-size-color")?.textContent).toContain("Size");
+  fireEvent.change(screen.getByLabelText("Font"), { target: { value: "Arial" } });
+  fireEvent.change(screen.getByLabelText("Weight"), { target: { value: "bold" } });
+  fireEvent.change(screen.getByLabelText("Size"), { target: { value: "16" } });
+  fireEvent.change(screen.getByLabelText("Padding value"), { target: { value: "2.5" } });
+  expect(onEdit.mock.calls).toEqual([[{ field: "font", value: "Arial" }], [{ field: "weight", value: "bold" }], [{ field: "size", value: 16 }], [{ field: "padding", value: 2.5 }]]);
+});
+it("hides manual rotation independently of checkbox eligibility and retains caller values", () => {
+  const onEdit = vi.fn();
+  const props = { ...choices, value: initial, onEdit, showAutoRotate: true };
+  const { rerender } = render(<ChartAxisLabelsPanel {...props} />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Auto Rotate" }));
+  expect(onEdit.mock.calls).toEqual([[{ field: "autoRotate", value: true }]]);
+  rerender(<ChartAxisLabelsPanel {...props} value={{ ...initial, autoRotate: true }} showAutoRotate={false} />);
+  expect(screen.queryByLabelText("Label rotation")).toBeNull();
+  expect(screen.queryByRole("checkbox")).toBeNull();
+  rerender(<ChartAxisLabelsPanel {...props} />);
+  expect((screen.getByLabelText("Label rotation") as HTMLInputElement).value).toBe("315");
+  expect(onEdit).toHaveBeenCalledTimes(1);
+});
+it("normalizes numeric boundaries, empty input and correctable invalid drafts", () => {
+  const onChange = vi.fn();
+  render(<ChartAxisRotationInput value={undefined} onChange={onChange} />);
+  const input = screen.getByLabelText("Label rotation") as HTMLInputElement;
+  expect(input.value).toBe("0");
+  for (const value of ["180", "359.9", "360", "0.9", ""]) fireEvent.change(input, { target: { value } });
+  expect(onChange.mock.calls).toEqual([[-180], [-1], [0], [0], [0]]);
+  for (const value of ["361", "-1"]) {
+    fireEvent.change(input, { target: { value } });
+    expect(input.value).toBe(value);
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+  }
+  expect(onChange).toHaveBeenCalledTimes(5);
+  fireEvent.change(input, { target: { value: "90" } });
+  expect(screen.getByRole("spinbutton", { name: "Label rotation" })).toBe(input);
+  expect([input.min, input.max, input.step]).toEqual(["0", "360", "any"]);
+  expect(onChange).toHaveBeenLastCalledWith(90);
+});
+it("drags clockwise with signed boundary normalization and releases ownership", () => {
+  vi.stubGlobal("PointerEvent", MouseEvent);
+  const onChange = vi.fn();
+  const { unmount } = render(<ChartAxisRotationInput value={0} onChange={onChange} />);
+  const dial = screen.getByLabelText("Rotation dial");
+  vi.spyOn(dial, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, width: 24, height: 24 } as DOMRect);
+  fireEvent.pointerDown(dial, { clientX: 20, clientY: 12 });
+  fireEvent.pointerMove(window, { clientX: 12, clientY: 20 });
+  expect(onChange).toHaveBeenLastCalledWith(90);
+  fireEvent.pointerMove(window, { clientX: 4, clientY: 12 });
+  expect(onChange).toHaveBeenLastCalledWith(-180);
+  fireEvent.pointerUp(window);
+  const count = onChange.mock.calls.length;
+  fireEvent.pointerMove(window, { clientX: 12, clientY: 4 });
+  expect(onChange).toHaveBeenCalledTimes(count);
+  fireEvent.pointerDown(dial, { clientX: 20, clientY: 12 });
+  unmount();
+  const finalCount = onChange.mock.calls.length;
+  fireEvent.pointerMove(window, { clientX: 12, clientY: 4 });
+  expect(onChange).toHaveBeenCalledTimes(finalCount);
+  vi.unstubAllGlobals();
+});

@@ -1,0 +1,40 @@
+.chart-axis-labels .chart-axis-auto-rotate {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-body, var(--text-heading));
+}
+.chart-axis-labels .chart-axis-auto-rotate input {
+  accent-color: var(--text-caption);
+}
+.chart-axis-rotation-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chart-axis-rotation-dial {
+  position: relative;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--general-border-primary);
+  border-radius: 12px;
+  background: var(--input-bg, var(--surface-card));
+  touch-action: none;
+  cursor: pointer;
+}
+.chart-axis-rotation-dial > span {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  margin-top: -4px;
+  border-radius: 3px;
+  background: var(--text-caption);
+  pointer-events: none;
+}
+.chart-axis-rotation input[aria-label="Label rotation"] {
+  width: 45px;
+  height: 24px;
+  padding: 2px 4px;
+}
