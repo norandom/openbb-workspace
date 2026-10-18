@@ -1,0 +1,82 @@
+.chart-padding-panel {
+  min-width: 0;
+  margin: 0;
+  padding: 0 12px 12px;
+  border: 0;
+  color: var(--text-heading);
+  font-size: 12px;
+}
+.chart-padding-panel legend {
+  padding: 0;
+  margin-bottom: 18px;
+  font-weight: 600;
+}
+.chart-padding-row {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  color: var(--text-body, var(--text-heading));
+}
+.chart-padding-row:last-child { margin-bottom: 0; }
+.chart-padding-inputs {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.chart-padding-inputs input[type="range"] {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  accent-color: var(--text-caption);
+}
+.chart-padding-inputs input:not([type="range"]) {
+  box-sizing: border-box;
+  width: 44px;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 6px 8px;
+  background: var(--input-bg, var(--surface-card));
+  border: 1px solid var(--general-border-primary);
+  border-radius: 0;
+  color: inherit;
+  font: inherit;
+}
+.chart-padding-panel [aria-invalid="true"] {
+  border-color: var(--alert-error, #ef6666);
+}
+.chart-padding-panel input:focus-visible {
+  outline: 2px solid var(--text-heading);
+  outline-offset: 1px;
+}
+.chart-padding-inputs input[type="range"] {
+  appearance: none;
+  height: 16px;
+  background: transparent;
+}
+.chart-padding-inputs input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--general-border-primary);
+}
+.chart-padding-inputs input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6.5px;
+  border: 1px solid var(--general-border-primary);
+  border-radius: 50%;
+  background: var(--input-bg, var(--surface-card));
+}
+.chart-padding-inputs input[type="range"]::-moz-range-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--general-border-primary);
+}
+.chart-padding-inputs input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--general-border-primary);
+  border-radius: 50%;
+  background: var(--input-bg, var(--surface-card));
+}
