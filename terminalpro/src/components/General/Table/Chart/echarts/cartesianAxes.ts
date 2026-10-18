@@ -6,7 +6,7 @@ import { fontStyle, timeLabel } from "./cartesianDisplay";
 import { alternatingGrid } from "./cartesianGrid";
 import { measureText } from "./cartesianLayout";
 import type { CartesianFamily, CartesianMappingContext } from "./cartesianTypes";
-import { isHorizontalBarFamily } from "./cartesianTypes";
+import { isHorizontalCartesianFamily } from "./cartesianTypes";
 
 export function ordinalLineCategory(
   axis: ResolvedApplicationAxis,
@@ -101,7 +101,7 @@ function axisOptions(
     position: axis.fields.position as "top" | "bottom",
     // Original horizontal bars preserve displayed input order from top to bottom.
     ...(category &&
-    isHorizontalBarFamily(family) &&
+    isHorizontalCartesianFamily(family) &&
     ["left", "right"].includes(axis.fields.position)
       ? { inverse: true }
       : {}),
@@ -179,9 +179,13 @@ export function applicationAxes(
   display: ChartDisplayPolicy,
   viewport: NonNullable<CartesianMappingContext["viewport"]>,
   family: CartesianFamily,
+  extent: { min?: number; max?: number; interval?: number } = {},
 ): { xAxis: XAXisComponentOption; yAxis: YAXisComponentOption } {
   const c = axisOptions(category, snapshot, display, true, viewport, family);
-  const n = axisOptions(number, snapshot, display, false, viewport, family);
+  const n = {
+    ...axisOptions(number, snapshot, display, false, viewport, family),
+    ...extent,
+  };
   return category.fields.position === "top" || category.fields.position === "bottom"
     ? { xAxis: c, yAxis: n as YAXisComponentOption }
     : { xAxis: n, yAxis: c as YAXisComponentOption };

@@ -116,6 +116,7 @@ export function cartesianNavigator(
   mini: boolean,
   theme: ApplicationThemeInput,
   viewport: { readonly width: number },
+  overviewOptions: EChartsOption = options,
 ): EChartsOption {
   if (!enabled && !mini) return options;
   const grid = options.grid as {
@@ -199,9 +200,18 @@ export function cartesianNavigator(
     ],
     ...(mini
       ? {
-          xAxis: [x, miniatureAxis(x, true, theme)],
-          yAxis: [y, miniatureAxis(y, false, theme)],
-          series: [...series, ...miniatureSeries(series)],
+          xAxis: [
+            x,
+            miniatureAxis(overviewOptions.xAxis as XAXisComponentOption, true, theme),
+          ],
+          yAxis: [
+            y,
+            miniatureAxis(overviewOptions.yAxis as YAXisComponentOption, false, theme),
+          ],
+          series: [
+            ...series,
+            ...miniatureSeries(overviewOptions.series as SeriesOption[]),
+          ],
         }
       : {}),
   };

@@ -10,6 +10,7 @@ import {
 import { fontStyle } from "./cartesianDisplay";
 import { markerDimensions, markerSymbol } from "./cartesianMarkers";
 import { seriesAppearance } from "./cartesianStyle";
+import { isNormalizedFamily } from "./cartesianTypes";
 import type { CartesianFamily, ResolvedCartesianStyle } from "./cartesianTypes";
 
 function alpha(value: string, opacity: number): string {
@@ -113,13 +114,14 @@ export function cartesianSeries(
   family: CartesianFamily,
   style: ResolvedCartesianStyle,
   display: ChartDisplayPolicy,
+  drawn: ChartSnapshot = snapshot,
 ): (BarSeriesOption | LineSeriesOption)[] {
   return columns.map((column, index) => {
     const common = {
       id: column.id,
       // ECharts addresses legend selection by name; labels can legitimately repeat.
       name: column.id,
-      data: observationData(snapshot, column, style, family),
+      data: observationData(drawn, column, style, family),
       ...seriesAppearance(style, column.id, index, family),
       ...applicationSeries(style, column, index, snapshot, family, display),
     };
@@ -127,7 +129,9 @@ export function cartesianSeries(
     return {
       ...common,
       type: "bar",
-      ...(family === "stackedColumn" || family === "stackedBar"
+      ...(family === "stackedColumn" ||
+      family === "stackedBar" ||
+      isNormalizedFamily(family)
         ? { stack: "total", stackStrategy: "samesign" }
         : {}),
     } as BarSeriesOption;

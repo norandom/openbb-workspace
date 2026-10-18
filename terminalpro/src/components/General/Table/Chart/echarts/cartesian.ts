@@ -11,7 +11,7 @@ import {
   unitDiagnostics,
 } from "./cartesianAdmission";
 import { applicationAxes } from "./cartesianAxes";
-import { fallbackDisplay } from "./cartesianDisplay";
+import { fallbackDisplay, normalizedDisplay } from "./cartesianDisplay";
 import { cartesianGrid } from "./cartesianGrid";
 import { applicationLayout } from "./cartesianLayout";
 import { cartesianSeries } from "./cartesianSeries";
@@ -23,7 +23,12 @@ import type {
   ResolvedCartesianStyle,
   TranslateCartesian,
 } from "./cartesianTypes";
-import { isHorizontalBarFamily } from "./cartesianTypes";
+import { normalizedCoordinates, normalizedExtent } from "./cartesianNormalization";
+import {
+  isCartesianFamily,
+  isNormalizedFamily,
+  isHorizontalCartesianFamily,
+} from "./cartesianTypes";
 
 function applicationSupport(
   snapshot: ChartSnapshot,
@@ -86,8 +91,16 @@ function buildOptions(
   style: ResolvedCartesianStyle,
   context: CartesianMappingContext | undefined,
 ): EChartsOption {
+  const normalized = isNormalizedFamily(family);
+  const drawn = normalized
+    ? normalizedCoordinates(snapshot, columns, context?.legendSelection)
+    : snapshot;
+  const extent = normalized ? normalizedExtent(drawn) : {};
   const captions = captionAppearance(style);
-  const display = context?.display ?? fallbackDisplay(style.precision);
+  const rawDisplay = context?.display ?? fallbackDisplay(style.precision);
+  const display = normalized
+    ? normalizedDisplay(rawDisplay, "interval" in extent)
+    : rawDisplay;
   const labels = new Map(columns.map((column) => [column.id, column.label]));
   const legacy = {
     backgroundColor: style.background,
@@ -124,16 +137,17 @@ function buildOptions(
     },
     yAxis: {
       type: "value",
+      ...extent,
       axisLabel: {
         ...captions.axisLabelStyle,
         formatter: (value: number) => String(display.numericAxis(value)),
       },
     },
     tooltip: cartesianTooltip(snapshot, columns, style, display),
-    series: cartesianSeries(snapshot, columns, family, style, display),
+    series: cartesianSeries(snapshot, columns, family, style, display, drawn),
   } satisfies EChartsOption;
   if (!style.application || !context?.viewport) {
-    if (isHorizontalBarFamily(family)) {
+    if (isHorizontalCartesianFamily(family)) {
       return {
         ...legacy,
         xAxis: legacy.yAxis,
@@ -170,6 +184,7 @@ function buildOptions(
       display,
       plotViewport,
       family,
+      extent,
     ),
   };
 }
@@ -179,17 +194,14 @@ export const translateCartesian: TranslateCartesian = (
   style,
   context,
 ) => {
-  if (
-    !["groupedColumn", "stackedColumn", "line"].includes(family) &&
-    !isHorizontalBarFamily(family)
-  )
+  if (!isCartesianFamily(family))
     return {
       status: "unsupported",
       diagnostics: [
         mappingIssue(
           "unsupported-family",
           ["family"],
-          "Only groupedColumn, stackedColumn, groupedBar, stackedBar and line are supported.",
+          "Only the scoped column, bar and line Cartesian families are supported.",
         ),
       ],
     };

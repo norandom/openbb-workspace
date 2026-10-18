@@ -62,3 +62,14 @@ export function timeLabel(value: string | number, format: string): string {
   };
   return format.replace(/%([a-zA-Z%])/g, (_, token: string) => tokens[token] ?? token);
 }
+
+export function normalizedDisplay(
+  display: ChartDisplayPolicy,
+  empty: boolean,
+): ChartDisplayPolicy {
+  return {
+    ...display,
+    numericAxis: (value) =>
+      empty && value !== 0 ? "" : `${Math.round(Number(value))}%`,
+  };
+}
