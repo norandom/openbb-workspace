@@ -109,12 +109,14 @@ it.each([
   const custom = structuredClone(native);
   custom.application.axes[axis].gridStyles[1].lineDash = [8, 3];
   const key = axis === "number" ? "yAxis" : "xAxis";
+  const fullTickCount = gridLines(native, key, false).length;
   for (const hideEnds of [false, true]) {
     const expected = gridLines(native, key, hideEnds);
     const actual = gridLines(custom, key, hideEnds);
     expect(actual.length).toBeGreaterThan(0);
     expect(actual).toHaveLength(expected.length);
-    if (type === "category") expect(actual).toHaveLength(hideEnds ? 2 : 4);
+    if (type === "category")
+      expect(actual).toHaveLength(fullTickCount - (hideEnds ? 2 : 0));
     actual.forEach((line, index) => {
       expect(line.color).toBe(expected[index].color);
       expect(line.dash).toBe(index % 2 === 0 ? "2,1" : "8,3");

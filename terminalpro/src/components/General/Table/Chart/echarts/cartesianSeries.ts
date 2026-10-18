@@ -127,7 +127,7 @@ export function cartesianSeries(
     return {
       ...common,
       type: "bar",
-      ...(family === "stackedColumn"
+      ...(family === "stackedColumn" || family === "stackedBar"
         ? { stack: "total", stackStrategy: "samesign" }
         : {}),
     } as BarSeriesOption;

@@ -23,6 +23,7 @@ import type {
   ResolvedCartesianStyle,
   TranslateCartesian,
 } from "./cartesianTypes";
+import { isHorizontalBarFamily } from "./cartesianTypes";
 
 function applicationSupport(
   snapshot: ChartSnapshot,
@@ -88,7 +89,7 @@ function buildOptions(
   const captions = captionAppearance(style);
   const display = context?.display ?? fallbackDisplay(style.precision);
   const labels = new Map(columns.map((column) => [column.id, column.label]));
-  const legacy: EChartsOption = {
+  const legacy = {
     backgroundColor: style.background,
     color: [...style.palette],
     textStyle: {
@@ -130,8 +131,17 @@ function buildOptions(
     },
     tooltip: cartesianTooltip(snapshot, columns, style, display),
     series: cartesianSeries(snapshot, columns, family, style, display),
-  };
-  if (!style.application || !context?.viewport) return legacy;
+  } satisfies EChartsOption;
+  if (!style.application || !context?.viewport) {
+    if (isHorizontalBarFamily(family)) {
+      return {
+        ...legacy,
+        xAxis: legacy.yAxis,
+        yAxis: { ...legacy.xAxis, inverse: true },
+      };
+    }
+    return legacy;
+  }
   const layout = applicationLayout(
     style.application,
     columns,
@@ -169,14 +179,17 @@ export const translateCartesian: TranslateCartesian = (
   style,
   context,
 ) => {
-  if (!["groupedColumn", "stackedColumn", "line"].includes(family))
+  if (
+    !["groupedColumn", "stackedColumn", "line"].includes(family) &&
+    !isHorizontalBarFamily(family)
+  )
     return {
       status: "unsupported",
       diagnostics: [
         mappingIssue(
           "unsupported-family",
           ["family"],
-          "Only groupedColumn, stackedColumn and line are supported.",
+          "Only groupedColumn, stackedColumn, groupedBar, stackedBar and line are supported.",
         ),
       ],
     };

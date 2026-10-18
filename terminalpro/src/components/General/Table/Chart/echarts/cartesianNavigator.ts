@@ -163,7 +163,8 @@ export function cartesianNavigator(
         type: "slider",
         xAxisIndex: [0],
         orient: "horizontal",
-        filterMode: "filter",
+        // Numeric range selection crops geometry without dropping category rows.
+        filterMode: x.type === "value" && y.inverse ? "none" : "filter",
         left: grid.left,
         right: grid.right,
         bottom,

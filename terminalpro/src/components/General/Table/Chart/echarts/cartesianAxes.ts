@@ -6,6 +6,7 @@ import { fontStyle, timeLabel } from "./cartesianDisplay";
 import { alternatingGrid } from "./cartesianGrid";
 import { measureText } from "./cartesianLayout";
 import type { CartesianFamily, CartesianMappingContext } from "./cartesianTypes";
+import { isHorizontalBarFamily } from "./cartesianTypes";
 
 export function ordinalLineCategory(
   axis: ResolvedApplicationAxis,
@@ -98,6 +99,12 @@ function axisOptions(
           ? "time"
           : "category",
     position: axis.fields.position as "top" | "bottom",
+    // Original horizontal bars preserve displayed input order from top to bottom.
+    ...(category &&
+    isHorizontalBarFamily(family) &&
+    ["left", "right"].includes(axis.fields.position)
+      ? { inverse: true }
+      : {}),
     nameLocation: "middle",
     name: axis.title.enabled ? axis.title.text : "",
     nameGap: axis.title.spacing,
