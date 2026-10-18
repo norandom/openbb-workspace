@@ -1,3 +1,5 @@
+import type { EChartsOption } from "echarts";
+import { isNormalizedFamily, type CartesianMappingContext } from "../echarts/cartesianTypes";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import { translateCartesian } from "../echarts/cartesian";
 import { cartesianNavigator } from "../echarts/cartesianNavigator";
@@ -41,25 +43,34 @@ export function projectApplicationSession(
   try {
     const selected = selectApplicationSession(storage, contextFor(inputs, state));
     const projected = selected.projection;
-    const translated = translateCartesian(
-      projected.snapshot,
-      inputs.family,
-      selected.style,
-      {
-        observations: { kind: "raw-observations" },
-        viewport: state.viewport,
-        setupProjection: projected.setupProjection,
-        display:
-          projected.observationKind === "count"
-            ? countDisplayPolicy(inputs.display)
-            : inputs.display,
-      },
-    );
+    const family = inputs.family;
+    const viewport = state.viewport;
+    const theme = inputs.theme;
+    const barFill = Boolean(storage.chartBarFillEnabled);
+    const navigator = Boolean(storage.chartNavigatorEnabled);
+    const miniature = Boolean(storage.chartMiniChartEnabled);
+    const mapping: CartesianMappingContext = {
+      observations: { kind: "raw-observations" },
+      viewport,
+      setupProjection: projected.setupProjection,
+      display: projected.observationKind === "count"
+        ? countDisplayPolicy(inputs.display) : inputs.display,
+    };
+    const translated = translateCartesian(projected.snapshot, family, selected.style, mapping);
     if (translated.status !== "supported")
       return {
         status: translated.status === "invalid" ? "invalid" : "unresolved",
         diagnostics: translated.diagnostics,
       };
+    const decorate = (options: EChartsOption) => cartesianBarColors(
+      options, projected.snapshot, family, barFill, theme, selected.style,
+    );
+    const overview = decorate(translated.options);
+    const projectLegendSelection = (legendSelection: Readonly<Record<string, boolean>>) => {
+      const main = translateCartesian(projected.snapshot, family, selected.style, { ...mapping, legendSelection });
+      if (main.status !== "supported") throw new Error("Invalid normalized chart projection");
+      return cartesianNavigator(decorate(main.options), navigator, miniature, theme, viewport, overview);
+    };
     const descriptor = (id: string) =>
       inputs.columns.find((column) => column.id === id);
     return {
@@ -68,20 +79,11 @@ export function projectApplicationSession(
       value: {
         stamp: state.local.stamp,
         revision: state.local.stamp.renderRevision,
-        options: cartesianNavigator(
-          cartesianBarColors(
-            translated.options,
-            projected.snapshot,
-            inputs.family,
-            Boolean(storage.chartBarFillEnabled),
-            inputs.theme,
-            selected.style,
-          ),
-          Boolean(storage.chartNavigatorEnabled),
-          Boolean(storage.chartMiniChartEnabled),
-          inputs.theme,
-          state.viewport,
-        ),
+        options: cartesianNavigator(overview, navigator, miniature, theme, viewport),
+        ...(isNormalizedFamily(family) ? {
+          legendScope: JSON.stringify([state.local.stamp.address.stateAddress, state.local.stamp.generation, family]),
+          projectLegendSelection,
+        } : {}),
         editor: selected.editor,
         model: selected.baseline.model,
         snapshot: projected.snapshot,

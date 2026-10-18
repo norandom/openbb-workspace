@@ -73,6 +73,41 @@ function ready(session: ReturnType<typeof useApplicationChartSession>) {
   return session.projection.value;
 }
 describe("live chart session through the existing Widget owner", () => {
+  it("forwards a current normalized legend projection without persisting selection", () => {
+    const test = fixture({ unknownRoot: { keep: true }, chartMiniChartEnabled: true });
+    const initial = { ...test.inputs, family: "normalizedColumn" as const };
+    const { result, rerender } = renderHook((inputs) => useApplicationChartSession(inputs), {
+      initialProps: initial, wrapper: test.wrapper,
+    });
+    act(() => result.current.hostProps.onResize({ width: 800, height: 500 }));
+    const first = ready(result.current);
+    const scope = result.current.hostProps.legendScope;
+    expect(scope).toBe(JSON.stringify([first.stamp.address.stateAddress, first.stamp.generation, "normalizedColumn"]));
+    expect(result.current.hostProps.projectLegendSelection).toBe(first.projectLegendSelection);
+    const before = JSON.stringify(test.owner().widget.storage);
+    const hidden = first.projectLegendSelection!({ revenue: true, income: false });
+    const series = hidden.series as any[];
+    expect(series[0].data[0]).toBe(100);
+    expect(series[1].data[0]).toBeNull();
+    expect(series[2].data[0]).toBeCloseTo(100 * 100 / 120);
+    expect(JSON.stringify(test.owner().widget.storage)).toBe(before);
+    rerender({ ...initial, theme: { ...initial.theme, mode: "dark" } });
+    const next = ready(result.current);
+    expect(result.current.hostProps.legendScope).toBe(scope);
+    expect(result.current.hostProps.projectLegendSelection).toBe(next.projectLegendSelection);
+    expect(next.projectLegendSelection).not.toBe(first.projectLegendSelection);
+    test.rows[0].revenue = 200;
+    rerender({ ...initial, dataRevision: 1 });
+    const updated = ready(result.current);
+    expect(updated.legendScope).toBe(scope);
+    const changed = updated.projectLegendSelection!({ income: false }).series as any[];
+    expect(changed[0].data[0]).toBe(100);
+    expect(changed[2].data[0]).toBeCloseTo(100 * 200 / 220);
+    expect((first.projectLegendSelection!({ income: false }).series as any[])[2].data[0]).toBeCloseTo(100 * 100 / 120);
+    act(() => result.current.hostProps.onResize({ width: 900, height: 500 }));
+    expect(ready(result.current).legendScope).toBe(scope);
+  });
+
   it("re-adds retained values and captures an initially unselected numeric field as one fresh frame", () => {
     const test = fixture({ unknownRoot: { keep: true } });
     const inputs = { ...test.inputs, columns: [...test.inputs.columns, { id: "extra", label: "Revenue", role: "number" as const }] };

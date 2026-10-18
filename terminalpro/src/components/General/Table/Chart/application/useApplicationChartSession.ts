@@ -183,6 +183,8 @@ export function useApplicationChartSession(inputs: ApplicationSessionInputs) {
     hostProps: {
       options: projection.status === "ready" ? projection.value.options : {},
       revision: projection.status === "ready" ? projection.value.revision : 0,
+      legendScope: projection.status === "ready" ? projection.value.legendScope : undefined,
+      projectLegendSelection: projection.status === "ready" ? projection.value.projectLegendSelection : undefined,
       onResize,
       onError,
     },

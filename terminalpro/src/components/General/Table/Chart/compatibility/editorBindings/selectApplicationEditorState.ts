@@ -1,4 +1,4 @@
-import { isHorizontalBarFamily } from "../../echarts/cartesianTypes";
+import { isCartesianFamily } from "../../echarts/cartesianTypes";
 import type {
   ApplicationAxisId,
   ResolvedCaption,
@@ -74,7 +74,7 @@ function seriesControls(input: EditorSelectionInput) {
 }
 export const selectApplicationEditorState: SelectApplicationEditorState = (input) => {
   try {
-    if (!["groupedColumn", "stackedColumn", "line"].includes(input.family) && !isHorizontalBarFamily(input.family))
+    if (!isCartesianFamily(input.family))
       throw new Error("Unsupported editor family");
     const appearance = input.style.application;
     const horizontal = horizontalAxisId(input.metadata.axes);

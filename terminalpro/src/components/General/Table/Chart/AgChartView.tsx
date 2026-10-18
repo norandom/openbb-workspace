@@ -20,7 +20,7 @@ import { EChartsHost, type EChartsHostHandle } from "./echarts/EChartsHost";
 import { ApplicationChartEditor } from "./editor/ApplicationChartEditor";
 import { ChartEditorDock, type ChartEditorTab } from "./editor/ChartEditorDock";
 import { chartTypeGalleryGroups } from "./editor/chartTypeGalleryCatalog";
-import { isHorizontalBarFamily } from "./echarts/cartesianTypes";
+import { isCartesianFamily } from "./echarts/cartesianTypes";
 export type CreateRangeChartProps = {
   chartData: ChartDataT;
   chartModel?: Partial<ChartModel>;
@@ -61,8 +61,7 @@ export function ChartViewElement() {
       >
         {inputs.valid &&
         !inputs.value.pendingReason &&
-        (["groupedColumn", "stackedColumn", "line"].includes(inputs.value.family) ||
-          isHorizontalBarFamily(inputs.value.family)) ? (
+        isCartesianFamily(inputs.value.family) ? (
           <LiveCallerChart inputs={inputs.value} />
         ) : (
           <PendingCallerChart
