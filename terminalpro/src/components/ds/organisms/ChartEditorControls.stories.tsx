@@ -13,6 +13,8 @@ import { ChartSeriesStylePanel, type SeriesStyleField } from "../../General/Tabl
 import { ChartShadowPanel, type ChartShadowState } from "../../General/Table/Chart/editor/shadow/ChartShadowPanel";
 import { ChartLabelsPanel, type ChartLabelsState } from "../../General/Table/Chart/editor/labels/ChartLabelsPanel";
 import { ChartMarkersPanel, type ChartMarkersState } from "../../General/Table/Chart/editor/markers/ChartMarkersPanel";
+import { ChartGridLinesPanel, type ChartGridLinesState } from "../../General/Table/Chart/editor/axis/ChartGridLinesPanel";
+import { ChartTicksPanel, type ChartTicksState } from "../../General/Table/Chart/editor/axis/ChartTicksPanel";
 import type { ReactNode } from "react";
 
 const initialSetup: ChartSetupState = {
@@ -51,6 +53,10 @@ export function ChartEditorControlsPreview({ dark = false, seriesType = "bar" }:
   const [shadow, setShadow] = useState<ChartShadowState>({ enabled: false, color: "#00000080", blur: 5, xOffset: 3, yOffset: 3 });
   const [labels, setLabels] = useState<ChartLabelsState>({ enabled: false, font: "Verdana, sans-serif", weight: "predefined", size: 12, color: dark ? "#FFFFFF" : "#000000" });
   const [markers, setMarkers] = useState<ChartMarkersState>({ enabled: true, shape: "circle", size: 7, strokeWidth: 0 });
+  const [axisDetails, setAxisDetails] = useState<Record<string, { grid: ChartGridLinesState; ticks: ChartTicksState }>>({
+    horizontal: { grid: { enabled: false, color: "#515153", thickness: 1, lineDash: 0 }, ticks: { enabled: false, color: dark ? "#FFFFFF" : "#000000", width: 1, length: 6 } },
+    vertical: { grid: { enabled: true, color: "#515153", thickness: 1, lineDash: 0 }, ticks: { enabled: false, color: dark ? "#FFFFFF" : "#000000", width: 1, length: 6 } },
+  });
   const [legend, setLegend] = useState<ChartLegendState>({
     enabled: true, font: "Verdana, sans-serif", weight: "predefined", size: 11,
     color: dark ? "#FFFFFF" : "#000000", position: "top", spacing: 20,
@@ -76,7 +82,7 @@ export function ChartEditorControlsPreview({ dark = false, seriesType = "bar" }:
     ...current, [edit.caption]: { ...current[edit.caption], [edit.field]: edit.value },
   }));
   return <section>
-    <p>Production controls preview: Set Up, Titles, Legend, chart padding, Background, Tooltips, Series styling, Shadow, ordinary Labels and line Markers. This preview covers bar/line controls; other family-specific controls, axes, live chart bindings and persistence remain pending. Menu choices are examples.</p>
+    <p>Production controls preview: Set Up, Titles, Legend, chart padding, Background, Tooltips, Series styling, Shadow, ordinary Labels and line Markers. This preview covers bar/line controls; axis Grid Lines and Ticks are also available. Remaining axis fields, family-specific controls, live chart bindings and persistence remain pending. Menu choices and inherited tick colors are synthetic examples.</p>
     <button ref={opener} type="button" onClick={() => setOpen(true)}>Chart settings</button>
     <button type="button" onClick={() => setThemeKey((value) => value + 1)}>Rebuild preview theme</button>
     <div style={{ height: 520, marginTop: 12 }}>
@@ -117,6 +123,14 @@ export function ChartEditorControlsPreview({ dark = false, seriesType = "bar" }:
               onEdit={({ field, value }) => setLabels((current) => ({ ...current, [field]: value }))} />
             {!isLine && <ChartShadowPanel value={shadow} onEdit={({ field, value }) => setShadow((current) => ({ ...current, [field]: value }))} />}
           </CustomizeGroup>
+          {(["horizontal", "vertical"] as const).map((axis) => (
+            <CustomizeGroup key={axis} label={axis === "horizontal" ? "Horizontal Axis" : "Vertical Axis"}>
+              <ChartGridLinesPanel value={axisDetails[axis].grid}
+                onEdit={({ field, value }) => setAxisDetails((current) => ({ ...current, [axis]: { ...current[axis], grid: { ...current[axis].grid, [field]: value } } }))} />
+              <ChartTicksPanel value={axisDetails[axis].ticks} showLength={true}
+                onEdit={({ field, value }) => setAxisDetails((current) => ({ ...current, [axis]: { ...current[axis], ticks: { ...current[axis].ticks, [field]: value } } }))} />
+            </CustomizeGroup>
+          ))}
         </>} />
     </div>
   </section>;
