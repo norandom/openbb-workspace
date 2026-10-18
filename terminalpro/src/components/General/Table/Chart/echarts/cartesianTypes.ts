@@ -2,8 +2,10 @@ import type { ResolvedApplicationAppearance } from "../application/appearanceMod
 import type { ChartDisplayPolicy } from "../application/types";
 import type { EChartsOption } from "echarts";
 import type { ChartSnapshot, SnapshotDiagnostic } from "../compatibility/snapshotTypes";
+import type { AreaFamily } from "./cartesianAreaTypes";
 
 export type CartesianFamily =
+  | AreaFamily
   | "groupedColumn"
   | "stackedColumn"
   | "groupedBar"
