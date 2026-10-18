@@ -1,3 +1,4 @@
+import { isAreaFamily } from "../../echarts/cartesianAreaTypes";
 import { isCartesianFamily } from "../../echarts/cartesianTypes";
 import type {
   ApplicationAxisId,
@@ -53,7 +54,8 @@ function seriesControls(input: EditorSelectionInput) {
       ? (["strokeWidth", "lineDash", "strokeOpacity"] as const)
       : (["strokeWidth", "lineDash", "strokeOpacity", "fillOpacity"] as const);
   const labels = {
-    strokeWidth: input.family === "line" ? "Line Width" : "Stroke Width",
+    strokeWidth: input.family === "line" || isAreaFamily(input.family)
+      ? "Line Width" : "Stroke Width",
     lineDash: "Line Dash",
     strokeOpacity: "Line Opacity",
     fillOpacity: "Fill Opacity",
@@ -74,7 +76,7 @@ function seriesControls(input: EditorSelectionInput) {
 }
 export const selectApplicationEditorState: SelectApplicationEditorState = (input) => {
   try {
-    if (!isCartesianFamily(input.family))
+    if (!isCartesianFamily(input.family) && !isAreaFamily(input.family))
       throw new Error("Unsupported editor family");
     const appearance = input.style.application;
     const horizontal = horizontalAxisId(input.metadata.axes);

@@ -1,3 +1,4 @@
+import { isAreaFamily } from "../../echarts/cartesianAreaTypes";
 import { isCartesianFamily } from "../../echarts/cartesianTypes";
 import type { RuntimeOptions } from "../legacyTypes";
 import type { ApplicationEditorEvent, MapApplicationEditorEvent } from "./types";
@@ -117,12 +118,15 @@ function eventPatch(event: ApplicationEditorEvent): RuntimeOptions {
 }
 export const mapApplicationEditorEvent: MapApplicationEditorEvent = (event, family) => {
   try {
-    if (!isCartesianFamily(family))
+    if (!isCartesianFamily(family) && !isAreaFamily(family))
       throw new Error("Unsupported chart family");
     validateEvent(event);
     return {
       valid: true,
-      value: { [family === "line" ? "line" : "bar"]: eventPatch(event) },
+      value: {
+        [isAreaFamily(family) ? "area" : family === "line" ? "line" : "bar"]:
+          eventPatch(event),
+      },
     };
   } catch (error) {
     return {

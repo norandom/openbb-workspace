@@ -1,3 +1,4 @@
+import { isAreaFamily } from "../echarts/cartesianAreaTypes";
 import merge from "lodash.merge";
 import { isCartesianFamily } from "../echarts/cartesianTypes";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
@@ -24,7 +25,7 @@ import {
 } from "./effectiveAppearanceValues";
 
 function validateInput(input: AppearanceInput): void {
-  if (!isCartesianFamily(input.family))
+  if (!isCartesianFamily(input.family) && !isAreaFamily(input.family))
     throw new Error("Unsupported appearance family");
   number(input.precision, 0, 20);
   if (!Number.isInteger(input.precision))
@@ -82,7 +83,9 @@ function layers(input: AppearanceInput): RuntimeOptions[] {
     },
   });
   if (!selected.valid) throw new Error(selected.error);
-  const family = input.family === "line" ? "line" : "bar";
+  const family = isAreaFamily(input.family)
+    ? "area"
+    : input.family === "line" ? "line" : "bar";
   const overrides = [
     object(selected.value.options.common),
     object(selected.value.options[family]),

@@ -1,3 +1,4 @@
+import { isAreaFamily } from "../../echarts/cartesianAreaTypes";
 import type { CartesianFamily } from "../../echarts/cartesianTypes";
 import type { ApplicationAxisId } from "../../application/appearanceModel";
 import type { EditorEligibility } from "./types";
@@ -25,7 +26,7 @@ export function deriveEditorEligibility(
     legend: true,
     shadow: input.family !== "line",
     labels: true,
-    markers: input.family === "line",
+    markers: input.family === "line" || isAreaFamily(input.family),
     connectMissingData: input.family === "line",
     axes: {
       category: {

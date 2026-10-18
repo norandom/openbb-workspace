@@ -1,8 +1,9 @@
+import { isAreaFamily } from "../echarts/cartesianAreaTypes";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import type { AppearanceInput } from "./appearanceModel";
 import { applicationColors } from "./effectiveAppearanceColors";
 
-/** Finite AG defaults: ChartTheme, BarSeriesModule and LineSeriesModule in the owned source. */
+/** Finite AG defaults: ChartTheme, BarSeriesModule, LineSeriesModule and AreaSeriesModule in the owned source. */
 export function appearanceDefaults(input: AppearanceInput): RuntimeOptions {
   const colors = applicationColors(input.theme.colors);
   const typography = {
@@ -12,6 +13,7 @@ export function appearanceDefaults(input: AppearanceInput): RuntimeOptions {
     color: input.theme.colors.textColor,
   };
   const line = input.family === "line";
+  const area = isAreaFamily(input.family);
   return {
     title: { ...typography, enabled: false, text: "Title", fontSize: 17, spacing: 20 },
     subtitle: {
@@ -43,14 +45,16 @@ export function appearanceDefaults(input: AppearanceInput): RuntimeOptions {
     series: {
       strokeWidth: line ? 2 : 0,
       strokeOpacity: 1,
-      fillOpacity: 1,
+      fillOpacity: area ? 0.8 : 1,
       lineDash: [0],
       connectMissingData: false,
       shadow: { enabled: false, color: "#00000080", xOffset: 3, yOffset: 3, blur: 5 },
       label: {
         ...typography,
         enabled: false,
-        color: line ? typography.color : input.theme.colors.chartBackgroundColor,
+        color: line || area
+          ? typography.color
+          : input.theme.colors.chartBackgroundColor,
       },
       marker: { enabled: line, shape: "circle", size: 7, strokeWidth: 0 },
     },
