@@ -1,3 +1,12 @@
+.chart-editor-dock, .chart-type-gallery {
+  --chart-gallery-background: #fafafb;
+  --chart-gallery-border: #d8d8da;
+  --chart-gallery-selected: #337dba;
+}
+.dark :is(.chart-editor-dock, .chart-type-gallery) {
+  --chart-gallery-background: #212124;
+  --chart-gallery-border: #424244;
+}
 .chart-type-gallery {
   width: 260px;
   max-width: 100%;
@@ -6,7 +15,7 @@
   overflow: auto;
   box-sizing: border-box;
   padding: 0 12px 14px;
-  background: var(--surface-card);
+  background: var(--chart-gallery-background);
   color: var(--text-heading);
   font-family: Arial, sans-serif;
   font-size: 12px;
@@ -29,14 +38,14 @@
   width: 60px;
   height: 62px;
   padding: 3px;
-  border: 1px solid var(--general-border-primary);
+  border: 1px solid var(--chart-gallery-border);
   border-radius: 5px;
   background: transparent;
   cursor: pointer;
 }
 .chart-type-gallery button[aria-pressed="true"] {
-  border-color: var(--color-main-50);
-  box-shadow: inset 0 0 0 1px var(--color-main-50);
+  border-color: var(--chart-gallery-selected);
+  box-shadow: inset 0 0 0 1px var(--chart-gallery-selected);
 }
 .chart-type-gallery button:hover { background: var(--surface-divider); }
 .chart-type-gallery :focus-visible {

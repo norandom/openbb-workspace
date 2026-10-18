@@ -3,7 +3,7 @@
   width: 260px;
   min-width: 260px;
   height: 100%;
-  background: var(--surface-card);
+  background: var(--chart-gallery-background, var(--surface-card));
   color: var(--text-heading);
   border-left: 1px solid var(--general-border-primary);
   font-family: inherit;

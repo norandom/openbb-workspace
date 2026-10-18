@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-const colors = ["#5093d8", "#ffa438", "#459b50", "#a979cf", "#e6cb34"];
+const colors = ["#5090dc", "#ff9e2c", "#3fa05a", "#8b6bce", "#e7d72b", "#2ec0d1"];
 const axes = <path d="M4 3V50H51" fill="none" stroke="#888" strokeWidth="1" />;
 
 function Columns({ stacked = false, normalized = false, horizontal = false }) {
@@ -19,18 +19,36 @@ function Columns({ stacked = false, normalized = false, horizontal = false }) {
 }
 
 function Lines({ area = false, stacked = false, normalized = false }) {
-  return <>{axes}{colors.slice(0, 3).map((color, index) => {
-    const offset = normalized ? index * 9 : stacked ? index * 7 : index * 4;
-    const points = `5,${39 - offset} 18,${22 - offset} 33,${30 - offset} 49,${15 - offset}`;
-    const Shape = area ? "polygon" : "polyline";
-    return <Shape key={color} points={`${points}${area ? " 49,49 5,49" : ""}`}
-      fill={area ? color : "none"} fillOpacity={area ? 0.65 : 1} stroke={color} strokeWidth="2" />;
-  })}</>;
+  const paths = normalized
+    ? ["M4 47L27 41 51 29", "M4 35L27 17 51 9", "M4 5H51"]
+    : stacked
+      ? ["M4 46L27 39 51 31", "M4 39L27 17H51", "M4 21L27 6 51 14"]
+      : ["M4 42L51 15", "M4 35L27 8 51 22", "M4 15L51 43"];
+  if (!area) return <>{axes}{paths.map((path, index) =>
+    <path key={path} d={path} fill="none" stroke={colors[index]} strokeWidth="3" />)}</>;
+  const areas = stacked || normalized
+    ? [paths[0] + "V50H4Z", paths[1] + "L51 29 27 41 4 47Z", paths[2] + "L51 9 27 17 4 35Z"]
+    : paths.map((path) => path + "V50H4Z");
+  if (stacked && !normalized) areas.splice(1, 2,
+    "M4 39L27 17H51V31L27 39 4 46Z", "M4 21L27 6 51 14V17H27L4 39Z");
+  return <>{areas.map((path, index) => <path key={path} d={path} fill={colors[index]}
+    fillOpacity={stacked || normalized ? 1 : 0.6} stroke={colors[index]} strokeWidth=".5" />)}{axes}</>;
 }
 
 function Pie({ donut = false, rings = false }) {
-  if (!donut && !rings) return <>{[0, 1, 2, 3, 4].map((segment) => <path key={segment}
-    d="M27 27V3A24 24 0 0 1 49.83 19.58Z" fill={colors[segment]} transform={`rotate(${segment * 72} 27 27)`} />)}</>;
+  if (!rings) {
+    const angles = [0, 120, 210, 270, 300, 330, 360];
+    return <>{angles.slice(0, -1).map((angle, segment) => {
+      const point = (degrees: number, radius: number) => {
+        const radians = (degrees - 90) * Math.PI / 180;
+        return `${27 + radius * Math.cos(radians)} ${27 + radius * Math.sin(radians)}`;
+      };
+      const end = angles[segment + 1];
+      const inner = donut ? `L${point(end, 15)}A15 15 0 0 0 ${point(angle, 15)}Z` : "L27 27Z";
+      return <path key={angle} d={`M${point(angle, 24)}A24 24 0 0 1 ${point(end, 24)}${inner}`}
+        fill={colors[segment]} stroke="var(--chart-gallery-background, var(--surface-card))" strokeWidth="1" />;
+    })}</>;
+  }
   return <>{[0, 1, 2, 3, 4].map((segment) => <circle key={segment} cx="27" cy="27" r={rings ? 10 + segment * 3 : 19}
     fill="none" stroke={colors[segment]} strokeWidth={rings ? 4 : 8}
     strokeDasharray={`${segment === 0 ? 35 : 20} 114`} transform={`rotate(${segment * 72 - 90} 27 27)`} />)}</>;
