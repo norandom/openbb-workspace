@@ -159,6 +159,7 @@ function buildOptions(
       snapshot,
       display,
       plotViewport,
+      family,
     ),
   };
 }

@@ -4,8 +4,8 @@ import { translateCartesian } from "../../../src/components/General/Table/Chart/
 import { applicationStyle, mappingContext } from "./cartesian.application.fixtures";
 import { validSnapshotInput as snapshot } from "./snapshot.fixtures";
 
-function drawn(style = applicationStyle(), width = 800) {
-  const result = translateCartesian(snapshot, "line", style, {
+function drawn(style = applicationStyle(), width = 800, input = snapshot) {
+  const result = translateCartesian(input, "line", style, {
     ...mappingContext(),
     viewport: { width, height: 500 },
   });
@@ -23,6 +23,14 @@ function drawn(style = applicationStyle(), width = 800) {
     chart.dispose();
   }
 }
+it("draws one original category tick for a single line observation", () => {
+  const svg = drawn(applicationStyle(), 800, { ...snapshot, rows: [snapshot.rows[0]] });
+  const labels = Array.from(svg.querySelectorAll("text")).filter((node) =>
+    node.textContent?.startsWith("period:"),
+  );
+  expect(labels.map((node) => node.textContent)).toEqual(["period:2026-03-31"]);
+  expect(svg.documentElement.outerHTML).not.toMatch(/NaN|Infinity/);
+});
 function text(svg: Document, value: string): Element {
   const node = Array.from(svg.querySelectorAll("text")).find(
     (element) => element.textContent === value,
@@ -92,6 +100,7 @@ it("changes drawn horizontal and vertical legend item gaps independently", () =>
 });
 it("retains numerical series labels when line markers are disabled", () => {
   const style = applicationStyle();
+  style.application.legend.enabled = false;
   const circles = (svg: Document) =>
     Array.from(svg.querySelectorAll("path,circle,ellipse")).filter((node) => {
       if (node.localName === "path" && !node.getAttribute("d")?.includes("A"))

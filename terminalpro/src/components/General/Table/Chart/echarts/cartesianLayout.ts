@@ -52,6 +52,7 @@ function legendExtent(
   columns: readonly SnapshotColumn[],
   display: ChartDisplayPolicy,
   width: number,
+  family: CartesianFamily,
 ) {
   const legend = a.legend;
   const sizes = columns.map((c) =>
@@ -59,7 +60,7 @@ function legendExtent(
   );
   const heights = sizes.map((size) => Math.max(size.height, legend.markerSize));
   const widths = sizes.map(
-    (size) => size.width + legend.markerSize + legend.itemSpacing,
+    (size) => size.width + legendWidth(a, family) + legend.itemSpacing,
   );
   const vertical = legend.position === "left" || legend.position === "right";
   if (vertical)
@@ -102,8 +103,11 @@ function legendOptions(
     ...(vertical ? { top: "middle" } : { left: "center" }),
     padding: 0,
     itemGap: 0,
-    itemWidth: l.markerSize,
-    itemHeight: l.markerSize,
+    itemWidth: legendWidth(a, family),
+    itemHeight:
+      family === "line" && !a.series.markers.enabled
+        ? a.series.strokeWidth
+        : l.markerSize,
     // ECharts adds five pixels between its icon and text. Compensate explicitly;
     // item padding supplies independent horizontal and vertical row/column gaps.
     textStyle: {
@@ -114,11 +118,22 @@ function legendOptions(
     itemStyle: { borderWidth: a.legendMarkerStrokeWidth },
     data: columns.map((c) => ({
       name: c.id,
-      icon: markerSymbol(family === "line" ? a.series.markers.shape : "square"),
+      ...(family === "line" && a.series.markers.enabled
+        ? {}
+        : {
+            icon: family === "line" ? "rect" : markerSymbol("square"),
+          }),
       symbolKeepAspect: true,
     })),
     formatter: (name) => String(display.legend(labels.get(name) ?? name)),
   };
+}
+function legendWidth(
+  a: ResolvedApplicationAppearance,
+  family: CartesianFamily,
+): number {
+  // Original line legends include a 25px series sample, even with markers hidden.
+  return family === "line" ? Math.max(25, a.legend.markerSize) : a.legend.markerSize;
 }
 export function applicationLayout(
   a: ResolvedApplicationAppearance,
@@ -139,6 +154,7 @@ export function applicationLayout(
     columns,
     display,
     viewport.width - a.padding.left - a.padding.right,
+    family,
   );
   const padding = { ...a.padding, top: a.padding.top + captionSpace };
   if (a.legend.enabled) {

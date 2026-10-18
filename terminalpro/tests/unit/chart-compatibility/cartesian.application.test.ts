@@ -22,7 +22,9 @@ describe("application financial observations", () => {
     };
     expect(translateCartesian(input, "line", validStyle).status).toBe("unsupported");
     expect(mapped("line", applicationStyle(), input).series[0].data).toEqual([
-      123.456789, 0, -5.25,
+      [0, 123.456789],
+      [1, 0],
+      [2, -5.25],
     ]);
   });
   it.each([
@@ -93,6 +95,58 @@ describe("application financial observations", () => {
   });
 });
 describe("full application renderer projection", () => {
+  it("keeps reordered line categories, nulls and negative observations attached to their original row", () => {
+    const input = {
+      ...snapshot,
+      rows: [
+        snapshot.rows[2],
+        {
+          ...snapshot.rows[0],
+          values: { ...snapshot.rows[0].values, revenue: null },
+        },
+        snapshot.rows[1],
+      ],
+    };
+    const options = mapped("line", applicationStyle(), input);
+    expect(options.series[0].data).toEqual([
+      [0, -5.25],
+      [1, null],
+      [2, 0],
+    ]);
+    expect(options.xAxis.axisLabel.formatter(0)).toBe("period:2025-12-31");
+    expect(options.xAxis.axisLabel.formatter(-0.1)).toBe("");
+    expect(options.xAxis.axisLabel.formatter(3)).toBe("");
+    expect(options.xAxis.axisPointer.label.formatter({ value: 0 })).toBe(
+      "cross:2025-12-31",
+    );
+    expect(
+      options.tooltip.formatter([{ dataIndex: 0, seriesId: "revenue" }]),
+    ).toContain("period:2025-12-31");
+    expect(
+      options.tooltip.formatter([{ dataIndex: 1, seriesId: "revenue" }]),
+    ).toContain("—");
+    expect(mapped("groupedColumn", applicationStyle(), input).xAxis.type).toBe(
+      "category",
+    );
+  });
+  it.each([
+    1, 1000,
+  ])("derives the original nice linear extent from observations at scale %s", (scale) => {
+    const input = {
+      ...snapshot,
+      rows: [20, 100, 140, 160].map((value, index) => ({
+        ...snapshot.rows[0],
+        id: `nice-${index}`,
+        category: `Q${index + 1}`,
+        values: { revenue: value * scale, costs: null },
+      })),
+    };
+    expect(mapped("line", applicationStyle(), input).yAxis).toMatchObject({
+      min: 0,
+      max: 200 * scale,
+      interval: 50 * scale,
+    });
+  });
   it("requires measured application geometry while leaving legacy fixture calls available", () => {
     const { viewport, ...context } = mappingContext();
     expect(
@@ -230,7 +284,7 @@ describe("full application renderer projection", () => {
       show: true,
       top: 68,
       orient: "horizontal",
-      itemWidth: 15,
+      itemWidth: family === "line" ? 25 : 15,
       itemHeight: 15,
       itemStyle: { borderWidth: 2 },
     });
@@ -259,7 +313,7 @@ describe("full application renderer projection", () => {
       display: { ...context.display, numericAxis },
     });
     expect(options.xAxis).toMatchObject({
-      type: "category",
+      type: "value",
       position: "bottom",
       name: "Period",
       axisLine: { show: true, lineStyle: { color: "#123456", width: 2 } },

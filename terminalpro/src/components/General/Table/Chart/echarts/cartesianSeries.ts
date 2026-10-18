@@ -2,7 +2,11 @@ import type { BarSeriesOption, LineSeriesOption } from "echarts";
 import { color } from "echarts";
 import type { ChartDisplayPolicy } from "../application/types";
 import type { ChartSnapshot, SnapshotColumn } from "../compatibility/snapshotTypes";
-import { categoryCoordinate, continuousCategory } from "./cartesianAxes";
+import {
+  categoryCoordinate,
+  continuousCategory,
+  ordinalLineCategory,
+} from "./cartesianAxes";
 import { fontStyle } from "./cartesianDisplay";
 import { markerDimensions, markerSymbol } from "./cartesianMarkers";
 import { seriesAppearance } from "./cartesianStyle";
@@ -19,14 +23,17 @@ function observationData(
   snapshot: ChartSnapshot,
   column: SnapshotColumn,
   style: ResolvedCartesianStyle,
+  family: CartesianFamily,
 ) {
   const axis = style.application?.axes.category;
-  if (!axis || !continuousCategory(axis))
+  if (!axis || (!continuousCategory(axis) && !ordinalLineCategory(axis, family)))
     return snapshot.rows.map((r) => r.values[column.id] ?? null);
   const horizontal =
     axis.fields.position === "top" || axis.fields.position === "bottom";
-  return snapshot.rows.map((row) => {
-    const category = categoryCoordinate(row.category, axis);
+  return snapshot.rows.map((row, index) => {
+    const category = ordinalLineCategory(axis, family)
+      ? index
+      : categoryCoordinate(row.category, axis);
     const value = row.values[column.id] ?? null;
     return horizontal ? [category, value] : [value, category];
   });
@@ -112,7 +119,7 @@ export function cartesianSeries(
       id: column.id,
       // ECharts addresses legend selection by name; labels can legitimately repeat.
       name: column.id,
-      data: observationData(snapshot, column, style),
+      data: observationData(snapshot, column, style, family),
       ...seriesAppearance(style, column.id, index, family),
       ...applicationSeries(style, column, index, snapshot, family, display),
     };
