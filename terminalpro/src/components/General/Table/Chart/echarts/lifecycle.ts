@@ -45,9 +45,15 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   let instance: ECharts | undefined;
   let pending: ChartRenderRequest | undefined;
   let appliedRevision: number | undefined;
+  let appliedScope: string | undefined;
   let mounted = false;
   let disposed = false;
   let navigatorListening = false;
+  let legendListening = false;
+  let legendListener: (() => void) | undefined;
+  let navigatorListener: (() => void) | undefined;
+  let applying = false;
+  let generation = 0;
 
   function sized(): boolean {
     return container.clientWidth > 0 && container.clientHeight > 0;
@@ -55,16 +61,78 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
 
   function release(): void {
     const previous = instance;
+    generation += 1;
     instance = undefined;
     appliedRevision = undefined;
+    appliedScope = undefined;
     navigatorListening = false;
-    previous?.dispose();
+    legendListening = false;
+    try {
+      previous?.off?.("datazoom", navigatorListener);
+      previous?.off?.("legendselectchanged", legendListener);
+    } finally {
+      legendListener = undefined;
+      navigatorListener = undefined;
+      previous?.dispose();
+    }
   }
 
   function refreshNavigatorMask(): void {
-    if (disposed || !instance || !pending || !hasNavigator(pending.options)) return;
+    if (disposed || applying || !instance || !pending || !hasNavigator(pending.options)) return;
     const options = retainNavigatorExtent(pending.options, instance.getOption());
     if (options.graphic) instance.setOption({ graphic: options.graphic });
+  }
+
+  function legendOptions(request: ChartRenderRequest): EChartsOption {
+    if (!request.projectLegendSelection || request.legendScope === undefined)
+      return request.options;
+    const legend = Array.isArray(request.options.legend)
+      ? request.options.legend[0] : request.options.legend;
+    const native = instance?.getOption();
+    const nativeLegend = Array.isArray(native?.legend) ? native.legend[0] : native?.legend;
+    const retained = appliedScope === request.legendScope && appliedRevision !== undefined;
+    const selected: Record<string, boolean> = {};
+    for (const entry of legend?.data ?? []) {
+      const id = typeof entry === "string" ? entry : entry.name;
+      if (id && !id.startsWith("openbb-mini-"))
+        selected[id] = retained ? nativeLegend?.selected?.[id] !== false : true;
+    }
+    const projected = request.projectLegendSelection(Object.freeze(selected));
+    const legends = Array.isArray(projected.legend) ? projected.legend : [projected.legend ?? {}];
+    return { ...projected, legend: legends.map((item) => ({ ...item, selected })) };
+  }
+
+  function render(request: ChartRenderRequest, force = false): void {
+    if (!instance || (!force && appliedRevision === request.revision)) return;
+    let options = legendOptions(request);
+    const sameScope = appliedScope === request.legendScope;
+    if (appliedRevision !== undefined && pending && sameScope &&
+      hasNavigator(pending.options) && hasNavigator(options))
+      options = retainNavigatorExtent(options, instance.getOption());
+    applying = true;
+    try {
+      instance.setOption(options, { notMerge: true });
+      appliedRevision = request.revision;
+      appliedScope = request.legendScope;
+    } finally {
+      applying = false;
+    }
+  }
+
+  function refreshLegend(): void {
+    if (disposed || applying || !sized() || !instance || !pending?.projectLegendSelection) return;
+    const request = pending;
+    try {
+      render(request, true);
+    } catch (error) {
+      try {
+        release();
+      } catch {
+        // Preserve the projection failure after detaching the instance.
+      }
+      if (request.onError) request.onError(error);
+      else throw error;
+    }
   }
 
   function apply(request: ChartRenderRequest, resizing = false): LifecycleResult {
@@ -72,29 +140,29 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
     try {
       instance ??= init(container);
       if (hasNavigator(request.options) && !navigatorListening) {
-        instance.on("datazoom", refreshNavigatorMask);
+        const current = generation;
+        navigatorListener = () => {
+          if (generation === current) refreshNavigatorMask();
+        };
+        instance.on("datazoom", navigatorListener);
         navigatorListening = true;
       }
-      if (resizing) instance.resize();
-      if (appliedRevision !== request.revision) {
-        const options =
-          appliedRevision !== undefined &&
-          pending &&
-          hasNavigator(pending.options) &&
-          hasNavigator(request.options)
-            ? retainNavigatorExtent(request.options, instance.getOption())
-            : request.options;
-        instance.setOption(options, { notMerge: true });
-        appliedRevision = request.revision;
+      if (request.projectLegendSelection && request.legendScope !== undefined && !legendListening) {
+        const current = generation;
+        legendListener = () => {
+          if (generation === current) refreshLegend();
+        };
+        instance.on("legendselectchanged", legendListener);
+        legendListening = true;
       }
+      if (resizing) instance.resize();
+      render(request, resizing && !!request.projectLegendSelection);
       return "applied";
     } catch (error) {
-      // A partial option/resize failure cannot leave a usable rendering owner.
-      // Preserve the original failure even if public cleanup also fails.
       try {
         release();
       } catch {
-        // The instance reference has already been detached.
+        // Preserve the original failure after detaching the instance.
       }
       throw error;
     }
@@ -105,6 +173,11 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
       throw new Error("Chart revision must be finite");
     if (pending && request.revision <= pending.revision) return "stale";
     const result = apply(request);
+    if (result === "deferred" && pending?.legendScope !== request.legendScope) {
+      // An accepted session boundary expires native state even before the next draw.
+      appliedRevision = undefined;
+      appliedScope = undefined;
+    }
     pending = request;
     return result;
   }

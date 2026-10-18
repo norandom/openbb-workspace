@@ -242,3 +242,94 @@ describe("bounded ECharts ownership", () => {
     expect(owner.resize()).toBe("disposed");
   });
 });
+
+it("uses latest native legend selection, prunes IDs, retains zoom and resets scope", () => {
+  let native: Record<string, unknown> = {};
+  const listeners = new Map<string, () => void>();
+  const chart = {
+    setOption: vi.fn((options) => { native = options; }), getOption: vi.fn(() => native),
+    on: vi.fn((event, cb) => listeners.set(event, cb)), off: vi.fn(),
+    resize: vi.fn(), dispose: vi.fn(), getDataURL: vi.fn(() => "data:image/png,current"),
+  };
+  mocks.init.mockReturnValue(chart);
+  const container = document.createElement("div");
+  Object.defineProperties(container, { clientWidth: { value: 400 }, clientHeight: { value: 200 } });
+  const options = (ids = ["a", "b"]) => ({ legend: { data: ids }, dataZoom: [{ id: "openbb-navigator", start: 0, end: 100 }] });
+  const first = vi.fn(() => options()); const latest = vi.fn(() => options(["b", "c"]));
+  const owner = createChartLifecycle(container);
+  owner.mount({ revision: 1, options: options(), legendScope: "one", projectLegendSelection: first });
+  native = { legend: [{ selected: { a: false, b: false, "openbb-mini-a": false } }], dataZoom: [{ id: "openbb-navigator", start: 20, end: 60 }] };
+  listeners.get("legendselectchanged")?.();
+  expect(first).toHaveBeenLastCalledWith({ a: false, b: false });
+  owner.update({ revision: 2, options: options(["b", "c"]), legendScope: "one", projectLegendSelection: latest });
+  expect(latest).toHaveBeenLastCalledWith({ b: false, c: true });
+  expect(chart.setOption.mock.lastCall?.[0].dataZoom).toMatchObject([{ start: 20, end: 60 }]);
+  const stale = vi.fn(() => options());
+  owner.update({ revision: 1, options: options(), legendScope: "one", projectLegendSelection: stale });
+  chart.setOption.mockImplementation((options) => {
+    native = options;
+    listeners.get("legendselectchanged")?.();
+  });
+  owner.resize(); expect(latest).toHaveBeenCalledTimes(2);
+  expect(stale).not.toHaveBeenCalled();
+  expect(chart.on.mock.calls.filter(([event]) => event === "legendselectchanged")).toHaveLength(1);
+  owner.update({ revision: 3, options: options(), legendScope: "two", projectLegendSelection: first });
+  expect(first).toHaveBeenLastCalledWith({ a: true, b: true });
+  expect(chart.setOption.mock.lastCall?.[0].dataZoom).toMatchObject([{ start: 0, end: 100 }]);
+  const onError = vi.fn(() => expect(() => owner.exportImage()).toThrow());
+  owner.update({ revision: 4, options: options(), legendScope: "two", projectLegendSelection: first, onError });
+  const late = listeners.get("legendselectchanged");
+  first.mockImplementationOnce(() => { throw new Error("projection"); });
+  late?.(); expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "projection" }));
+  expect(chart.off).toHaveBeenCalledWith("legendselectchanged", late);
+  expect(chart.dispose).toHaveBeenCalledTimes(1);
+  owner.resize();
+  expect(owner.exportImage(undefined, 4)).toContain("current");
+  const calls = first.mock.calls.length;
+  late?.(); expect(first).toHaveBeenCalledTimes(calls);
+  owner.dispose(); late?.(); expect(chart.dispose).toHaveBeenCalledTimes(2);
+});
+
+it("releases listeners if normalized initialization fails and recovers without reviving old callbacks", () => {
+  const callbacks: (() => void)[] = [];
+  const chart = { on: vi.fn((_event, callback) => callbacks.push(callback)), off: vi.fn(),
+    setOption: vi.fn().mockImplementationOnce(() => { throw new Error("initial normalized"); }),
+    getOption: vi.fn(() => ({})), dispose: vi.fn(), resize: vi.fn(), getDataURL: vi.fn(),
+  };
+  mocks.init.mockReturnValue(chart);
+  const container = document.createElement("div");
+  Object.defineProperties(container, { clientWidth: { value: 400 }, clientHeight: { value: 200 } });
+  const projectLegendSelection = vi.fn(() => ({ legend: { data: ["a"] } }));
+  const owner = createChartLifecycle(container);
+  expect(() => owner.mount({ revision: 1, options: { legend: { data: ["a"] } }, legendScope: "one", projectLegendSelection })).toThrow("initial normalized");
+  expect(chart.off).toHaveBeenCalledWith("legendselectchanged", callbacks[0]);
+  expect(chart.dispose).toHaveBeenCalledTimes(1);
+  owner.resize(); const calls = projectLegendSelection.mock.calls.length;
+  callbacks[0](); expect(projectLegendSelection).toHaveBeenCalledTimes(calls);
+});
+
+it("resets native selection and zoom across accepted deferred A to B to A scopes", () => {
+  let width = 400;
+  let native = {};
+  const options = { legend: { data: ["a"] }, dataZoom: [{ id: "openbb-navigator", start: 0, end: 100 }] };
+  const projectLegendSelection = vi.fn(() => options);
+  const chart = {
+    setOption: vi.fn((value) => { native = value; }), getOption: vi.fn(() => native),
+    on: vi.fn(), off: vi.fn(), resize: vi.fn(), dispose: vi.fn(), getDataURL: vi.fn(),
+  };
+  mocks.init.mockReturnValue(chart);
+  const container = document.createElement("div");
+  Object.defineProperties(container, { clientWidth: { get: () => width }, clientHeight: { value: 200 } });
+  const owner = createChartLifecycle(container);
+  const scoped = (revision: number, legendScope: string) => ({ revision, legendScope, options, projectLegendSelection });
+  owner.mount(scoped(1, "A"));
+  native = { legend: [{ selected: { a: false } }], dataZoom: [{ id: "openbb-navigator", start: 20, end: 60 }] };
+  width = 0;
+  expect(owner.update(scoped(2, "B"))).toBe("deferred");
+  expect(owner.update(scoped(3, "A"))).toBe("deferred");
+  expect(owner.update(scoped(2, "B"))).toBe("stale");
+  width = 400;
+  owner.resize();
+  expect(projectLegendSelection).toHaveBeenLastCalledWith({ a: true });
+  expect(chart.setOption.mock.lastCall?.[0].dataZoom).toMatchObject([{ start: 0, end: 100 }]);
+});

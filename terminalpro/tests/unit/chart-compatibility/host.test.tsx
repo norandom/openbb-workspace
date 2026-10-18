@@ -154,7 +154,7 @@ it("reports update failures and allows a newer request to recover", () => {
     expect.objectContaining({ message: "update failed" }),
   );
   act(() => root.render(<EChartsHost options={{}} revision={3} onError={onError} />));
-  expect(owners[0].update).toHaveBeenLastCalledWith({ options: {}, revision: 3 });
+  expect(owners[0].update).toHaveBeenLastCalledWith(expect.objectContaining({ options: {}, revision: 3, onError }));
 });
 it("notifies positive initial and resized dimensions through the latest callback, then ignores disposal", () => {
   let width = 640;
@@ -186,4 +186,12 @@ it("notifies positive initial and resized dimensions through the latest callback
     widthSpy.mockRestore();
     heightSpy.mockRestore();
   }
+});
+
+it("forwards scope, projection and errors atomically", () => {
+  const projectLegendSelection = vi.fn(() => ({})); const onError = vi.fn();
+  act(() => root.render(<EChartsHost options={{}} revision={1} legendScope="one" projectLegendSelection={projectLegendSelection} onError={onError} />));
+  expect(owners[0].mount).toHaveBeenCalledWith(expect.objectContaining({ legendScope: "one", projectLegendSelection, onError }));
+  act(() => root.render(<EChartsHost options={{}} revision={2} legendScope="two" projectLegendSelection={projectLegendSelection} onError={onError} />));
+  expect(owners[0].update).toHaveBeenLastCalledWith(expect.objectContaining({ revision: 2, legendScope: "two", projectLegendSelection, onError }));
 });
