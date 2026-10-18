@@ -10,6 +10,8 @@ import { expect, loginDisposableWorkspace, test } from "./fixtures";
 import { importOrdinaryTable } from "./journey";
 import { exportChart, returnToTable } from "./actions";
 import { customizeLeaves, exerciseCustomize, expectSavedCustomize } from "./customize";
+import { exerciseActualChartActions } from "./effects";
+import { seedUnknownSettings, expectUnknownSettings } from "./saved-compatibility";
 import {
   expectSavedTitles,
   reopenSavedDashboard,
@@ -34,6 +36,7 @@ test("ordinary imported chart edits reach rendering and dashboard storage", asyn
     await resetDrawnText(page);
     await editor.getByRole("combobox", { name: "Category", exact: true }).selectOption({ label: "Category" });
     await expect.poll(() => drawnText(page)).toEqual(expect.arrayContaining(["A", "B", "C"]));
+    await seedUnknownSettings(page, dashboardUrl);
     for (const family of ["Grouped Column", "Stacked Column", "Line"]) {
       await selectFamily(editor, family);
       await resetDrawnText(page);
@@ -41,6 +44,7 @@ test("ordinary imported chart edits reach rendering and dashboard storage", asyn
       await setChartTitle(page, editor, `${family} observations`);
       await expectManualCategoryRotation(page);
     }
+    await exerciseActualChartActions(page, widget, editor);
     await editor.getByRole("textbox", { name: "Title", exact: true }).blur();
     for (const dark of [false, true]) {
       if ((await page.locator("html").getAttribute("class"))?.split(" ").includes("dark") !== dark) {
@@ -58,6 +62,7 @@ test("ordinary imported chart edits reach rendering and dashboard storage", asyn
     const { payload, injected } = await saveAfterFailure(page, editor);
     const dashboardId = new URL(dashboardUrl).pathname.split("/").at(-1)!;
     expectSavedTitles(payload.items[dashboardId]);
+    expectUnknownSettings(payload.items[dashboardId]);
     const customizations = { bar: customizeLeaves("stackedColumn"), line: customizeLeaves("line") };
     expectSavedCustomize(payload.items[dashboardId], customizations);
     expectApplicationDiagnostics(diagnostics, injected);
@@ -66,6 +71,7 @@ test("ordinary imported chart edits reach rendering and dashboard storage", asyn
     sessions.reopened = reopened.diagnostics;
     try {
       expectSavedTitles(reopened.content);
+      expectUnknownSettings(reopened.content);
       expectSavedCustomize(reopened.content, customizations);
       await expectManualCategoryRotation(reopened.page);
       expectApplicationDiagnostics(reopened.diagnostics);
@@ -77,6 +83,7 @@ test("ordinary imported chart edits reach rendering and dashboard storage", asyn
     sessions.restarted = restarted.diagnostics;
     try {
       expectSavedTitles(restarted.content);
+      expectUnknownSettings(restarted.content);
       expectSavedCustomize(restarted.content, customizations);
       await expectManualCategoryRotation(restarted.page);
       const restoredEditor = restarted.widget.getByRole("complementary", {

@@ -54,10 +54,21 @@ export function expectApplicationDiagnostics(
 // Observe public canvas drawing without changing chart data or renderer options.
 export async function observeDrawnText(page: Page) {
   const install = () => {
-    const target = window as typeof window & { chartDrawnText: string[]; chartDrawnAngles: Record<string, number>; chartDrawnAnchors: Record<string, { x: number; y: number }> };
+    const target = window as typeof window & { chartDrawnText: string[]; chartDrawnAngles: Record<string, number>; chartDrawnAnchors: Record<string, { x: number; y: number }>; chartCategoryAnchors: { text: string; x: number; y: number }[] };
     target.chartDrawnText = [];
     target.chartDrawnAngles = {};
     target.chartDrawnAnchors = {};
+    target.chartCategoryAnchors = [];
+    const strokes = window as typeof window & { chartDrawnStrokeWidths: number[] };
+    strokes.chartDrawnStrokeWidths = [];
+    const stroke = CanvasRenderingContext2D.prototype.stroke;
+    CanvasRenderingContext2D.prototype.stroke = function (...args: [] | [Path2D]) {
+      if (this.canvas.closest('[class*="widget-file-"]')) {
+        strokes.chartDrawnStrokeWidths.push(this.lineWidth);
+        if (strokes.chartDrawnStrokeWidths.length > 3000) strokes.chartDrawnStrokeWidths.splice(0, 1000);
+      }
+      return Reflect.apply(stroke, this, args);
+    };
     const draw = CanvasRenderingContext2D.prototype.fillText;
     CanvasRenderingContext2D.prototype.fillText = function (...args) {
       if (this.canvas.closest('[class*="widget-file-"]')) {
@@ -67,6 +78,8 @@ export async function observeDrawnText(page: Page) {
         target.chartDrawnAnchors[text] = { x: anchor.x, y: anchor.y };
         if (Object.keys(target.chartDrawnAnchors).length > 3000) target.chartDrawnAnchors = { [text]: { x: anchor.x, y: anchor.y } };
         if (["A", "B", "C"].includes(text)) {
+          target.chartCategoryAnchors.push({ text, x: anchor.x, y: anchor.y });
+          if (target.chartCategoryAnchors.length > 300) target.chartCategoryAnchors.splice(0, 150);
           const { a, b } = this.getTransform();
           target.chartDrawnAngles[text] = Math.atan2(b, a) * 180 / Math.PI;
         }
@@ -90,7 +103,14 @@ export async function resetDrawnText(page: Page) {
     (window as typeof window & { chartDrawnText: string[] }).chartDrawnText = [];
     (window as typeof window & { chartDrawnAngles: Record<string, number> }).chartDrawnAngles = {};
     (window as typeof window & { chartDrawnAnchors: Record<string, { x: number; y: number }> }).chartDrawnAnchors = {};
+    (window as typeof window & { chartDrawnStrokeWidths: number[] }).chartDrawnStrokeWidths = [];
   });
+}
+
+export async function expectVerticalAxisStroke(page: Page, width: number) {
+  await expect.poll(() => page.evaluate((width) =>
+    (window as typeof window & { chartDrawnStrokeWidths: number[] }).chartDrawnStrokeWidths.includes(width), width,
+  )).toBe(true);
 }
 
 export async function expectCategoryBelowLegend(page: Page, category: string, legend: string) {
