@@ -1,6 +1,11 @@
 import isEqual from "lodash.isequal";
 import { getEndpointParamName, type triggerCustomEvent } from "~/lib/utils";
 import type { NewWidgetT, WidgetT } from "../types";
+import type {
+  WidgetScopeAction,
+  WidgetTransaction,
+  WidgetTransactionScope,
+} from "./transactions";
 /**
  * Decides whether an in-memory widget update must also be persisted to the
  * app store. Param-group, group, and ticker changes are the historical
@@ -79,6 +84,7 @@ export type OwnerState = {
   dirty: boolean;
   effects: Effect[];
   revision: number;
+  scope?: WidgetTransactionScope;
 };
 export type Operation = {
   type: "update";
@@ -91,12 +97,21 @@ export type Operation = {
   override?: (widget: WidgetT) => void;
   dashboardId: string;
   paramNames: Record<string, string>;
+  scoped?: { token: symbol; reduce: WidgetTransaction<unknown> };
 };
 export type Action =
   | Operation
+  | WidgetScopeAction
   | { type: "ack"; ids: number[] }
   | { type: "saved"; revision: number; widget: WidgetT };
 export function reduceWidget(state: OwnerState, action: Action): OwnerState {
+  if (action.type === "scope-register")
+    return {
+      ...state,
+      scope: { token: action.token, value: action.initialize(state.widget) },
+    };
+  if (action.type === "scope-release")
+    return state.scope?.token === action.token ? { ...state, scope: undefined } : state;
   if (action.type === "ack")
     return {
       ...state,
@@ -106,7 +121,16 @@ export function reduceWidget(state: OwnerState, action: Action): OwnerState {
     return action.revision === state.revision && action.widget === state.widget
       ? { ...state, dirty: false }
       : state;
-  const result = action.transform?.(state.widget);
+  if (action.scoped && state.scope?.token !== action.scoped.token)
+    return acknowledgeScoped(state, action);
+  const transaction = action.scoped?.reduce(state.widget, state.scope?.value);
+  const scope =
+    transaction && action.scoped
+      ? { token: action.scoped.token, value: transaction.value }
+      : state.scope;
+  if (transaction?.widget === state.widget)
+    return acknowledgeScoped({ ...state, scope }, action);
+  const result: Result | undefined = transaction ?? action.transform?.(state.widget);
   const widget =
     result?.widget ??
     ((typeof action.update === "function"
@@ -132,5 +156,27 @@ export function reduceWidget(state: OwnerState, action: Action): OwnerState {
     dashboardId: action.dashboardId,
     notifications: result?.notifications,
   };
-  return { widget, dirty, revision: action.id, effects: [...state.effects, effect] };
+  return {
+    widget,
+    dirty,
+    scope,
+    revision: action.id,
+    effects: [...state.effects, effect],
+  };
+}
+
+function acknowledgeScoped(state: OwnerState, action: Operation): OwnerState {
+  // Deliver IDs even for rejected/local-only work so the existing dedupe watermark has no holes.
+  return {
+    ...state,
+    effects: [
+      ...state.effects,
+      {
+        id: action.id,
+        widget: state.widget,
+        persist: false,
+        dashboardId: action.dashboardId,
+      },
+    ],
+  };
 }

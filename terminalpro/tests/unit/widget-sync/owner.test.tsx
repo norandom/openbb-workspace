@@ -1,4 +1,4 @@
-import React, { StrictMode, startTransition, useEffect, useLayoutEffect } from "react";
+import { StrictMode, startTransition, useEffect, useLayoutEffect } from "react";
 import { flushSync } from "react-dom";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -115,6 +115,73 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("production widget owner", () => {
+  it.each([
+    true,
+    false,
+  ])("rebases atomic chart runtime and a following command when urgent eligibility begins %s", async (initiallyAllowed) => {
+    mocks.widget = { ...mocks.widget, storage: { allowed: initiallyAllowed } };
+    const { result } = renderHook(() => useWidgetSync(props), { wrapper: strict });
+    const token = Symbol("chart");
+    act(() => result.current[3].register(token, () => ({ angle: 0, following: -1 })));
+    const rotate = (widget: WidgetT, value: { angle: number; following: number }) =>
+      widget.storage.allowed
+        ? {
+            widget: { ...widget, storage: { ...widget.storage, angle: 40 } },
+            value: { ...value, angle: 40 },
+          }
+        : { widget, value };
+    await act(async () => {
+      startTransition(() =>
+        result.current[0]((w) => ({
+          ...w,
+          storage: { ...w.storage, allowed: !initiallyAllowed },
+        })),
+      );
+      flushSync(() => result.current[3].transact(token, rotate));
+      flushSync(() =>
+        result.current[3].transact(
+          token,
+          (widget, value: { angle: number; following: number }) => ({
+            widget: {
+              ...widget,
+              storage: { ...widget.storage, following: value.angle },
+            },
+            value: { ...value, following: value.angle },
+          }),
+        ),
+      );
+    });
+    const expected = initiallyAllowed ? 0 : 40;
+    expect(result.current[3].scope?.value).toEqual({
+      angle: expected,
+      following: expected,
+    });
+    expect(result.current[1].storage.following).toBe(expected);
+    fire("saveWidgets");
+    expect(mocks.store.mock.calls.at(-1)?.[1].storage.following).toBe(expected);
+    expect(mocks.store.mock.calls.at(-1)?.[1]).not.toHaveProperty("scope");
+  });
+  it("requires explicit scope registration and isolates late cleanup and transactions", () => {
+    const { result } = renderHook(() => useWidgetSync(props), { wrapper: strict });
+    const old = Symbol("old");
+    const current = Symbol("current");
+    const reduce = vi.fn((widget, value: number) => ({ widget, value: value + 1 }));
+    act(() => result.current[3].register(old, () => 0));
+    act(() => result.current[3].release(old));
+    act(() => result.current[3].transact(old, reduce));
+    expect(reduce).not.toHaveBeenCalled();
+    act(() => result.current[3].register(current, () => 10));
+    act(() => {
+      result.current[3].release(old);
+      result.current[3].transact(old, reduce);
+    });
+    expect(result.current[3].scope?.value).toBe(10);
+    expect(mocks.store).not.toHaveBeenCalled();
+    act(() => result.current[3].transact(current, reduce));
+    expect(result.current[3].scope?.value).toBe(11);
+    fire("saveWidgets");
+    expect(mocks.store).not.toHaveBeenCalled();
+  });
   it("replays the production submitted calculation against an intervening field without effects", async () => {
     const { result } = renderHook(() => useWidgetSync(props));
     act(() => result.current[0]((w) => ({ ...w, description: "edit" })));

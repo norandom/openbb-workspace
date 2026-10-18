@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "../../../src",
+    "paths": { "~/*": ["./*"] }
+  },
+  "include": [
+    "../../../src/vite-env.d.ts",
+    "../../../src/components/General/Table/Chart/application/**/*.ts",
+    "../../../src/components/widgetSync/**/*.ts",
+    "../../../src/components/WidgetTransaction.context.tsx",
+    "../../../src/components/Widget.context.tsx",
+    "../../../src/components/Widget.hooks.tsx",
+    "./**/*.ts",
+    "./**/*.tsx"
+  ]
+}

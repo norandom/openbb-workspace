@@ -62,5 +62,10 @@ export function useWidgetSync(props: Omit<WidgetProps, "children">) {
     }));
   });
   useEventListener(`updateWidget-${props?.uuid}`, updateWidgetCallback);
-  return [updateWidgetCallback, providerWidget, widgetFromJSON] as const;
+  return [
+    updateWidgetCallback,
+    providerWidget,
+    widgetFromJSON,
+    owner.transactions,
+  ] as const;
 }

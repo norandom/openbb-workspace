@@ -2,6 +2,7 @@ import { createContext, type PropsWithChildren, useContext, useMemo } from "reac
 import { useCreateRef } from "~/hooks/useRefHooks";
 import type { NewWidgetT, WidgetContextType, WidgetProps, WidgetT } from "./types";
 import { useWidgetSync } from "./Widget.hooks";
+import { WidgetTransactionContext } from "./WidgetTransaction.context";
 
 export interface WidgetStoreProps {
   widget: WidgetT;
@@ -171,7 +172,7 @@ export const useWidgetContext = (
 export function WidgetProvider(props: PropsWithChildren<WidgetProps>) {
   const { children, ...rest } = props;
   const { activeDashboardId, isShared, isPreview, uuid } = rest;
-  const [updateWidget, widget, widgetFromJSON] = useWidgetSync(rest);
+  const [updateWidget, widget, widgetFromJSON, transactions] = useWidgetSync(rest);
 
   const widgetRef = useCreateRef(widget);
 
@@ -193,7 +194,9 @@ export function WidgetProvider(props: PropsWithChildren<WidgetProps>) {
         getWidget,
       }}
     >
-      {childrenMemo}
+      <WidgetTransactionContext.Provider value={transactions}>
+        {childrenMemo}
+      </WidgetTransactionContext.Provider>
     </WidgetContext.Provider>
   );
 }

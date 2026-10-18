@@ -1,7 +1,8 @@
-import { useCallback, useLayoutEffect, useReducer, useRef } from "react";
+import { useCallback, useLayoutEffect, useMemo, useReducer, useRef } from "react";
 import { getEndpointParamGroupByIds, triggerCustomEvent } from "~/lib/utils";
 import type { NewWidgetT, WidgetProps, WidgetT } from "../types";
 import { type Result, reduceWidget } from "./updates";
+import type { WidgetTransaction, WidgetTransactionAdapter } from "./transactions";
 
 type Delivery = { through: number; highest: number; pending: Set<number> };
 function wasDelivered(delivery: Delivery, id: number) {
@@ -91,5 +92,41 @@ export function useWidgetUpdates({ props, initial, storeUpdateWidget }: Options)
       widget: committed.state.widget,
     });
   }, []);
-  return { widget: state.widget, submit, replace, save, latest };
+  const register = useCallback(
+    (token: symbol, initialize: (widget: WidgetT) => unknown) => {
+      dispatch({ type: "scope-register", token, initialize });
+    },
+    [],
+  );
+  const release = useCallback(
+    (token: symbol) => dispatch({ type: "scope-release", token }),
+    [],
+  );
+  const transact = useCallback(
+    <Value>(token: symbol, reduce: WidgetTransaction<Value>) => {
+      const { props, state } = latest.current;
+      dispatch({
+        type: "update",
+        id: ++nextId.current,
+        update: (widget) => widget,
+        scoped: { token, reduce: reduce as WidgetTransaction<unknown> },
+        overridden: Boolean(props.contextOverride),
+        override: props.contextOverride?.updateWidget,
+        dashboardId: props.activeDashboardId as string,
+        paramNames: { ...getEndpointParamGroupByIds(state.widget) },
+      });
+    },
+    [],
+  );
+  const transactions: WidgetTransactionAdapter = useMemo(
+    () => ({
+      widget: state.widget,
+      scope: state.scope,
+      register,
+      release,
+      transact,
+    }),
+    [state.widget, state.scope, register, release, transact],
+  );
+  return { widget: state.widget, submit, replace, save, latest, transactions };
 }
