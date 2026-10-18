@@ -4,6 +4,8 @@ import { ChartEditorDock, type ChartEditorTab } from "../../General/Table/Chart/
 import { chartTypeGalleryGroups } from "../../General/Table/Chart/editor/chartTypeGalleryCatalog";
 import { ChartSetupPanel, type ChartSetupEdit, type ChartSetupState } from "../../General/Table/Chart/editor/setup/ChartSetupPanel";
 import { ChartTitlesPanel, type ChartCaptionEdit, type ChartCaptionState } from "../../General/Table/Chart/editor/titles/ChartTitlesPanel";
+import { ChartLegendPanel, type ChartLegendState } from "../../General/Table/Chart/editor/legend/ChartLegendPanel";
+import { ChartPaddingPanel, type ChartPaddingPanelProps } from "../../General/Table/Chart/editor/padding/ChartPaddingPanel";
 
 const initialSetup: ChartSetupState = {
   categoryId: "period", aggregate: false, aggregationMethod: "sum",
@@ -14,12 +16,31 @@ const caption = (text: string, size: number, spacing: number): ChartCaptionState
   enabled: false, text, font: "Verdana, sans-serif", weight: "predefined", size, color: "#FFFFFF", spacing,
 });
 
-export function ChartEditorControlsPreview() {
+function ChartStylePreview(props: ChartPaddingPanelProps) {
+  const [expanded, setExpanded] = useState(false);
+  return <section className="chart-titles-panel">
+    <button type="button" className="chart-titles-heading" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+      <span aria-hidden="true">{expanded ? "⌄" : "›"}</span> Chart Style
+    </button>
+    {expanded && <div style={{ paddingTop: 12 }}><ChartPaddingPanel {...props} /></div>}
+  </section>;
+}
+const fonts = ["Verdana, sans-serif", "Arial, sans-serif"].map((value) => ({ value, label: value }));
+const weights = [{ value: "predefined", label: "Predefined" }, { value: "normal", label: "Normal" }, { value: "bold", label: "Bold" }, { value: "italic", label: "Italic" }, { value: "bold-italic", label: "Bold Italic" }];
+const range = (max: number) => ({ min: 0, max, step: 1 });
+
+export function ChartEditorControlsPreview({ dark = false }: { dark?: boolean }) {
   const [open, setOpen] = useState(true);
   const [tab, setTab] = useState<ChartEditorTab>("setup");
   const [selectedType, setSelectedType] = useState("groupedColumn");
   const [themeKey, setThemeKey] = useState(0);
   const [setup, setSetup] = useState(initialSetup);
+  const [padding, setPadding] = useState({ top: 20, right: 20, bottom: 20, left: 20 });
+  const [legend, setLegend] = useState<ChartLegendState>({
+    enabled: true, font: "Verdana, sans-serif", weight: "predefined", size: 11,
+    color: dark ? "#FFFFFF" : "#000000", position: "top", spacing: 20,
+    markerSize: 11, markerStroke: 0, itemSpacing: 5, horizontalSpacing: 32, verticalSpacing: 8,
+  });
   const [titles, setTitles] = useState({
     title: caption("Chart Title", 12, 10), subtitle: caption("Subtitle", 13, 20),
     horizontalAxisTitle: caption("Horizontal Axis Title", 13, 25),
@@ -40,7 +61,7 @@ export function ChartEditorControlsPreview() {
     ...current, [edit.caption]: { ...current[edit.caption], [edit.field]: edit.value },
   }));
   return <section>
-    <p>Production controls preview: Set Up and Titles. Other Customize groups, chart rendering and persistence remain pending. Additional menu choices and bounds are candidate examples.</p>
+    <p>Production controls preview: Set Up, Titles, Legend and chart padding. Background, other Customize controls, chart rendering and persistence remain pending. Menu choices are examples.</p>
     <button ref={opener} type="button" onClick={() => setOpen(true)}>Chart settings</button>
     <button type="button" onClick={() => setThemeKey((value) => value + 1)}>Rebuild preview theme</button>
     <div style={{ height: 520, marginTop: 12 }}>
@@ -49,10 +70,17 @@ export function ChartEditorControlsPreview() {
         galleryProps={{ groups: chartTypeGalleryGroups, selectedType, onSelect: setSelectedType }}
         setup={<ChartSetupPanel value={setup} categories={[{ value: "period", label: "Period" }, { value: "region", label: "Region" }]}
           aggregationMethods={[{ value: "sum", label: "Sum" }, { value: "average", label: "Average" }]} onEdit={editSetup} />}
-        customize={<ChartTitlesPanel value={titles} fonts={[{ value: "Verdana, sans-serif", label: "Verdana, sans-serif" }, { value: "Arial, sans-serif", label: "Arial, sans-serif" }]}
-          weights={[{ value: "predefined", label: "Predefined" }, { value: "normal", label: "Normal" }, { value: "bold", label: "Bold" }, { value: "italic", label: "Italic" }, { value: "bold-italic", label: "Bold Italic" }]}
+        customize={<>
+          <ChartStylePreview value={padding} bounds={range(200)} onEdit={({ side, value }) => setPadding((current) => ({ ...current, [side]: value }))} />
+          <ChartTitlesPanel value={titles} fonts={fonts} weights={weights}
           sizes={[12, 13, 16, 20].map((value) => ({ value, label: String(value) }))}
-          spacingBounds={{ min: 0, max: 100, step: 1 }} onEdit={editCaption} />} />
+          spacingBounds={{ min: 0, max: 100, step: 1 }} onEdit={editCaption} />
+          <ChartLegendPanel value={legend} fonts={fonts} weights={weights}
+            positions={["top", "right", "bottom", "left"].map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) }))}
+            sizes={[8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36].map((value) => ({ value, label: String(value) }))}
+            bounds={{ spacing: range(200), markerSize: range(40), markerStroke: range(10), itemSpacing: range(20), horizontalSpacing: range(50), verticalSpacing: range(50) }}
+            onEdit={({ field, value }) => setLegend((current) => ({ ...current, [field]: value }))} />
+        </>} />
     </div>
   </section>;
 }
