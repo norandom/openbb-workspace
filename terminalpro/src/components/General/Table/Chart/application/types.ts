@@ -169,7 +169,7 @@ export interface FinancialFormattingHelpers {
   readonly isValidDate: (value: string | Date) => boolean;
 }
 export interface FinancialFormattingInput {
-  readonly chartType: "groupedColumn" | "stackedColumn" | "line";
+  readonly chartType: import("../echarts/cartesianTypes").CartesianFamily;
   readonly period?: string;
   readonly decimalDigits?: number | null;
   readonly globalDecimalDigits?: number;

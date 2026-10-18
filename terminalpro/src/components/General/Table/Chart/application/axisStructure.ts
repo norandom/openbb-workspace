@@ -1,6 +1,7 @@
 import cloneDeep from "lodash/cloneDeep";
 import get from "lodash/get";
 import set from "lodash/set";
+import { isHorizontalBarFamily } from "../echarts/cartesianTypes";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import { keys, record } from "../compatibility/editorBindings/validation";
 import type {
@@ -12,7 +13,7 @@ import type {
 
 const types = ["number", "category", "time", "grouped-category"];
 function selectedAxis(input: AxisStructureInput): ApplicationConcreteAxis {
-  if (!["groupedColumn", "stackedColumn", "line"].includes(input.family))
+  if (!["groupedColumn", "stackedColumn", "line"].includes(input.family) && !isHorizontalBarFamily(input.family))
     throw new Error("Invalid Cartesian family");
   const event = record(input.event);
   keys(event, ["panel", "axis", "edit"]);

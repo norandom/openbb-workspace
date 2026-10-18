@@ -10,6 +10,7 @@ import { DEFAULT_SETUP_CATEGORY } from "../application/setupTypes";
 import type { ApplicationSessionInputs } from "../application/applicationSessionTypes";
 import { callerOrientation } from "./orientation";
 import type { ChartDataT } from "../../hooks/types";
+import { isHorizontalBarFamily } from "../echarts/cartesianTypes";
 
 export function leafChartDefinitions(
   definitions: readonly (ColDef | ColGroupDef)[],
@@ -130,6 +131,7 @@ export function resolveCallerChart(
         columns.some((column) => column.id === id && column.role === "category"),
       ) ?? DEFAULT_SETUP_CATEGORY;
     const categoryType = "category";
+    const horizontal = isHorizontalBarFamily(chartType);
     return {
       valid: true,
       value: {
@@ -146,16 +148,16 @@ export function resolveCallerChart(
           axes: [
             {
               id: "category",
-              direction: "x",
+              direction: horizontal ? "y" : "x",
               type: categoryType,
-              position: "bottom",
+              position: horizontal ? "left" : "bottom",
               options: {},
             },
             {
               id: "number",
-              direction: "y",
+              direction: horizontal ? "x" : "y",
               type: "number",
-              position: "left",
+              position: horizontal ? "bottom" : "left",
               options: {},
             },
           ],

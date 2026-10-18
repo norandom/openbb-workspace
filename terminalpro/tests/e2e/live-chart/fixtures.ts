@@ -55,6 +55,10 @@ export async function loginDisposableWorkspace(page: Page) {
     }
     await expect(page).toHaveURL((url) => /^\/app(?:\/|$)/.test(url.pathname));
     await expect(page.locator("#tabs")).toBeVisible();
+    const changelog = page.getByRole("dialog").filter({ has: page.getByRole("heading", { name: "Changelog", exact: true }) });
+    await page.addLocatorHandler(changelog, async () => {
+      await changelog.getByRole("button", { name: "Close", exact: true }).click();
+    });
   } catch {
     throw new Error(`Disposable Workspace login failed at ${stage}; route=${new URL(page.url()).pathname}; API=${responses.slice(-12).join(", ")}`);
   }

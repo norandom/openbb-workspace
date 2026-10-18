@@ -1,4 +1,5 @@
 import merge from "lodash.merge";
+import { isHorizontalBarFamily } from "../echarts/cartesianTypes";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import { selectOptionBaseline } from "../compatibility/optionState";
 import { composeAppearanceOptions } from "./appearanceComposition";
@@ -23,7 +24,7 @@ import {
 } from "./effectiveAppearanceValues";
 
 function validateInput(input: AppearanceInput): void {
-  if (!["groupedColumn", "stackedColumn", "line"].includes(input.family))
+  if (!["groupedColumn", "stackedColumn", "line"].includes(input.family) && !isHorizontalBarFamily(input.family))
     throw new Error("Unsupported appearance family");
   number(input.precision, 0, 20);
   if (!Number.isInteger(input.precision))
