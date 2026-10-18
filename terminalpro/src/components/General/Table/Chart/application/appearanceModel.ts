@@ -52,6 +52,8 @@ export interface ResolvedApplicationAppearance {
   readonly title: ResolvedCaption;
   readonly subtitle: ResolvedCaption;
   readonly legend: Readonly<ChartLegendState> & ResolvedFontStyle;
+  /** The original control shows zero when unset; drawn markers inherit the series outline. */
+  readonly legendMarkerStrokeWidth: number;
   readonly padding: Readonly<ChartPaddingState>;
   readonly background: Readonly<ChartBackgroundState>;
   readonly tooltip: Readonly<ChartTooltipsState>;
