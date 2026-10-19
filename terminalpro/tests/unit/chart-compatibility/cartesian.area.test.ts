@@ -1,6 +1,7 @@
 import { init } from "echarts";
 import { beforeEach, expect, it, vi } from "vitest";
 import { translateCartesian } from "../../../src/components/General/Table/Chart/echarts/cartesian";
+import { resolveApplicationAppearance } from "../../../src/components/General/Table/Chart/application/effectiveAppearance";
 import { cartesianNavigator } from "../../../src/components/General/Table/Chart/echarts/cartesianNavigator";
 import { sessionFixture } from "../chart-application/applicationSessionFixture";
 import { projectArea } from "../../../src/components/General/Table/Chart/echarts/cartesianArea";
@@ -141,4 +142,34 @@ it("retains the original miniature stroke for a line with a hidden main stroke",
  expect(main.series[0].lineStyle.width).toBe(0);
  const options=cartesianNavigator(main,true,true,sessionFixture({}).inputs.theme,{width:800}) as any;
  expect(options.series.slice(main.series.length).every((s:any)=>s.lineStyle.width===2)).toBe(true);
+});it.each([
+ ["area",-10,10,10], ["stackedArea",-5,10,5], ["normalizedArea",-50,100,50],
+] as const)("matches original %s numeric scale through a representative source-default mapper",(family,min,max,interval)=>{
+ const session=sessionFixture({});
+ const resolved=resolveApplicationAppearance({baseline:{...session.local.baseline,chartType:family},generated:{},family,
+  precision:0,seriesIds:columns.map(c=>c.id),theme:session.inputs.theme,axisRuntime:session.local.axes});
+ expect(resolved.valid).toBe(true);if(!resolved.valid)return;
+ const style=resolved.value;
+ const values=[[7,-6,5],[-4,8,-3],[null,2,4],[3,null,5],[0,0,0],[5,-2,3]];
+ const rows=values.map((row,i)=>({id:String(i),category:["Alpha","Beta","Gamma","Delta","Epsilon","Zeta"][i],values:Object.fromEntries(columns.map((c,j)=>[c.id,row[j]]))}));
+ const result=translateCartesian({...snapshot,rows},family,style,{...mappingContext(),viewport:{width:640,height:300}});
+ expect(result.status).toBe("supported");if(result.status!=="supported")return;
+ const options=result.options as any;
+ expect(options.yAxis).toMatchObject({min,max,interval});
+ const chart=init(null,undefined,{renderer:"svg",ssr:true,width:640,height:300});
+ try{
+  chart.setOption({...options,animation:false});
+  const scale=(chart as any).getModel().getComponent("yAxis").axis.scale;
+  const rect=(chart as any).getModel().getComponent("grid").coordinateSystem.getRect();
+  expect(scale.getTicks().length-1).toBeLessThanOrEqual(Math.max(1,Math.floor(rect.height/50)));
+  expect(scale.getExtent()).toEqual([min,max]);
+  expect(scale.getTicks().slice(1).map((tick:any,i:number)=>tick.value-scale.getTicks()[i].value)).toEqual(Array((max-min)/interval).fill(interval));
+ }finally{chart.dispose();}
+});it.each([1e308,Number.MIN_VALUE])("keeps finite area bounds when nice intervals cannot represent %s",magnitude=>{
+ const rows=[-magnitude,magnitude].map((value,i)=>({id:String(i),category:String(i),values:{First:value}}));
+ const result=translateCartesian({...snapshot,columns:[columns[0]],selectedColumnIds:["First"],rows},"area",applicationStyle(),mappingContext());
+ expect(result.status).toBe("supported");if(result.status!=="supported")return;
+ const axis=(result.options as any).yAxis;
+ expect(axis.min).toBe(-magnitude);expect(axis.max).toBe(magnitude);
+ expect(axis.interval===undefined || Number.isFinite(axis.interval)&&axis.interval>0).toBe(true);
 });
