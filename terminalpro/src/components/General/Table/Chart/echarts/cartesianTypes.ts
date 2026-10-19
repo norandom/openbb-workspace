@@ -2,7 +2,7 @@ import type { ResolvedApplicationAppearance } from "../application/appearanceMod
 import type { ChartDisplayPolicy } from "../application/types";
 import type { EChartsOption } from "echarts";
 import type { ChartSnapshot, SnapshotDiagnostic } from "../compatibility/snapshotTypes";
-import type { AreaFamily } from "./cartesianAreaTypes";
+import { isAreaFamily, type AreaFamily } from "./cartesianAreaTypes";
 
 export type CartesianFamily =
   | AreaFamily
@@ -21,11 +21,11 @@ export function isHorizontalCartesianFamily(family: string): boolean {
   return isHorizontalBarFamily(family) || family === "normalizedBar";
 }
 export function isNormalizedFamily(family: string): boolean {
-  return family === "normalizedColumn" || family === "normalizedBar";
+  return family === "normalizedColumn" || family === "normalizedBar" || family === "normalizedArea";
 }
 export function isCartesianFamily(family: string): family is CartesianFamily {
   return family === "groupedColumn" || family === "stackedColumn" ||
-    family === "line" || isHorizontalCartesianFamily(family) || isNormalizedFamily(family);
+    family === "line" || isHorizontalCartesianFamily(family) || isNormalizedFamily(family) || isAreaFamily(family);
 }
 export interface CartesianSeriesStyle {
   readonly color?: string;

@@ -73,6 +73,35 @@ function ready(session: ReturnType<typeof useApplicationChartSession>) {
   return session.projection.value;
 }
 describe("live chart session through the existing Widget owner", () => {
+  it.each(["area", "stackedArea", "normalizedArea"] as const)("keeps %s legend geometry current and the full overview independent", family => {
+    const test = fixture({ unknownRoot: { keep: true }, chartMiniChartEnabled: true });
+    const initial = { ...test.inputs, family };
+    const { result, rerender } = renderHook(inputs => useApplicationChartSession(inputs), {
+      initialProps: initial, wrapper: test.wrapper,
+    });
+    act(() => result.current.hostProps.onResize({ width: 800, height: 500 }));
+    const first = ready(result.current);
+    expect(first.projectLegendSelection).toBeTypeOf("function");
+    const before = JSON.stringify(test.owner().widget.storage);
+    const series = (value: any, id: string) => value.series.find((item: any) => item.id === id);
+    const hidden = first.projectLegendSelection!({ income: false });
+    expect(series(hidden, "income").data[0][1]).toBeNull();
+    expect(series(hidden, "revenue").data[0][1]).toBe(100);
+    expect(series(hidden, "openbb-mini-income").data).toEqual(series(first.options, "openbb-mini-income").data);
+    expect(JSON.stringify(test.owner().widget.storage)).toBe(before);
+    const scope = first.legendScope;
+    rerender({ ...initial, theme: { ...initial.theme, mode: "dark" } });
+    expect(ready(result.current).legendScope).toBe(scope);
+    test.rows[0].revenue = 200;
+    rerender({ ...initial, dataRevision: 1 });
+    const updated = ready(result.current);
+    expect(updated.legendScope).toBe(scope);
+    expect(series(updated.projectLegendSelection!({ income: false }), "revenue").data[0][1]).toBe(family === "normalizedArea" ? 100 : 200);
+    expect(series(first.projectLegendSelection!({ income: false }), "revenue").data[0][1]).toBe(100);
+    expect(updated.snapshot.rows[0].values.revenue).toBe(200);
+    expect(updated.projectLegendSelection).not.toBe(first.projectLegendSelection);
+  });
+
   it("forwards a current normalized legend projection without persisting selection", () => {
     const test = fixture({ unknownRoot: { keep: true }, chartMiniChartEnabled: true });
     const initial = { ...test.inputs, family: "normalizedColumn" as const };

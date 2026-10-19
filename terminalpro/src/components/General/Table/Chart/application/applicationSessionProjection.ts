@@ -1,5 +1,6 @@
 import type { EChartsOption } from "echarts";
 import { isNormalizedFamily, type CartesianMappingContext } from "../echarts/cartesianTypes";
+import { isAreaFamily } from "../echarts/cartesianAreaTypes";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import { translateCartesian } from "../echarts/cartesian";
 import { cartesianNavigator } from "../echarts/cartesianNavigator";
@@ -68,7 +69,7 @@ export function projectApplicationSession(
     const overview = decorate(translated.options);
     const projectLegendSelection = (legendSelection: Readonly<Record<string, boolean>>) => {
       const main = translateCartesian(projected.snapshot, family, selected.style, { ...mapping, legendSelection });
-      if (main.status !== "supported") throw new Error("Invalid normalized chart projection");
+      if (main.status !== "supported") throw new Error("Invalid chart legend projection");
       return cartesianNavigator(decorate(main.options), navigator, miniature, theme, viewport, overview);
     };
     const descriptor = (id: string) =>
@@ -80,7 +81,7 @@ export function projectApplicationSession(
         stamp: state.local.stamp,
         revision: state.local.stamp.renderRevision,
         options: cartesianNavigator(overview, navigator, miniature, theme, viewport),
-        ...(isNormalizedFamily(family) ? {
+        ...(isNormalizedFamily(family) || isAreaFamily(family) ? {
           legendScope: JSON.stringify([state.local.stamp.address.stateAddress, state.local.stamp.generation, family]),
           projectLegendSelection,
         } : {}),

@@ -123,7 +123,7 @@ describe("resolved Cartesian financial mapping", () => {
     "pie",
     "Line",
     "",
-    "stackedBar",
+    "areaColumnCombo",
   ])("rejects unknown family %s without options", (family) => {
     expect(translateCartesian(snapshot, family, style)).toMatchObject({
       status: "unsupported",

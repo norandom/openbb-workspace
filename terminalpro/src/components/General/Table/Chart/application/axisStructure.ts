@@ -2,6 +2,7 @@ import cloneDeep from "lodash/cloneDeep";
 import get from "lodash/get";
 import set from "lodash/set";
 import { isCartesianFamily } from "../echarts/cartesianTypes";
+import { isAreaFamily } from "../echarts/cartesianAreaTypes";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import { keys, record } from "../compatibility/editorBindings/validation";
 import type {
@@ -43,7 +44,7 @@ function transfer(
   input: AxisStructureInput,
   axis: ApplicationConcreteAxis,
 ): RuntimeOptions {
-  const family = input.family === "line" ? "line" : "bar";
+  const family = isAreaFamily(input.family) ? "area" : input.family === "line" ? "line" : "bar";
   const source = get(input.savedOptions, [family, "axes", axis.type]);
   const patch: RuntimeOptions = {};
   // Original crosshair suffixes follow crosshair, never the axis position.

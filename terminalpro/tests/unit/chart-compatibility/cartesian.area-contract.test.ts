@@ -7,14 +7,15 @@ beforeEach(() => vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnV
   measureText: (value: string) => ({ width: value.length * 6 }),
 } as any));
 
-it("identifies area contracts without activating ordinary Cartesian admission", () => {
+it("identifies the three integrated area families without admitting combinations", () => {
   for (const family of ["area", "stackedArea", "normalizedArea"]) {
     expect(isAreaFamily(family)).toBe(true);
-    expect(isCartesianFamily(family)).toBe(false);
+    expect(isCartesianFamily(family)).toBe(true);
   }
   for (const family of ["line", "stackedColumn", "normalizedColumn", "normalizedBar", "columnLineCombo", "unknown"])
     expect(isAreaFamily(family)).toBe(false);
-  expect(isNormalizedFamily("normalizedArea")).toBe(false);
+  expect(isNormalizedFamily("normalizedArea")).toBe(true);
+  expect(isCartesianFamily("areaColumnCombo")).toBe(false);
 });
 
 type Point = readonly [number, number | null];
