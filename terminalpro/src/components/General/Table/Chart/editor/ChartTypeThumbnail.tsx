@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-const colors = ["#5090dc", "#ff9e2c", "#3fa05a", "#8b6bce", "#e7d72b", "#2ec0d1"];
+const colors = ["#5090dc", "#ffa03a", "#459d55", "#b485db", "#e1cc00", "#40b5c4"];
 const axes = <path d="M4 3V50H51" fill="none" stroke="#888" strokeWidth="1" />;
 
 function Columns({ stacked = false, normalized = false, horizontal = false }) {
@@ -32,7 +32,8 @@ function Lines({ area = false, stacked = false, normalized = false }) {
   if (stacked && !normalized) areas.splice(1, 2,
     "M4 39L27 17H51V31L27 39 4 46Z", "M4 21L27 6 51 14V17H27L4 39Z");
   return <>{areas.map((path, index) => <path key={path} d={path} fill={colors[index]}
-    fillOpacity={stacked || normalized ? 1 : 0.6} stroke={colors[index]} strokeWidth=".5" />)}{axes}</>;
+    fillOpacity={stacked || normalized ? 1 : 0.7} stroke={colors[index]}
+    strokeOpacity={stacked || normalized ? 1 : 0.75} strokeWidth="1" />)}{axes}</>;
 }
 
 function Pie({ donut = false, rings = false }) {
@@ -67,7 +68,12 @@ function RadialColumns({ nightingale = false }) {
 }
 
 function Scatter({ bubble = false }) {
-  return <>{axes}{[0, 1, 2, 3, 4, 5, 6].map((n) => <circle key={n} cx={9 + n * 6} cy={40 - ((n * 13) % 32)} r={bubble ? 3 + n % 3 : 2} fill={colors[n % 3]} fillOpacity=".85" />)}</>;
+  const points = bubble
+    ? [[13, 14, 7, 2], [38, 18, 6, 5], [24, 35, 7, 1], [32, 38, 9, 4], [9, 38, 5, 0]]
+    : [[13, 10, 2.5, 0], [20, 22, 2.5, 3], [43, 17, 2.5, 5], [40, 30, 2.5, 0],
+      [21, 35, 2.5, 1], [10, 43, 2.5, 4], [29, 43, 2.5, 3], [37, 46, 2.5, 2], [32, 32, 2.5, 2]];
+  return <>{axes}{points.map(([x, y, radius, color], index) => <circle key={index}
+    cx={x} cy={y} r={radius} fill={colors[color]} fillOpacity={bubble ? 0.7 : 1} />)}</>;
 }
 
 function Tiles({ heatmap = false }) {

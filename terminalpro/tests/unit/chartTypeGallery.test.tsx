@@ -7,6 +7,36 @@ import { chartTypeGalleryGroups } from "../../src/components/General/Table/Chart
 
 afterEach(cleanup);
 describe("controlled chart gallery", () => {
+  it("restores caller scroll after remount and tab return without recording hidden resets", () => {
+    const scrollPositionRef = { current: 210 };
+    const props = { groups: chartTypeGalleryGroups, selectedType: "area", onSelect: vi.fn(), scrollPositionRef };
+    const first = render(<ChartTypeGallery {...props} />);
+    const gallery = screen.getByRole("region", { name: "Chart types" });
+    Object.defineProperty(gallery, "clientHeight", { configurable: true, value: 280 });
+    expect(gallery.scrollTop).toBe(210);
+    gallery.scrollTop = 315;
+    fireEvent.scroll(gallery);
+    expect(scrollPositionRef.current).toBe(315);
+    first.unmount();
+
+    const second = render(<ChartTypeGallery {...props} />);
+    const remounted = screen.getByRole("region", { name: "Chart types" });
+    expect(remounted).not.toBe(gallery);
+    expect(remounted.scrollTop).toBe(315);
+    second.rerender(<ChartTypeGallery {...props} visible={false} />);
+    remounted.scrollTop = 0;
+    fireEvent.scroll(remounted);
+    expect(scrollPositionRef.current).toBe(315);
+    second.rerender(<ChartTypeGallery {...props} visible />);
+    expect(remounted.scrollTop).toBe(315);
+    remounted.scrollTop = 0;
+    fireEvent.scroll(remounted);
+    expect(scrollPositionRef.current).toBe(315);
+    Object.defineProperty(remounted, "clientHeight", { configurable: true, value: 280 });
+    remounted.scrollTop = 420;
+    fireEvent.scroll(remounted);
+    expect(scrollPositionRef.current).toBe(420);
+  });
   it("activates the native button exactly once for Enter and Space", async () => {
     const onSelect = vi.fn();
     render(<ChartTypeGallery groups={chartTypeGalleryGroups} selectedType="unknown" onSelect={onSelect} />);

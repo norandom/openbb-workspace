@@ -143,6 +143,8 @@ export function ChartViewButton() {
 
 function useCallerDock(chartType: string | undefined) {
   const { widget, updateWidget } = useWidgetContext();
+  // Family reprojection remounts the editor; its navigation position stays local.
+  const galleryScroll = useRef(0);
   const [activeTab, onTabChange] = useState<ChartEditorTab>("chart");
   const onOpenChange = (open: boolean) =>
     updateWidget?.((previous) => ({
@@ -171,6 +173,7 @@ function useCallerDock(chartType: string | undefined) {
     onOpenChange,
     themeResetKey: chartType ?? "pending",
     galleryProps: {
+      scrollPositionRef: galleryScroll,
       groups,
       selectedType: chartType,
       onSelect: (type: string) =>

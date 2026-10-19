@@ -41,7 +41,7 @@ export function ChartEditorDock(props: ChartEditorDockProps) {
 
         </div>
         <TabsContent value="chart" forceMount hidden={activeTab !== "chart"} className="chart-editor-dock-panel">
-          <ChartTypeGallery {...galleryProps} />
+          <ChartTypeGallery {...galleryProps} visible={open && activeTab === "chart"} />
         </TabsContent>
         <TabsContent value="setup" forceMount hidden={activeTab !== "setup"} className="chart-editor-dock-panel">{setup}</TabsContent>
         <TabsContent value="customize" forceMount hidden={activeTab !== "customize"} className="chart-editor-dock-panel">
