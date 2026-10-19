@@ -52,6 +52,11 @@ server {
 
   include /etc/nginx/qopenbb-routes.conf;
 
+  # Missing script assets must report absence instead of returning the SPA HTML.
+  location ^~ /assets/ {
+    try_files $uri =404;
+  }
+
   # Catch-all SPA fallback for client-side routing.
   location / {
     try_files $uri $uri/ /index.html;
