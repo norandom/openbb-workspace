@@ -29,7 +29,9 @@ function normalizeRow(row: readonly Value[], previous: readonly Value[] | undefi
     extent = Math.max(extent, Math.abs(value ?? 0), Math.abs(prefix), Math.abs(window));
   });
   const normalize = (value: Value) => value === null || extent === 0 ? null : value * 100 / extent;
-  return { stack: values.map(normalize), cumulative: cumulative.map(normalize) };
+  // Original Float64Array stacks coerce zero-extent normalization nulls to zero; scalar markers retain null.
+  const zeroStack = extent === 0 && values.some(value => value !== null);
+  return { stack: values.map(value => zeroStack ? 0 : normalize(value)), cumulative: cumulative.map(normalize) };
 }
 
 function endpoints(rows: readonly (readonly Value[])[], index: number, independent: boolean): Value[] {

@@ -73,7 +73,7 @@ it("keeps normalized single-series missing and zero markers distinct", () => {
   const result = projectArea(input([[4], [null], [0], [-2]], "normalizedArea"));
   expect(result.series[0].labelValues).toEqual([4, null, 0, -2]);
   expect(result.series[0].markers).toEqual([100, null, 0, -100]);
-  expect(result.series[0].strokes).toEqual([]);
+  expect(result.series[0].strokes).toEqual([[{ rowIndex: 2, value: 0 }, { rowIndex: 3, value: -100 }]]);
 });
 
 it("reprojects hidden membership and has finite empty/all-hidden output", () => {
@@ -135,4 +135,20 @@ it("uses original ungrouped stroke boundaries for one selected ordinary stack", 
   expect(normalized.series[0].strokes).toEqual([
     [{ rowIndex: 0, value: -100 }, { rowIndex: 1, value: -100 }],
   ]);
+});
+it("retains normalized zero valleys and the following nonzero area boundaries",()=>{
+ const data=input([[7,-6,5],[-4,8,-3],[null,2,4],[3,null,5],[0,0,0],[5,-2,3]],"normalizedArea");
+ const third=projectArea(data).series[2];
+ expect(third.markers.slice(3)).toEqual([100,0,100]);
+ expect(third.fills.slice(-2)).toEqual([
+  [{rowIndex:3,lower:37.5,upper:100},{rowIndex:4,lower:0,upper:0}],
+  [{rowIndex:4,lower:0,upper:0},{rowIndex:5,lower:expect.closeTo(50,12),upper:100}],
+ ]);
+ expect(third.strokes.slice(-2)).toEqual([
+  [{rowIndex:3,value:100},{rowIndex:4,value:0}],
+  [{rowIndex:4,value:0},{rowIndex:5,value:100}],
+ ]);
+ const missing=projectArea(input([[null],[null]],"normalizedArea")).series[0];
+ expect(missing.markers).toEqual([null,null]);expect(missing.strokes).toEqual([]);
+ expect(data.snapshot.rows[2].values.s0).toBeNull();
 });
