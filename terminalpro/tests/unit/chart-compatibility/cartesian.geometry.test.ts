@@ -31,6 +31,36 @@ it("draws one original category tick for a single line observation", () => {
   expect(labels.map((node) => node.textContent)).toEqual(["period:2026-03-31"]);
   expect(svg.documentElement.outerHTML).not.toMatch(/NaN|Infinity/);
 });
+it("spaces daily category ticks without dropping line observations", () => {
+  const input = {
+    ...snapshot,
+    rows: Array.from({ length: 76 }, (_, index) => ({
+      id: `daily-${index}`,
+      category: new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10),
+      values: { revenue: index + 100, costs: -index },
+    })),
+    selectedRange: { ...snapshot.selectedRange, endRow: 75 },
+  };
+  const style = applicationStyle();
+  const result = translateCartesian(input, "line", style, mappingContext());
+  if (result.status !== "supported") throw new Error(JSON.stringify(result));
+  const series = result.options.series as { data: unknown[] }[];
+  expect(series.map((item) => item.data.length)).toEqual([76, 76]);
+  const labels = Array.from(drawn(style, 800, input).querySelectorAll("text"))
+    .map((node) => node.textContent ?? "")
+    .filter((label) => label.startsWith("period:"));
+  expect(labels.length).toBeGreaterThan(1);
+  expect(labels.length).toBeLessThanOrEqual(8);
+  expect(labels.every((label) => input.rows.some(
+    (row) => label === `period:${row.category}`,
+  ))).toBe(true);
+});
+it("retains all three category ticks for a short line series", () => {
+  const labels = Array.from(drawn().querySelectorAll("text"))
+    .map((node) => node.textContent)
+    .filter((label) => label?.startsWith("period:"));
+  expect(labels).toEqual(snapshot.rows.map((row) => `period:${row.category}`));
+});
 function text(svg: Document, value: string): Element {
   const node = Array.from(svg.querySelectorAll("text")).find(
     (element) => element.textContent === value,

@@ -148,8 +148,8 @@ function axisOptions(
           // Original line band padding is inner=1, outer=0.1; bar bands stay categorical.
           min: -0.1,
           max: Math.max(0, snapshot.rows.length - 1) + 0.1,
+          // Keep ticks on observation indices while allowing dense date labels to thin.
           minInterval: 1,
-          maxInterval: 1,
         }
       : {}),
     ...(!category && family === "line"
