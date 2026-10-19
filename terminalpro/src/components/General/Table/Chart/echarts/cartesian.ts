@@ -10,6 +10,9 @@ import {
   sourceDiagnostics,
   unitDiagnostics,
 } from "./cartesianAdmission";
+import { isAreaFamily } from "./cartesianAreaTypes";
+import { projectArea } from "./cartesianArea";
+import { cartesianAreaSeries } from "./cartesianAreaSeries";
 import { applicationAxes } from "./cartesianAxes";
 import { fallbackDisplay, normalizedDisplay } from "./cartesianDisplay";
 import { cartesianGrid } from "./cartesianGrid";
@@ -91,11 +94,14 @@ function buildOptions(
   style: ResolvedCartesianStyle,
   context: CartesianMappingContext | undefined,
 ): EChartsOption {
-  const normalized = isNormalizedFamily(family);
-  const drawn = normalized
+  const area = isAreaFamily(family) ? projectArea({ snapshot, columns, family,
+    connectMissingData: style.application?.series.connectMissingData ?? style.line?.connectMissingData ?? false,
+    legendSelection: context?.legendSelection }) : undefined;
+  const normalized = isNormalizedFamily(family) || family === "normalizedArea";
+  const drawn = normalized && !area
     ? normalizedCoordinates(snapshot, columns, context?.legendSelection)
     : snapshot;
-  const extent = normalized ? normalizedExtent(drawn) : {};
+  const extent = area ? area.extent : normalized ? normalizedExtent(drawn) : {};
   const captions = captionAppearance(style);
   const rawDisplay = context?.display ?? fallbackDisplay(style.precision);
   const display = normalized
@@ -115,11 +121,13 @@ function buildOptions(
       show: style.legend.visible,
       [style.legend.position]: 0,
       data: columns.map((c) => c.id),
+      ...(area ? { icon: "rect" } : {}),
       formatter: (name: string) => String(display.legend(labels.get(name) ?? name)),
       textStyle: captions.legendText,
     },
     xAxis: {
       type: "category",
+      ...(area ? { boundaryGap: false } : {}),
       data: snapshot.rows.map((_, index) => String(index)),
       axisLabel: {
         ...captions.axisLabelStyle,
@@ -144,7 +152,8 @@ function buildOptions(
       },
     },
     tooltip: cartesianTooltip(snapshot, columns, style, display),
-    series: cartesianSeries(snapshot, columns, family, style, display, drawn),
+    series: area ? cartesianAreaSeries(snapshot, columns, style, display, area)
+      : cartesianSeries(snapshot, columns, family, style, display, drawn),
   } satisfies EChartsOption;
   if (!style.application || !context?.viewport) {
     if (isHorizontalCartesianFamily(family)) {
@@ -194,7 +203,7 @@ export const translateCartesian: TranslateCartesian = (
   style,
   context,
 ) => {
-  if (!isCartesianFamily(family))
+  if (!isCartesianFamily(family) && !isAreaFamily(family))
     return {
       status: "unsupported",
       diagnostics: [

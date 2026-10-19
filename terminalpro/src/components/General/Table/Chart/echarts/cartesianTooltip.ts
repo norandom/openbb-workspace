@@ -13,7 +13,7 @@ function tooltipContent(
   mode: string,
   params: unknown,
 ): string {
-  const entries = (Array.isArray(params) ? params : [params]).filter(record);
+  const entries = (Array.isArray(params) ? params : [params]).filter(record).filter(p => (p.seriesId === undefined && p.seriesName === undefined) || columns.some(c => c.id === p.seriesId || c.id === p.seriesName));
   const entry = entries.find((p) => typeof p.dataIndex === "number");
   const row = entry ? snapshot.rows[entry.dataIndex as number] : undefined;
   if (!row) return "";

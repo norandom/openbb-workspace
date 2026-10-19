@@ -4,6 +4,7 @@ import type {
   ApplicationThemeInput,
 } from "../application/appearanceModel";
 import type { ChartSnapshot } from "../compatibility/snapshotTypes";
+import { isAreaFamily } from "./cartesianAreaTypes";
 import type { CartesianFamily } from "./cartesianTypes";
 
 // Stock createItemStyler uses this palette independently of the normal series palette.
@@ -34,7 +35,7 @@ export function cartesianBarColors(
   style: ApplicationResolvedStyle,
 ): EChartsOption {
   const series = options.series as SeriesOption[];
-  if (!enabled || family === "line" || series.length !== 1) return options;
+  if (!enabled || family === "line" || isAreaFamily(family) || series.length !== 1) return options;
   const palette = theme.name.startsWith("custom-") ? theme.palette.fills : fills;
   const categoryColors = new Map<string, string>();
   const colors = snapshot.rows.map((row) => {

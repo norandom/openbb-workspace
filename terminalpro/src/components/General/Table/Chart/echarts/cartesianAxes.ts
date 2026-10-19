@@ -2,6 +2,7 @@ import type { XAXisComponentOption, YAXisComponentOption } from "echarts";
 import type { ResolvedApplicationAxis } from "../application/appearanceModel";
 import type { ChartDisplayPolicy } from "../application/types";
 import type { ChartSnapshot } from "../compatibility/snapshotTypes";
+import { isAreaFamily } from "./cartesianAreaTypes";
 import { fontStyle, timeLabel } from "./cartesianDisplay";
 import { alternatingGrid } from "./cartesianGrid";
 import { measureText } from "./cartesianLayout";
@@ -12,7 +13,7 @@ export function ordinalLineCategory(
   axis: ResolvedApplicationAxis,
   family: CartesianFamily,
 ): boolean {
-  return family === "line" && axis.fields.type === "category";
+  return (family === "line" || isAreaFamily(family)) && axis.fields.type === "category";
 }
 
 function numberExtent(snapshot: ChartSnapshot, pixels: number) {

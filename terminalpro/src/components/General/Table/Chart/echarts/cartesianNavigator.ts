@@ -76,7 +76,7 @@ function miniatureAxis<Axis extends XAXisComponentOption | YAXisComponentOption>
 }
 function miniatureSeries(series: readonly SeriesOption[]): SeriesOption[] {
   return series.map((source) => {
-    const item = source as SeriesOption & { stack?: string };
+    const item = source as SeriesOption & { stack?: string; openbbAreaGeometry?: boolean };
     return {
       ...item,
       id: `openbb-mini-${source.id}`,
@@ -93,7 +93,8 @@ function miniatureSeries(series: readonly SeriesOption[]): SeriesOption[] {
             showSymbol: false,
             lineStyle: {
               ...(item as { lineStyle?: Record<string, unknown> }).lineStyle,
-              width: 2,
+              width: item.openbbAreaGeometry === true
+                ? (item as { lineStyle?: { width?: number } }).lineStyle?.width : 2,
               type: "solid",
             },
             itemStyle: {

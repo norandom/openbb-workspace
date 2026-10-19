@@ -39,7 +39,7 @@ function observationData(
     return horizontal ? [category, value] : [value, category];
   });
 }
-function applicationSeries(
+export function applicationSeries(
   style: ResolvedCartesianStyle,
   column: SnapshotColumn,
   index: number,
