@@ -1,3 +1,4 @@
+import { restoreAxisSettings } from "../application/axisPersistence";
 import type { ColDef, ColGroupDef, GridApi } from "ag-grid-community";
 import { getStateKey, getWidgetStorage } from "../../communityState";
 import { selectOptionBaseline } from "../compatibility/optionState";
@@ -143,7 +144,7 @@ export function resolveCallerChart(
         range: range.range,
         categoryColumnId: category,
         columns,
-        initialAxes: {
+        initialAxes: restoreAxisSettings(model, {
           categoryAxisType: categoryType,
           axes: [
             {
@@ -161,7 +162,7 @@ export function resolveCallerChart(
               options: {},
             },
           ],
-        },
+        }),
       },
     };
   } catch (error) {
@@ -194,13 +195,16 @@ export function createCallerChartData(props: {
   };
 }
 /** Type selection updates source fields while retaining inactive options and unknown model data. */
-export function changeCallerChartType<T extends { storage?: any }>(
+export function changeCallerChartType<T extends { storage?: any; data?: any }>(
   widget: T,
   chartType: string,
 ): T {
   const stateKey = getStateKey(widget);
   const storage = widget.storage ?? {};
   const partition = storage[stateKey] ?? {};
+  const model = { ...(partition.chartModel ?? storage.chartModel), chartType };
+  const previousFamily = partition.chartModel?.chartType ?? storage.chartModel?.chartType ?? storage.chartType ?? widget.data?.table?.chartView?.chartType ?? "groupedColumn";
+  if (previousFamily !== chartType) delete model.qopenbbAxisSettings;
   return {
     ...widget,
     storage: {
@@ -208,7 +212,7 @@ export function changeCallerChartType<T extends { storage?: any }>(
       chartType,
       [stateKey]: {
         ...partition,
-        chartModel: { ...(partition.chartModel ?? storage.chartModel), chartType },
+        chartModel: model,
       },
     },
   };

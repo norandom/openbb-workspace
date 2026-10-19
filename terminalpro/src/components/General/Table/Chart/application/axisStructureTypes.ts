@@ -4,7 +4,7 @@ import type { CartesianFamily } from "../echarts/cartesianTypes";
 import type { ApplicationAxisStructureEvent, AxisBinding } from "../compatibility/editorBindings/types";
 
 export type ApplicationAxisOptionType = AxisBinding["optionType"];
-/** Runtime axis options are not an additional serialized ChartModel field. */
+/** Concrete geometry stays transient; axisPersistence stores semantic category preferences. */
 export interface ApplicationConcreteAxis {
   readonly id: ApplicationAxisId;
   readonly direction: "x" | "y";
@@ -15,7 +15,7 @@ export interface ApplicationConcreteAxis {
 }
 export interface ApplicationAxisRuntime {
   readonly axes: readonly ApplicationConcreteAxis[];
-  /** Original ChartDataModel runtime value; getChartModel does not serialize it. */
+  /** Semantic category type, stored by the optional QOpenBB model extension. */
   readonly categoryAxisType: ApplicationAxisOptionType | undefined;
 }
 export interface AxisStructureInput {

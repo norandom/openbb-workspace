@@ -1,3 +1,4 @@
+import { readAxisSettings, saveAxisSettings } from "./axisPersistence";
 import cloneDeep from "lodash/cloneDeep";
 import set from "lodash/set";
 import { reduceIntegratedState } from "../compatibility/integratedState";
@@ -93,6 +94,8 @@ export function applyApplicationEditorTransaction(
   if (command.family !== context.inputs.family) return { status: "stale" };
   try {
     const selected = selectApplicationSession(storage, context);
+    if (JSON.stringify(readAxisSettings(selected.baseline.model)) !==
+      JSON.stringify(readAxisSettings(context.local.baseline.model))) return { status: "stale" };
     const previous = sessionSetup(
       context.local.baseline.model,
       context.local.range,
@@ -137,7 +140,9 @@ export function applyApplicationEditorTransaction(
     const next = reduceSessionOptions(
       storage,
       context,
-      selected.baseline.model,
+      command.intent.panel === "axisStructure" && ["type", "timeFormat"].includes(command.intent.edit.field)
+        ? saveAxisSettings(selected.baseline.model, local.axes)
+        : selected.baseline.model,
       selected.baseline.options,
       patch,
       selected.setup.seriesIds.length,

@@ -1,3 +1,4 @@
+import { readAxisSettings, restoreAxisSettings, resetAxisSettings } from "./axisPersistence";
 import cloneDeep from "lodash/cloneDeep";
 import isEqual from "lodash.isequal";
 import { selectOptionBaseline } from "../compatibility/optionState";
@@ -71,6 +72,7 @@ export function initialApplicationSession(
   let range = local.range;
   let error = selected.valid ? undefined : selected.error;
   try {
+    local.axes = restoreAxisSettings(local.baseline.model, inputs.initialAxes);
     range = sessionRange(storage, context);
   } catch (failure) {
     error = failure instanceof Error ? failure.message : "Invalid chart range";
@@ -110,6 +112,13 @@ export function synchronizeApplicationSession(
     capture: state.capture as ChartSnapshot,
   };
   const baseline = sessionBaseline(storage, context);
+  const preference = readAxisSettings(baseline.model);
+  const previousPreference = readAxisSettings(state.local.baseline.model);
+  const axes = isEqual(preference, previousPreference)
+    ? state.local.axes
+    : preference
+      ? restoreAxisSettings(baseline.model, state.local.axes)
+      : resetAxisSettings(inputs.initialAxes, state.local.axes);
   const range = sessionRange(storage, context);
   const before = sessionSetup(state.local.baseline.model, state.local.range, context);
   const after = sessionSetup(baseline.model, range, context);
@@ -141,6 +150,7 @@ export function synchronizeApplicationSession(
     capture: dataChanged ? undefined : state.capture,
     local: {
       ...state.local,
+      axes,
       baseline,
       range,
       stamp: nextSessionStamp(state.local.stamp, dataChanged ? "data" : "render"),
