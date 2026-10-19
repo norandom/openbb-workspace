@@ -33,20 +33,14 @@ export function expectApplicationDiagnostics(
   diagnostics: Awaited<ReturnType<typeof observeApplication>>,
   injectedSaveFailures = 0,
 ) {
-  const missingDatafeed = "/assets/js/datafeeds/udf/dist/bundle.js";
   const savePath = "/api/pro/dash/sync";
   expect(diagnostics.errors).toEqual([]);
-  expect(diagnostics.requestFailures.filter(({ path, reason }) =>
-    !(path === missingDatafeed && reason === "net::ERR_ABORTED" &&
-      diagnostics.failures.some((failure) => failure.path === path && failure.status === 404)),
-  )).toEqual([]);
+  expect(diagnostics.requestFailures).toEqual([]);
   expect(diagnostics.failures.filter(({ path, status }) =>
-    !(path === missingDatafeed && status === 404) &&
     !(path === savePath && status === 500),
   )).toEqual([]);
   expect(diagnostics.failures.filter(({ path, status }) => path === savePath && status === 500)).toHaveLength(injectedSaveFailures);
   expect(diagnostics.consoleErrors.filter(({ message, path }) =>
-    !(path === missingDatafeed && /Failed to load resource.*404/.test(message)) &&
     !(injectedSaveFailures > 0 && path === savePath && /Failed to load resource.*500/.test(message)),
   )).toEqual([]);
 }
