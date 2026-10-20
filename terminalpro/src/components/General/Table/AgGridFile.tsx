@@ -15,6 +15,7 @@ import useChartOptions, {
   useChartToolPanelAction,
 } from "./Chart/hooks/useChartOptions";
 import { getCSVData, getExcelData, getExcelWorkBook } from "./fileData";
+import { fileRefreshOptions } from "./fileRefreshOptions";
 import { AgGridProvider, getSideBarOptions, useAgGridContext } from "./hooks";
 import { useAgExportFuncs } from "./hooks/communityActions";
 import type { AgGridEvents } from "./hooks/types";
@@ -91,6 +92,14 @@ export default function AgGridFile() {
     {
       enabled: true,
       staleTime: 1000 * 60 * 60 * 24 * 7,
+      ...fileRefreshOptions<{ workbook: ExcelJS.Workbook; sheets: Sheet[] } | object[]>([
+        widget.id,
+        widget.endpoint?.url,
+        widget.sourceId,
+        widget.isSharedWidget,
+        fileType,
+        widget.data?.dataKey,
+      ]),
     },
   );
 
