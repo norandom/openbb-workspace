@@ -1,3 +1,5 @@
+import { isXyChartFamily } from "./xySessionTypes";
+import { applyXyEditorTransaction } from "./xyEditorTransaction";
 import type { WidgetT } from "../../../../types";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import type {
@@ -50,6 +52,9 @@ function transaction(
       intent.edit,
       recapture,
     );
+  if (isXyChartFamily(context.inputs.family))
+    return applyXyEditorTransaction(storage, context as ApplicationSessionContext<import("../compatibility/xyAssignments").XyChartType>, command);
+  if (intent.panel === "xy") return { status: "stale" as const };
   if (isComboChartFamily(context.inputs.family)) {
     const combo = context as ComboSessionContext;
     const family = context.inputs.family;

@@ -27,8 +27,9 @@ function freeze<T>(value: T): T {
 }
 export function retainOrdinarySetupCapture(
   input: unknown,
+  policy?: "xy-coordinates",
 ): SetupResult<ChartSnapshot> {
-  const checked = validateSnapshot(input);
+  const checked = validateSnapshot(input, policy);
   if (!checked.valid)
     return { status: "invalid", diagnostics: checked.diagnostics };
   if (checked.snapshot.sourceMode !== "flat")
@@ -40,6 +41,7 @@ export function retainOrdinarySetupCapture(
 function selectedColumns(
   source: ChartSnapshot,
   selection: SetupSelection,
+  allowEmpty = false,
 ): SnapshotColumn[] | undefined {
   if (
     !selection ||
@@ -59,7 +61,7 @@ function selectedColumns(
     return;
   if (
     !Array.isArray(selection.seriesIds) ||
-    !selection.seriesIds.length ||
+    (!allowEmpty && !selection.seriesIds.length) ||
     new Set(selection.seriesIds).size !== selection.seriesIds.length
   )
     return;
@@ -187,16 +189,16 @@ function inverted(
 export function projectOrdinarySetup(
   input: ChartSnapshot,
   selection: SetupSelection,
-  axisPolicy: "single-axis" | "combo-per-axis" = "single-axis",
+  axisPolicy: "single-axis" | "combo-per-axis" | "xy-coordinates" = "single-axis",
 ): SetupResult<SetupProjection> {
-  if (!["single-axis", "combo-per-axis"].includes(axisPolicy))
+  if (!["single-axis", "combo-per-axis", "xy-coordinates"].includes(axisPolicy))
     return invalidSetup("Invalid setup axis policy");
-  if (axisPolicy === "combo-per-axis" && selection.switchCategorySeries)
+  if (axisPolicy !== "single-axis" && selection.switchCategorySeries)
     return invalidSetup("Combination charts cannot switch category and series");
-  const retained = retainOrdinarySetupCapture(input);
+  const retained = retainOrdinarySetupCapture(input, axisPolicy === "xy-coordinates" ? axisPolicy : undefined);
   if (retained.status !== "ready") return retained;
   const source = retained.value;
-  const columns = selectedColumns(source, selection);
+  const columns = selectedColumns(source, selection, axisPolicy === "xy-coordinates");
   if (!columns)
     return invalidSetup(
       "Selection requires captured category and unique captured numerical series",
@@ -230,7 +232,7 @@ export function projectOrdinarySetup(
     categoryColumnId: output.categoryColumnId,
     selectedColumnIds: output.columns.map((c) => c.id),
     sourceMode,
-  });
+  }, axisPolicy === "xy-coordinates" ? axisPolicy : undefined);
   if (!checked.valid)
     return { status: "invalid", diagnostics: checked.diagnostics };
   const setupProjection = selection.switchCategorySeries
@@ -249,7 +251,7 @@ export function projectOrdinarySetup(
       valueOrigins: output.valueOrigins,
       observationKind: count ? "count" : "raw-observations",
       axisUnits:
-        axisPolicy === "combo-per-axis"
+        axisPolicy !== "single-axis"
           ? "deferred"
           : aggregateColumns(columns, count).every(
                 (c) => c.unit !== undefined && c.scale !== undefined,

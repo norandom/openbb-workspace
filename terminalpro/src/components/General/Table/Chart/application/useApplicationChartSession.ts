@@ -1,3 +1,5 @@
+import { isXyChartFamily, type XyEditIntent } from "./xySessionTypes";
+import { projectXySession } from "./xySessionProjection";
 import { executeApplicationChartCommand } from "./applicationSessionDispatch";
 import { projectComboSession } from "./comboSessionProjection";
 import {
@@ -55,7 +57,9 @@ export function useApplicationChartSession(
   const projection = useMemo<SessionResult<ApplicationChartReady>>(
     () =>
       current
-        ? isComboChartFamily(inputs.family)
+        ? isXyChartFamily(inputs.family)
+          ? projectXySession(owner.widget.storage as ChartStorageOutput, inputs as ApplicationSessionInputs<import("../compatibility/xyAssignments").XyChartType>, current)
+          : isComboChartFamily(inputs.family)
           ? projectComboSession(
               owner.widget.storage as ChartStorageOutput,
               inputs as ApplicationSessionInputs<ComboChartType>,
@@ -209,6 +213,7 @@ export function useApplicationChartSession(
       dispatch({ panel: "geometry", geometry }),
     onChartType: (chartType: ApplicationChartFamily) =>
       dispatch({ panel: "family", chartType }),
+    onXy: (edit: XyEditIntent["edit"]) => dispatch({ panel: "xy", edit }),
     onIntent: (intent: ApplicationEditorIntent) => dispatch(intent),
     onAxisStructure: (event: ApplicationAxisStructureEvent) => dispatch(event),
     onSetup: (edit: ChartSetupEdit) => dispatch({ panel: "setup", edit }),

@@ -25,6 +25,17 @@ function render(input: any, check: (chart: any, series: any) => void) {
     chart.dispose();
   }
 }
+it("renders moved numeric XY axes on top and right", () => {
+  const input: any = xyInput();
+  input.style.axes.x.appearance.fields.position = "top";
+  input.style.axes.y.appearance.fields.position = "right";
+  render(input, (chart, series) => {
+    expect(series.coordinateSystem.getAxis("x").position).toBe("top");
+    expect(series.coordinateSystem.getAxis("y").position).toBe("right");
+    expect(series.getData().count()).toBe(3);
+    expect(chart.renderToSVGString()).toContain("<svg");
+  });
+});
 it.each(["scatter", "bubble"])(
   "renders %s triangles with original nominal anchor",
   (family) => {
@@ -65,7 +76,6 @@ it.each(["x", "y"])(
       { min: -100 },
       { max: 100 },
       { min: -10, max: 100 },
-      { min: 100, max: 200 },
     ]) {
       const input: any = xyInput();
       Object.assign(input.style.axes[id], bounds);
@@ -80,7 +90,13 @@ it.each(["x", "y"])(
     for (const bounds of [{ min: 100 }, { max: -100 }]) {
       const input: any = xyInput();
       Object.assign(input.style.axes[id], bounds);
-      expect(translateXy(input).status).toBe("invalid");
+      render(input, (chart, series) => {
+        expect(series.getData().count()).toBe(0);
+        expect(chart.getOption()[id === "x" ? "xAxis" : "yAxis"][0].show).toBe(false);
+      });
+      delete input.style.axes[id].min;
+      delete input.style.axes[id].max;
+      render(input, (_chart, series) => expect(series.getData().count()).toBeGreaterThan(0));
     }
   },
 );

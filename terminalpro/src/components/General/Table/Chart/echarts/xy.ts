@@ -1,3 +1,4 @@
+import { xyEmptyAxes } from "./xyEmptyDomain";
 import { admitXy, xyFailure } from "./xyAdmission";
 import { xyAxes } from "./xyAxes";
 import { xyLayout } from "./xyLayout";
@@ -9,11 +10,12 @@ function finiteGeometry(value: unknown): void {
   if (value !== null && typeof value === "object")
     Object.values(value).forEach(finiteGeometry);
 }
-/** Inactive projection: callers retain snapshot, assignment and appearance ownership. */
+/** Pure projection: callers retain snapshot, assignment and appearance ownership. */
 export const translateXy: TranslateXy = (input) => {
   try {
     const failure = admitXy(input);
     if (failure) return failure;
+    const empty = xyEmptyAxes(input);
     const c = input.style.common;
     const options = {
       animation: false,
@@ -24,9 +26,13 @@ export const translateXy: TranslateXy = (input) => {
       },
       ...xyLayout(input),
       ...xyAxes(input),
-      series: xySeries(input),
+      series: xySeries(input).map((series) => empty.length ? { ...series, data: [] } : series),
       tooltip: xyTooltip(input),
     };
+    for (const id of empty) {
+      const axis = id === "x" ? options.xAxis : options.yAxis;
+      Object.assign(axis, { show: false, min: undefined, max: undefined });
+    }
     finiteGeometry(options);
     return { status: "supported", options };
   } catch {

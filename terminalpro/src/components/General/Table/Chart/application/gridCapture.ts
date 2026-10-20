@@ -54,7 +54,7 @@ function inspectInput(input: GridCaptureInput): ResolvedSnapshotInput {
     columns: input.columns,
     rows: [],
     selectedRange: input.range.originalRange,
-  });
+  }, input.snapshotPolicy);
   if (!result.valid) reject({ status: "invalid", diagnostics: result.diagnostics });
   return result.snapshot;
 }
@@ -177,7 +177,7 @@ export const captureDisplayedChart: CaptureDisplayedChart = (input) => {
     const result = validateSnapshot({
       ...template,
       rows: readRows(input, template, start, end),
-    });
+    }, input.snapshotPolicy);
     return result.valid
       ? { status: "ready", stamp: input.stamp, value: result.snapshot }
       : { status: "invalid", diagnostics: result.diagnostics };

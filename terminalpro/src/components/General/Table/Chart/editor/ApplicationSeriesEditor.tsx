@@ -1,3 +1,4 @@
+import { XyPointControls } from "./xy/XyPointControls";
 import type { ApplicationCustomizeEditorProps } from "./ApplicationCustomizeEditor";
 import { ComboGeometryControl } from "./combo/ComboGeometryControl";
 import { Switch } from "../../../../ds/atoms/Switch";
@@ -20,10 +21,10 @@ export function ApplicationSeriesEditor({
         {...state.tooltips}
         onEdit={(edit) => onIntent({ panel: "tooltips", edit })}
       />
-      <ChartSeriesStylePanel
+      {mode?.kind === "xy" ? <XyPointControls mode={mode} /> : <ChartSeriesStylePanel
         {...state.series}
         onEdit={(edit) => onIntent({ panel: "series", edit })}
-      />
+      />}
       {eligibility.connectMissingData && (
         <div className="chart-caption-toggle">
           <Switch
@@ -35,7 +36,7 @@ export function ApplicationSeriesEditor({
           />
         </div>
       )}
-      {eligibility.markers && (
+      {eligibility.markers && mode?.kind !== "xy" && (
         <ChartMarkersPanel
           {...state.markers}
           onEdit={(edit) => onIntent({ panel: "markers", edit })}

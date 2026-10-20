@@ -1,3 +1,4 @@
+import { isXyChartFamily } from "./application/xySessionTypes";
 import { useCallerDock } from "./caller/useCallerDock";
 import {
   isComboChartFamily,
@@ -72,7 +73,7 @@ export function ChartViewElement() {
         {inputs.valid &&
         !inputs.value.pendingReason &&
         (isCartesianFamily(inputs.value.family) ||
-          isComboChartFamily(inputs.value.family)) ? (
+          isComboChartFamily(inputs.value.family) || isXyChartFamily(inputs.value.family)) ? (
           <LiveCallerChart inputs={inputs.value} />
         ) : (
           <PendingCallerChart
@@ -233,7 +234,7 @@ function LiveCallerChart({
       );
   }, [isReady, inputs.family, session.seriesCount, updateAgGrid]);
   useEffect(() => {
-    if (session.seriesCount !== 0) return;
+    if (session.seriesCount !== 0 || isXyChartFamily(inputs.family)) return;
     updateWidget?.((previous) => ({
       ...previous,
       storage: {
@@ -241,7 +242,7 @@ function LiveCallerChart({
         chartView: { ...previous.storage?.chartView, enabled: false },
       },
     }));
-  }, [session.seriesCount, updateWidget]);
+  }, [session.seriesCount, updateWidget, inputs.family]);
   return (
     <>
       <div className="flex-1 min-w-0 h-full relative">
@@ -251,6 +252,9 @@ function LiveCallerChart({
           {...session.hostProps}
           className="h-full w-full"
         />
+        {ready?.kind === "xy" && !(Array.isArray(ready.options.series) ? ready.options.series : [ready.options.series]).some((series: any) => series?.data?.length) && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm">No data available to be charted.</div>
+        )}
         {["invalid", "unresolved"].includes(session.projection.status) && (
           <div className="absolute inset-0">
             <UnsupportedRenderer
@@ -269,7 +273,7 @@ function LiveCallerChart({
           themeResetKey={inputs.theme.name}
           state={ready.editor}
           mode={
-            ready.kind === "combo"
+            ready.kind === "xy" ? { kind: "xy", ...ready.xy, onEdit: session.onXy } : ready.kind === "combo"
               ? {
                   kind: "combo",
                   ...ready.combo,

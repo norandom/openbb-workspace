@@ -3,6 +3,7 @@ import type { ComboGeometry } from "../../echarts/comboTypes";
 import type { ComboAssignmentCommand } from "../../application/comboSessionTypes";
 export type ApplicationEditorMode =
   | { kind: "ordinary" }
+  | ({ kind: "xy"; onEdit: (edit: import("../../application/xySessionTypes").XyEditIntent["edit"]) => void } & import("../../application/xySessionTypes").XyEditorProjection)
   | {
       kind: "combo";
       assignments: readonly Readonly<ComboSeriesAssignment>[];

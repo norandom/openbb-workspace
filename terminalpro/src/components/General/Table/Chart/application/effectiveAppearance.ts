@@ -89,8 +89,8 @@ function resolveLegend(
   };
 }
 
-function application(
-  input: AppearanceInput,
+export function resolveCommonAppearance(
+  input: Omit<AppearanceInput, "family"> & { family: AppearanceInput["family"] | import("../compatibility/xyAssignments").XyChartType },
   sourceLayers: RuntimeOptions[],
 ): ResolvedApplicationAppearance {
   const effective = merge({}, ...sourceLayers);
@@ -159,7 +159,7 @@ export const resolveApplicationAppearance: ResolveApplicationAppearance = (
   try {
     validateInput(input);
     const sourceLayers = appearanceLayers(input);
-    const resolved = application(input, sourceLayers);
+    const resolved = resolveCommonAppearance(input, sourceLayers);
     const seriesOptions = merge(
       {},
       ...sourceLayers.map((layer) => object(layer.series)),

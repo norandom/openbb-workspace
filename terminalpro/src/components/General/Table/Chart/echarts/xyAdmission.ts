@@ -1,3 +1,4 @@
+import { xyEmptyAxes } from "./xyEmptyDomain";
 import { validateSnapshot } from "../compatibility/snapshot";
 import type { CartesianTranslationResult } from "./cartesianTypes";
 import {
@@ -128,6 +129,7 @@ function validAssignments(input: XyMappingInput): boolean {
 }
 function unsafeBounds(input: XyMappingInput): boolean {
   return (["x", "y"] as const).some((id) => {
+    if (xyEmptyAxes(input).includes(id)) return false;
     const spec = input.style.axes[id];
     let low = Infinity,
       high = -Infinity;
@@ -147,8 +149,8 @@ function unsafeBounds(input: XyMappingInput): boolean {
     if (low === Infinity) return false;
     // ECharts reverses its interval when a lone bound excludes every datum.
     return (
-      (spec.min !== undefined && spec.max === undefined && spec.min >= high) ||
-      (spec.max !== undefined && spec.min === undefined && spec.max <= low) ||
+      (spec.min !== undefined && spec.max === undefined && spec.min > high) ||
+      (spec.max !== undefined && spec.min === undefined && spec.max < low) ||
       !Number.isFinite((spec.max ?? high) - (spec.min ?? low))
     );
   });
@@ -157,7 +159,7 @@ export function admitXy(
   input: XyMappingInput,
 ): CartesianTranslationResult | undefined {
   if (!record(input)) return xyFailure("Expected an XY input.");
-  const snapshot = validateSnapshot(input.snapshot);
+  const snapshot = validateSnapshot(input.snapshot, "xy-coordinates");
   if (!snapshot.valid)
     return { status: "invalid", diagnostics: snapshot.diagnostics };
   if (

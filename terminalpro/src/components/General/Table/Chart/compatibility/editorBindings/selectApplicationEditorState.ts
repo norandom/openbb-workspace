@@ -1,3 +1,4 @@
+import { isXyChartFamily } from "../../application/xySessionTypes";
 import { isAreaFamily } from "../../echarts/cartesianAreaTypes";
 import { isCartesianFamily } from "../../echarts/cartesianTypes";
 import type {
@@ -76,7 +77,7 @@ function seriesControls(input: EditorSelectionInput) {
 }
 export const selectApplicationEditorState: SelectApplicationEditorState = (input) => {
   try {
-    if (!isCartesianFamily(input.family) && !isAreaFamily(input.family))
+    if (!isCartesianFamily(input.family) && !isAreaFamily(input.family) && !isXyChartFamily(input.family))
       throw new Error("Unsupported editor family");
     const appearance = input.style.application;
     const horizontal = horizontalAxisId(input.metadata.axes);

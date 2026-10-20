@@ -129,7 +129,7 @@ export function projectCallerTheme(
     dataOnlyOptions(selected.overrides),
   ) as RuntimeOptions;
   // Resolve common versus family before merging, so a family parameter cannot mask explicit common input.
-  for (const family of ["bar", "line"]) {
+  for (const family of ["bar", "line", "scatter", "bubble"]) {
     overrides[family] = merge(
       {},
       parameterOptions(params).common as RuntimeOptions,

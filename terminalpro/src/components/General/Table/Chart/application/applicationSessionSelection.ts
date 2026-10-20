@@ -1,3 +1,4 @@
+import { isXyChartFamily } from "./xySessionTypes";
 import { isComboChartFamily, type ApplicationChartFamily } from "./comboSessionTypes";
 import { selectOptionBaseline } from "../compatibility/optionState";
 import type {
@@ -72,7 +73,7 @@ export function sessionSetup<F extends ApplicationChartFamily>(
     categoryId,
     seriesIds: range.columnIds.filter((id) => !categories.includes(id)),
     ...(aggFunc === undefined ? {} : { aggFunc: aggFunc as SetupSelection["aggFunc"] }),
-    switchCategorySeries: model.switchCategorySeries === true,
+    switchCategorySeries: !isXyChartFamily(context.inputs.family) && model.switchCategorySeries === true,
   };
 }
 export function sessionBindings(

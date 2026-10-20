@@ -1,3 +1,6 @@
+import { xyNavigationWindow } from "./xyNavigationWindow";
+import { navigatorAxes } from "./cartesianNavigatorOverview";
+import { isXyNavigator } from "./xyNavigator";
 import type { EChartsOption } from "echarts";
 
 /** Fully resolved renderer options; no storage or provider contracts depend on ECharts. */
@@ -54,6 +57,11 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   let navigatorListener: (() => void) | undefined;
   let applying = false;
   let generation = 0;
+  const resetXy = () => {
+    if (!disposed && instance && pending && isXyNavigator(pending.options))
+      instance.dispatchAction({ type: "dataZoom", start: 0, end: 100 });
+  };
+  container.addEventListener("dblclick", resetXy);
 
   function sized(): boolean {
     return container.clientWidth > 0 && container.clientHeight > 0;
@@ -79,6 +87,14 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
 
   function refreshNavigatorMask(): void {
     if (disposed || applying || !instance || !pending || !hasNavigator(pending.options)) return;
+    const window = xyNavigationWindow(legendOptions(pending), instance.getOption() as EChartsOption);
+    if (window) {
+      applying = true;
+      try {
+        if (window.changed) instance.dispatchAction({ type: "dataZoom", start: window.start, end: window.end });
+        instance.setOption({ yAxis: [window.yAxis, ...navigatorAxes(pending.options.yAxis).slice(1)] });
+      } finally { applying = false; }
+    }
     const options = retainNavigatorExtent(pending.options, instance.getOption());
     if (options.graphic) instance.setOption({ graphic: options.graphic });
   }
@@ -223,6 +239,7 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   function dispose(): void {
     if (disposed) return;
     disposed = true;
+    container.removeEventListener("dblclick", resetXy);
     pending = undefined;
     release();
   }

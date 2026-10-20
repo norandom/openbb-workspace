@@ -54,7 +54,7 @@ function columnsOf(input: RecordValue): Map<string, RecordValue> {
   return columns;
 }
 
-function checkSelection(input: RecordValue, columns: Map<string, RecordValue>): void {
+function checkSelection(input: RecordValue, columns: Map<string, RecordValue>, allowEmpty: boolean): void {
   if (!Array.isArray(input.selectedColumnIds)) failure(["selectedColumnIds"], "Expected ordered column IDs");
   const selected = new Set<string>();
   input.selectedColumnIds.forEach((id: unknown, index: number) => {
@@ -64,7 +64,7 @@ function checkSelection(input: RecordValue, columns: Map<string, RecordValue>): 
   const categories = [...columns.values()].filter((column) => column.role === "category");
   if (categories.length !== 1 || categories[0].id !== input.categoryColumnId) failure(["categoryColumnId"], "Expected exactly one associated category descriptor");
   if (!selected.has(input.categoryColumnId as string)) failure(["categoryColumnId"], "Category must be selected");
-  if (![...selected].some((id) => columns.get(id)?.role === "number")) failure(["selectedColumnIds"], "Expected a selected numeric series");
+  if (!allowEmpty && ![...selected].some((id) => columns.get(id)?.role === "number")) failure(["selectedColumnIds"], "Expected a selected numeric series");
 }
 
 function checkRows(input: RecordValue, columns: Map<string, RecordValue>): void {
@@ -84,7 +84,7 @@ function checkRows(input: RecordValue, columns: Map<string, RecordValue>): void 
   });
 }
 
-function validate(input: unknown): ChartSnapshot {
+function validate(input: unknown, allowEmpty: boolean): ChartSnapshot {
   const copy = copyJson(input, [], new Set());
   if (!object(copy)) failure([], "Expected a resolved snapshot object");
   if (!identity(copy.stateAddress)) failure(["stateAddress"], "Expected a state address");
@@ -94,14 +94,14 @@ function validate(input: unknown): ChartSnapshot {
     if (!Object.hasOwn(copy, key)) failure([key], "Expected JSON provenance");
   }
   const columns = columnsOf(copy);
-  checkSelection(copy, columns);
+  checkSelection(copy, columns, allowEmpty);
   checkRows(copy, columns);
   return copy as unknown as ChartSnapshot;
 }
 
-export const validateSnapshot: ValidateSnapshot = (input) => {
+export const validateSnapshot: ValidateSnapshot = (input, policy) => {
   try {
-    return { valid: true, snapshot: validate(input) };
+    return { valid: true, snapshot: validate(input, policy === "xy-coordinates") };
   } catch (error) {
     const diagnostic = (typeof error === "object" && error !== null ? failures.get(error) : undefined)
       ?? { code: "invalid-snapshot", path: [], message: "Snapshot could not be inspected safely" };

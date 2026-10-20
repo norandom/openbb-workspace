@@ -100,8 +100,8 @@ export interface EditorMetadata {
   }>>;
 }
 export interface EditorSelectionInput {
-  readonly style: ApplicationResolvedStyle;
-  readonly family: CartesianFamily;
+  readonly style: ApplicationResolvedStyle | Pick<ApplicationResolvedStyle, "application">;
+  readonly family: CartesianFamily | import("../xyAssignments").XyChartType;
   readonly model: ChartModel;
   readonly range: ResolvedRange;
   readonly metadata: EditorMetadata;
@@ -112,7 +112,7 @@ export type EditorSelectionResult = ValidationResult<ApplicationEditorState>;
 export type SelectApplicationEditorState = (input: EditorSelectionInput) => EditorSelectionResult;
 export type MapApplicationEditorEvent = (
   event: ApplicationEditorEvent,
-  family: CartesianFamily,
+  family: CartesianFamily | import("../xyAssignments").XyChartType,
 ) => ValidationResult<RuntimeOptions>;
 export interface ApplicationEditorCommand {
   readonly stamp: SessionStamp;

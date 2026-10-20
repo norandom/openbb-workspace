@@ -137,7 +137,7 @@ function Series({
             >
               <span aria-hidden="true">⠿</span>
             </button>
-            <span className="chart-setup-series-label">{item.label}</span>
+            <span className="chart-setup-series-label">{item.label}{mode?.kind === "xy" && <small> ({mode.roles.find((r) => r.colId === item.id)?.role.toUpperCase()})</small>}</span>
             <button
               type="button"
               className="chart-setup-remove"
@@ -174,10 +174,10 @@ export function ChartSetupPanel({
   return (
     <div className="chart-setup-panel">
       <Group
-        label={value.switchCategorySeries ? "Series Labels" : "Categories"}
+        label={mode?.kind === "xy" ? "Labels" : value.switchCategorySeries ? "Series Labels" : "Categories"}
       >
         <Choice
-          label="Category"
+          label={mode?.kind === "xy" ? "Labels" : "Category"}
           value={value.categoryId}
           choices={categories}
           onChange={(next) => onEdit({ kind: "category", value: next })}
@@ -206,7 +206,8 @@ export function ChartSetupPanel({
           </>
         )}
       </Group>
-      <Group label={value.switchCategorySeries ? "Category Values" : "Series"}>
+      <Group label={mode?.kind === "xy" ? "X Y Values" : value.switchCategorySeries ? "Category Values" : "Series"}>
+        {mode?.kind === "xy" && <Switch label="Paired Mode" checked={mode.paired} onCheckedChange={(value) => mode.onEdit({ kind: "paired", value })} />}
         <Series series={value.series} onEdit={onEdit} mode={mode} />
         {unselected.length > 0 && (
           <div className="chart-setup-add">
@@ -232,7 +233,7 @@ export function ChartSetupPanel({
             <span aria-hidden="true">+</span>
           </div>
         )}
-        {mode?.kind !== "combo" && (
+        {mode?.kind !== "combo" && mode?.kind !== "xy" && (
           <div className="chart-setup-switch chart-setup-transpose">
             <Switch
               label="Switch Category / Series"

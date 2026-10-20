@@ -10,6 +10,7 @@ import type {
 } from "./comboSessionTypes";
 import type { SessionStamp } from "./types";
 export type ApplicationChartReady =
+  | (ApplicationSessionReady & { readonly kind: "xy"; readonly xy: import("./xySessionTypes").XyEditorProjection })
   | (ApplicationSessionReady & { readonly kind: "cartesian" })
   | (ApplicationSessionReady & {
       readonly kind: "combo";
@@ -25,6 +26,7 @@ export interface ApplicationChartCommand {
   readonly geometry?: ComboGeometry;
   readonly intent:
     | ApplicationSessionCommand["intent"]
+    | import("./xySessionTypes").XyEditIntent
     | ComboAssignmentCommand["intent"]
     | { readonly panel: "family"; readonly chartType: ApplicationChartFamily }
     | { readonly panel: "geometry"; readonly geometry: ComboGeometry };

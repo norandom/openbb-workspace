@@ -22,6 +22,10 @@ export function callerGeneratedOptions(
         ...(dataOnlyOptions(axes) as RuntimeOptions),
       },
     },
+    ...Object.fromEntries(["scatter", "bubble"].map((family) => [family, {
+      axes: { number: { bottom: caption(view.xLabel), left: caption(view.yLabel) } },
+      series: { label: { enabled: false }, ...(dataOnlyOptions(series) as RuntimeOptions) },
+    }])),
     bar: {
       series: {
         label: { enabled: false, placement: "outside-end" },

@@ -10,7 +10,7 @@ function axis(
   const a = spec.appearance;
   return {
     type: "value",
-    position,
+    position: a.fields.position as typeof position,
     scale: true,
     min: spec.min,
     max: spec.max,

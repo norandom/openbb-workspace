@@ -1,3 +1,5 @@
+import { isXyChartFamily } from "./xySessionTypes";
+import { selectXySession } from "./xySessionSelection";
 import {
   isComboChartFamily,
   type ApplicationChartFamily,
@@ -41,7 +43,8 @@ export function applyApplicationSetupTransaction(
   if (checked.status !== "ready") return checked;
   try {
     const combo = isComboChartFamily(context.inputs.family);
-    if (combo && edit.kind === "switch-category-series")
+    const xy = isXyChartFamily(context.inputs.family);
+    if ((combo || xy) && edit.kind === "switch-category-series")
       return invalidSession(
         "Combination charts cannot switch category and series",
       );
@@ -52,7 +55,7 @@ export function applyApplicationSetupTransaction(
     const selected =
       selection?.status === "ready"
         ? selection.value
-        : selectApplicationSession(
+        : xy ? selectXySession(storage, context as ApplicationSessionContext<import("../compatibility/xyAssignments").XyChartType>) : selectApplicationSession(
             storage,
             context as ApplicationSessionContext,
           );
@@ -95,7 +98,7 @@ export function applyApplicationSetupTransaction(
       const projection = projectOrdinarySetup(
         capture,
         transition.selection,
-        combo ? "combo-per-axis" : "single-axis",
+        xy ? "xy-coordinates" : combo ? "combo-per-axis" : "single-axis",
       );
       if (projection.status !== "ready") return projection;
     }

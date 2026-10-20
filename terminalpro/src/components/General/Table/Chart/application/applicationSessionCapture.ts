@@ -1,3 +1,4 @@
+import { isXyChartFamily } from "./xySessionTypes";
 import type { ApplicationChartFamily } from "./comboSessionTypes";
 import type { ChartSnapshot } from "../compatibility/snapshotTypes";
 import type {
@@ -27,7 +28,7 @@ function capture(
     state.local.range,
     context,
   );
-  if (!setup.seriesIds.length) return { status: "waiting" };
+  if (!setup.seriesIds.length && !isXyChartFamily(inputs.family)) return { status: "waiting" };
   const categoryColumnId = categoryId ?? setup.categoryId;
   const numeric =
     state.capture?.selectedColumnIds.filter(
@@ -38,6 +39,7 @@ function capture(
     ...new Set([...numeric, ...setup.seriesIds, ...additionalSeriesIds]),
   ];
   const captured = captureDisplayedChart({
+    snapshotPolicy: isXyChartFamily(inputs.family) ? "xy-coordinates" : undefined,
     api: inputs.api,
     stamp: state.local.stamp,
     range: { ...state.local.range, columnIds },
@@ -48,7 +50,7 @@ function capture(
     originalModel: JSON.parse(JSON.stringify(state.local.baseline.model)),
   });
   if (captured.status !== "ready") return captured;
-  const retained = retainOrdinarySetupCapture(captured.value);
+  const retained = retainOrdinarySetupCapture(captured.value, isXyChartFamily(inputs.family) ? "xy-coordinates" : undefined);
   return retained.status === "ready"
     ? { ...captured, value: retained.value }
     : retained;
