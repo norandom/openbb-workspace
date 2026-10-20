@@ -76,4 +76,13 @@ it("keeps the editor ready after removing every field and recaptures a changed L
   expect(ready(result.current).options.series).toEqual([]);
   rerender({ ...test.inputs, dataRevision: 1 });
   expect(ready(result.current).options.series).toEqual([]);
+  act(() => result.current.onSetup({ kind: "category", value: "period" }));
+  expect(ready(result.current).setupProps.value.categoryId).toBe("period");
+  expect(ready(result.current).snapshot.rows.map((r) => r.category)).toEqual(["2024", "2025"]);
+  act(() => result.current.onSetup({ kind: "series-add", id: "revenue" }));
+  expect(ready(result.current).setupProps.value.series.map((s) => s.id)).toEqual(["revenue"]);
+  expect(ready(result.current).options.series).toEqual([]);
+  act(() => result.current.onSetup({ kind: "series-add", id: "income" }));
+  expect(ready(result.current).setupProps.value.series.map((s) => s.id)).toEqual(["revenue", "income"]);
+  expect((ready(result.current).options.series as any[])[0].data[0].value).toEqual([100, 20]);
 });

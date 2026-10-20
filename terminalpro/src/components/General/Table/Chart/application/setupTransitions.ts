@@ -15,6 +15,7 @@ import {
 
 export interface SetupTransitionInput {
   readonly capture: ChartSnapshot;
+  readonly snapshotPolicy?: "xy-coordinates";
   readonly selection: SetupSelection;
   readonly categoryIds: readonly string[];
   readonly numericIds?: readonly string[];
@@ -87,7 +88,7 @@ function transition(
   input: SetupTransitionInput,
   edit: ChartSetupEdit,
 ): SetupResult<SetupTransition> {
-  const source = retainOrdinarySetupCapture(input.capture);
+  const source = retainOrdinarySetupCapture(input.capture, input.snapshotPolicy);
   if (source.status !== "ready") return source;
   const modelChecked = validateIntegratedInput({
     storage: {},

@@ -77,6 +77,7 @@ export function applyApplicationSetupTransaction(
     const changed = transitionOrdinarySetup(
       {
         capture: context.capture,
+        snapshotPolicy: xy ? "xy-coordinates" : undefined,
         selection: selected.setup,
         categoryIds: context.inputs.columns
           .filter((column) => column.role === "category")
@@ -199,7 +200,10 @@ function setupCapture(
       )
     )
       return invalidSession("Series recapture omits required numeric columns");
-    const retained = retainOrdinarySetupCapture(recapture.value);
+    const retained = retainOrdinarySetupCapture(
+      recapture.value,
+      isXyChartFamily(context.inputs.family) ? "xy-coordinates" : undefined,
+    );
     if (retained.status !== "ready") return retained;
     return {
       status: "ready" as const,
