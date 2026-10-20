@@ -128,6 +128,10 @@ export async function assertXyAutomaticBounds(page: Page, miniature = false) {
   close(Math.max(...y.map(tick => tick.y)), Math.max(...lines.map(line => line.y1)));
   if (!miniature) return [];
   const mini = drawing.circles.filter(point => point.y > x[0].y && point.clip && Math.abs(point.clip.height - 18) < 0.2);
+  if (mini.length < 5) {
+    await test.info().attach("xy-mini-clip-diagnostic", { body: JSON.stringify(drawing), contentType: "application/json" });
+    await test.info().attach("xy-mini-clip-canvas", { body: await page.locator('[class*="widget-file-"] canvas').first().screenshot(), contentType: "image/png" });
+  }
   expect(mini.length, "overview bubbles draw under an active 18px rectangular canvas clip").toBeGreaterThanOrEqual(5);
   for (const point of mini) {
     expect(point.clip!.width).toBeGreaterThan(100);

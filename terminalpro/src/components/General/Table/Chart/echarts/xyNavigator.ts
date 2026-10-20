@@ -40,7 +40,8 @@ export function xyNavigator(
     xAxis: { ...axis, ...xyNumericExtent(points.map((point) => point[0]).filter(Number.isFinite), axis, xPixels) },
     yAxis: { ...y, ...xyNumericExtent(points.map((point) => point[1]).filter(Number.isFinite), y, yPixels) } };
   if (!enabled && !mini) return ranged;
-  const decorated = cartesianNavigator(ranged, enabled, mini, theme, viewport, overview, { miniHeight: 18 });
+  const decorated = cartesianNavigator(ranged, enabled, mini, theme, viewport, overview,
+    { miniHeight: 18, overviewOuterBoundsMode: "none" });
   const slider = navigatorAxes(decorated.dataZoom)[0];
   return {
     ...decorated,

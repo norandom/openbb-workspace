@@ -24,6 +24,18 @@ it("renders original full ranges in the actual ECharts coordinate system", () =>
     expect(series.coordinateSystem.getAxis("x").scale.getExtent()).toEqual([360e9,420e9]);
     expect(series.coordinateSystem.getAxis("y").scale.getExtent()).toEqual([90e9,120e9]);
     expect(series.getData().count()).toBe(5);
+    const miniature = (chart as any).getModel().getSeries()[1];
+    expect(miniature.coordinateSystem.getArea().height).toBe(18);
+    expect(miniature.getData().count()).toBe(5);
+    expect(series.coordinateSystem.getArea().height).toBeGreaterThan(100);
+    const mainArea = { ...series.coordinateSystem.getArea() };
+    const comparison = init(null, undefined, { renderer: "svg", ssr: true, ...viewport });
+    try {
+      const baseline: any = { ...options, animation: false,
+        grid: (options.grid as any[]).map((grid, index) => index === 1 ? { ...grid, outerBoundsMode: "same" } : grid) };
+      comparison.setOption(baseline);
+      expect({ ...(comparison as any).getModel().getSeries()[0].coordinateSystem.getArea() }).toEqual(mainArea);
+    } finally { comparison.dispose(); }
     expect(chart.renderToSVGString()).not.toMatch(/NaN|Infinity/);
   } finally { chart.dispose(); }
 });
