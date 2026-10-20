@@ -3,7 +3,8 @@ import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { exportChart } from "./actions";
 
-export type Point = { x: number; y: number; diameter: number };
+type Clip = { x: number; y: number; width: number; height: number };
+export type Point = { x: number; y: number; diameter: number; clip?: Clip };
 type Anchor = { x: number; y: number; text: string };
 type Segment = { x1: number; y1: number; x2: number; y2: number };
 type Drawing = Window & { xyCircles: Point[]; xyTicks: Anchor[]; xySegments: Segment[] };
@@ -22,6 +23,32 @@ export async function observeXy(page: Page) {
       return { x: point.x * scale, y: point.y * scale };
     };
     const prototype = CanvasRenderingContext2D.prototype;
+    const activeClips = new WeakMap<CanvasRenderingContext2D, Clip | undefined>();
+    const clipStacks = new WeakMap<CanvasRenderingContext2D, (Clip | undefined)[]>();
+    const rectangles = new WeakMap<CanvasRenderingContext2D, Clip>();
+    const save = prototype.save, restore = prototype.restore, begin = prototype.beginPath;
+    const rectangle = prototype.rect, clip = prototype.clip;
+    prototype.save = function () {
+      const stack = clipStacks.get(this) ?? [];
+      stack.push(activeClips.get(this)); clipStacks.set(this, stack);
+      return Reflect.apply(save, this, []);
+    };
+    prototype.restore = function () {
+      activeClips.set(this, clipStacks.get(this)?.pop());
+      return Reflect.apply(restore, this, []);
+    };
+    prototype.beginPath = function () { rectangles.delete(this); return Reflect.apply(begin, this, []); };
+    prototype.rect = function (...args) {
+      const start = position(this, args[0], args[1]);
+      const end = position(this, args[0] + args[2], args[1] + args[3]);
+      rectangles.set(this, { x: start.x, y: start.y, width: end.x - start.x, height: end.y - start.y });
+      return Reflect.apply(rectangle, this, args);
+    };
+    prototype.clip = function (...args: [fillRule?: CanvasFillRule] | [path: Path2D, fillRule?: CanvasFillRule]) {
+      const bounds = rectangles.get(this);
+      if (bounds) activeClips.set(this, bounds);
+      return Reflect.apply(clip, this, args);
+    };
     const text = prototype.fillText;
     prototype.fillText = function (...args) {
       if (owned(this) && /^[-−+]?[\d,.]+(?:\s?[KMBTkmbt])?$/.test(String(args[0]))) target.xyTicks.push({ ...position(this, args[1], args[2]), text: String(args[0]) });
@@ -53,7 +80,8 @@ export async function observeXy(page: Page) {
         const point = transform.transformPoint(new DOMPoint(args[0], args[1]));
         const scale = this.canvas.getBoundingClientRect().width / this.canvas.width;
         target.xyCircles.push({ x: point.x * scale, y: point.y * scale,
-          diameter: args[2] * 2 * Math.hypot(transform.a, transform.b) * scale });
+          diameter: args[2] * 2 * Math.hypot(transform.a, transform.b) * scale,
+          clip: activeClips.get(this) });
         if (target.xyCircles.length > 3000) target.xyCircles.splice(0, 1500);
       }
       return Reflect.apply(arc, this, args);
@@ -61,6 +89,54 @@ export async function observeXy(page: Page) {
   };
   await page.addInitScript(install);
   await page.evaluate(install);
+}
+
+export async function assertXyAutomaticBounds(page: Page, miniature = false) {
+  await currentCircles(page);
+  const drawing = await page.evaluate(() => {
+    const target = window as unknown as Drawing;
+    return { circles: target.xyCircles, ticks: target.xyTicks, segments: target.xySegments };
+  });
+  const groups = (dimension: "x" | "y") => {
+    const grouped = new Map<number, Anchor[]>();
+    for (const tick of drawing.ticks) {
+      const key = Math.round(tick[dimension]);
+      grouped.set(key, [...(grouped.get(key) ?? []), tick]);
+    }
+    return [...grouped.values()];
+  };
+  const x = groups("y").filter(group => new Set(group.map(tick => tick.x)).size >= 2)
+    .sort((a, b) => a[0].y - b[0].y)[0];
+  expect(x, "displayed main numeric X labels").toBeDefined();
+  const y = groups("x").filter(group => new Set(group.map(tick => tick.y)).size >= 2 &&
+    Math.max(...group.map(tick => tick.y)) < x[0].y + 4)
+    .sort((a, b) => b.length - a.length)[0];
+  expect(y, "displayed main numeric Y labels").toBeDefined();
+  const numeric = (ticks: Anchor[]) => ticks.map(tick => {
+    const text = tick.text.replaceAll(",", "").trim();
+    const factor = /B$/i.test(text) ? 1e9 : /M$/i.test(text) ? 1e6 : /K$/i.test(text) ? 1e3 : 1;
+    return Number.parseFloat(text) * factor;
+  });
+  expect([Math.min(...numeric(x)), Math.max(...numeric(x))]).toEqual([360e9, 420e9]);
+  expect([Math.min(...numeric(y)), Math.max(...numeric(y))]).toEqual([90e9, 120e9]);
+  const lines = drawing.segments.filter(line => line.y1 >= Math.min(...y.map(tick => tick.y)) - 2 && line.y1 < x[0].y);
+  expect(lines.length, "main grid endpoints establish the displayed coordinate rectangle").toBeGreaterThan(0);
+  const close = (actual: number, expected: number) => expect(Math.abs(actual - expected)).toBeLessThan(1);
+  close(Math.min(...x.map(tick => tick.x)), Math.min(...lines.map(line => line.x1)));
+  close(Math.max(...x.map(tick => tick.x)), Math.max(...lines.map(line => line.x2)));
+  close(Math.min(...y.map(tick => tick.y)), Math.min(...lines.map(line => line.y1)));
+  close(Math.max(...y.map(tick => tick.y)), Math.max(...lines.map(line => line.y1)));
+  if (!miniature) return [];
+  const mini = drawing.circles.filter(point => point.y > x[0].y && point.clip && Math.abs(point.clip.height - 18) < 0.2);
+  expect(mini.length, "overview bubbles draw under an active 18px rectangular canvas clip").toBeGreaterThanOrEqual(5);
+  for (const point of mini) {
+    expect(point.clip!.width).toBeGreaterThan(100);
+    expect(point.y).toBeGreaterThanOrEqual(point.clip!.y - 0.2);
+    expect(point.y).toBeLessThanOrEqual(point.clip!.y + point.clip!.height + 0.2);
+  }
+  expect(mini.some(point => point.y - point.diameter / 2 < point.clip!.y ||
+    point.y + point.diameter / 2 > point.clip!.y + point.clip!.height), "a bubble crosses the clip so center-culling alone cannot satisfy this check").toBe(true);
+  return mini;
 }
 
 export async function currentCircles(page: Page) {

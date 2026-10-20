@@ -1,6 +1,7 @@
 import type { EChartsOption } from "echarts";
 import { navigatorAxes } from "./cartesianNavigatorOverview";
 import { isXyNavigator } from "./xyNavigator";
+import { xyNumericExtent, type XyNavigationOptions } from "./xyDomain";
 
 function observations(options: EChartsOption): number[][] {
   return navigatorAxes(options.series).filter((s) => !String(s.id).startsWith("openbb-mini-"))
@@ -18,7 +19,7 @@ function expandedWindow(points: number[][], low: number, high: number) {
   return [Math.min(low, ...nearest), Math.max(high, ...nearest)];
 }
 /** Native zoom filters coordinates; this guard retains the original minimum of four observations. */
-export function xyNavigationWindow(options: EChartsOption, current: EChartsOption) {
+export function xyNavigationWindow(options: XyNavigationOptions, current: EChartsOption) {
   if (!isXyNavigator(options)) return;
   const zoom = navigatorAxes(current.dataZoom).find((z) => z.id === "openbb-navigator");
   const x = navigatorAxes(options.xAxis)[0];
@@ -31,12 +32,12 @@ export function xyNavigationWindow(options: EChartsOption, current: EChartsOptio
   const [minimum, maximum] = expandedWindow(points, low, high);
   const selected = points.filter(([v]) => v >= minimum && v <= maximum).map(([, y]) => y);
   const y = navigatorAxes(options.yAxis)[0];
+  const sourceY = options.openbbXy
+    ? { ...y, min: options.openbbXy.yMin, max: options.openbbXy.yMax } : y;
   return {
     start: Math.max(0, (minimum - x.min) / span * 100),
     end: Math.min(100, (maximum - x.min) / span * 100),
     changed: minimum < low || maximum > high,
-    yAxis: { ...y,
-      min: y?.min ?? (selected.length ? Math.min(...selected) : undefined),
-      max: y?.max ?? (selected.length ? Math.max(...selected) : undefined) },
+    yAxis: { ...y, ...xyNumericExtent(selected, sourceY, options.openbbXy?.yPixels ?? 500) },
   };
 }

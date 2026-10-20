@@ -6,7 +6,7 @@ import { importOrdinaryTable } from "./journey";
 import { chartMenu, expand, openEditor, saveDashboard, selectFamily } from "./editor";
 import { expectApplicationDiagnostics, observeApplication, observeDrawnText } from "./diagnostics";
 import { reopenSavedDashboard } from "./persistence";
-import { assertXyExport, chartModel, currentCircles, hoverPoint, matchCoordinates, numberControl, observeXy } from "./xy-observer";
+import { assertXyAutomaticBounds, assertXyExport, chartModel, currentCircles, hoverPoint, matchCoordinates, numberControl, observeXy } from "./xy-observer";
 
 type Observation = { date: string; fiscalYear: string; period: string; symbol: string; reportedCurrency: string; revenue: number; netIncome: number; eps: number };
 const fields = ["revenue", "netIncome", "eps"] as const;
@@ -73,8 +73,10 @@ test("captured AAPL raw coordinates and EPS diameters retain units through theme
     await targetPage.mouse.move(0, 0);
   };
   await verify();
+  await assertXyAutomaticBounds(page);
   await chartMenu(page, widget, "Quick actions");
   await page.getByRole("menuitem", { name: "Show mini chart", exact: true }).click();
+  await assertXyAutomaticBounds(page, true);
   const domain: [number, number] = [Math.min(...source.rows.map(row => row.eps)), Math.max(...source.rows.map(row => row.eps))];
   const central = [...observations].sort((a, b) => a.x - b.x).slice(1, 4);
   const centralPoints = (points: Awaited<ReturnType<typeof currentCircles>>, rows = observations) => central.map(row => {
@@ -113,6 +115,7 @@ test("captured AAPL raw coordinates and EPS diameters retain units through theme
   await page.mouse.dblclick(canvasBox.x + afterZoom[1].x, canvasBox.y + afterZoom[1].y);
   const reset = centralPoints(matchCoordinates(await currentCircles(page), observations, 10, 40, domain));
   expect(span(reset)).toBeCloseTo(span(beforeZoom), 1);
+  await assertXyAutomaticBounds(page, true);
   await verify();
   const dark = (await page.locator("html").getAttribute("class"))?.split(" ").includes("dark") ?? false;
   const themeSaved = page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/pro/display-settings");
@@ -131,6 +134,7 @@ test("captured AAPL raw coordinates and EPS diameters retain units through theme
   expect((await response.text()).replaceAll("\r\n", "\n")).toBe(source.upload);
   await verify();
   const model = chartModel((await saveDashboard(page)).items[id]);
+  await assertXyAutomaticBounds(page, true);
   expect(model).toMatchObject({ chartType: "bubble", cellRange: { columns: ["Fiscal period", ...columns] }, chartOptions: { bubble: { series: { size: 10, maxSize: 40 } } } });
   expectApplicationDiagnostics(diagnostics);
   const restored = await reopenSavedDashboard(browser, dashboardUrl);
@@ -139,7 +143,9 @@ test("captured AAPL raw coordinates and EPS diameters retain units through theme
     expect(chartModel(restored.content)).toEqual(model);
     await verify(restored.page, restored.widget);
     const points = matchCoordinates(await currentCircles(restored.page), observations, 10, 40);
-    await assertXyExport(restored.page, restored.widget, info, points);
+    const miniature = await assertXyAutomaticBounds(restored.page, true);
+    await assertXyExport(restored.page, restored.widget, info, [...points, ...miniature]);
+    await assertXyAutomaticBounds(restored.page, true);
     expectApplicationDiagnostics(restored.diagnostics);
     await info.attach("captured-xy-provenance", { body: JSON.stringify({ raw_sha256: source.hash, observations: 15, coordinateUnits: "USD", sizeUnit: "USD/share", source: "captured response; no provider request" }), contentType: "application/json" });
   } finally { await restored.context.close(); }

@@ -5,6 +5,8 @@ import { escapeHtml, fontStyle } from "./cartesianDisplay";
 import { markerDimensions, markerSymbol } from "./cartesianMarkers";
 import { xyObservations } from "./xyObservations";
 import type { XyDatum, XyMappingInput } from "./xyTypes";
+import type { XyClippedSeriesOption } from "./xyClip";
+import "./xyClip";
 function alpha(value: string, opacity: number): string {
   if (opacity === 1) return value;
   const original = color.parse(value);
@@ -28,6 +30,7 @@ export function xySeries(input: XyMappingInput): ScatterSeriesOption[] {
         id: `xy:${JSON.stringify([input.chartType, a.xColId, a.yColId, a.sizeColId ?? null])}`,
         name: a.yColId,
         type: "scatter",
+        openbbXyMiniClip: true,
         data,
         symbol: markerSymbol(shape),
         symbolSize: (_value, params) =>
@@ -85,7 +88,7 @@ export function xySeries(input: XyMappingInput): ScatterSeriesOption[] {
             );
           },
         },
-      } satisfies ScatterSeriesOption,
+      } satisfies XyClippedSeriesOption,
     ];
   });
 }

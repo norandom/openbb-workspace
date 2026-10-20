@@ -2,6 +2,7 @@ import type { EChartsOption } from "echarts";
 import type { ApplicationThemeInput } from "../application/appearanceModel";
 import { cartesianNavigator } from "./cartesianNavigator";
 import { navigatorAxes } from "./cartesianNavigatorOverview";
+import { xyNumericExtent, type XyNavigationOptions } from "./xyDomain";
 
 function numericDomain(options: EChartsOption) {
   const values = navigatorAxes(options.series).flatMap((series: any) =>
@@ -24,17 +25,27 @@ function numericDomain(options: EChartsOption) {
 /** Full-data scatter observations keep numeric coordinates and precomputed bubble diameters. */
 export function xyNavigator(
   options: EChartsOption, overview: EChartsOption, enabled: boolean, mini: boolean,
-  theme: ApplicationThemeInput, viewport: { readonly width: number },
-): EChartsOption {
-  if (!enabled && !mini) return options;
+  theme: ApplicationThemeInput, viewport: { readonly width: number; readonly height?: number },
+): XyNavigationOptions {
   const domain = numericDomain(overview);
   const axis = navigatorAxes(options.xAxis)[0];
-  const ranged = { ...options, xAxis: { ...axis,
-    min: axis?.min ?? domain.min, max: axis?.max ?? domain.max } };
-  const decorated = cartesianNavigator(ranged, enabled, mini, theme, viewport, overview);
+  const y = navigatorAxes(options.yAxis)[0];
+  const grid = navigatorAxes(options.grid)[0];
+  const xPixels = Math.max(1, viewport.width - Number(grid?.left ?? 0) - Number(grid?.right ?? 0));
+  const yPixels = Math.max(1, (viewport.height ?? 500) - Number(grid?.top ?? 0) - Number(grid?.bottom ?? 0)
+    - (mini ? 45 : enabled ? 28 : 0));
+  const points = navigatorAxes(options.series).flatMap((series: any) =>
+    (series.data ?? []).flatMap((point: any) => Array.isArray(point.value) ? [point.value] : []));
+  const ranged = { ...options,
+    xAxis: { ...axis, ...xyNumericExtent(points.map((point) => point[0]).filter(Number.isFinite), axis, xPixels) },
+    yAxis: { ...y, ...xyNumericExtent(points.map((point) => point[1]).filter(Number.isFinite), y, yPixels) } };
+  if (!enabled && !mini) return ranged;
+  const decorated = cartesianNavigator(ranged, enabled, mini, theme, viewport, overview, { miniHeight: 18 });
   const slider = navigatorAxes(decorated.dataZoom)[0];
   return {
     ...decorated,
+    openbbXy: { yMin: typeof y?.min === "number" ? y.min : undefined,
+      yMax: typeof y?.max === "number" ? y.max : undefined, yPixels },
     dataZoom: [
       { ...slider, xAxisIndex: [0], filterMode: "filter", minSpan: undefined,
         minValueSpan: domain.minValueSpan },
