@@ -13,7 +13,9 @@ type Observation = {
   date: string; fiscalYear: string; period: string; reportedCurrency: string;
   revenue: number; netIncome: number; eps: number; symbol: string;
 };
-const labels = ["Revenue USD", "Net income USD", "EPS USD per share"] as const;
+const columnIds = ["Revenue USD", "Net income USD", "EPS USD per share"] as const;
+// Imported CSV keys remain stable IDs; table headers title-case the displayed words.
+const labels = ["Revenue USD", "Net Income USD", "EPS USD Per Share"] as const;
 const fields = ["revenue", "netIncome", "eps"] as const;
 const evidenceDirectory = process.env.QOPENBB_COMBO_FMP_EVIDENCE;
 
@@ -46,7 +48,7 @@ function capturedObservations(directory: string) {
     expect(csv[index]).toEqual([row.date, String(row.fiscalYear), row.period, row.reportedCurrency, ...fields.map(field => String(row[field]))]);
   }
   // Only presentation labels/column selection change. All fifteen observations retain their original units and scale.
-  const upload = ["Fiscal period," + labels.join(","), ...rows.map(row =>
+  const upload = ["Fiscal period," + columnIds.join(","), ...rows.map(row =>
     [`${row.period} ${row.fiscalYear}`, ...fields.map(field => row[field])].join(","))].join("\n") + "\n";
   return { rows, upload, hash: provenance.raw_sha256 as string };
 }
@@ -69,12 +71,24 @@ async function assertRenderedObservations(page: Page, widget: Locator, rows: Obs
   // A real layout change forces a complete current render after all prior drawing evidence was discarded.
   await page.setViewportSize({ ...viewport, width: viewport.width + 64 });
   const categories = rows.map(row => `${row.period} ${row.fiscalYear}`);
-  await expect.poll(() => drawnText(page)).toEqual(expect.arrayContaining([...labels, ...categories]));
+  const endpoints = [categories[0], categories.at(-1)!];
+  try {
+    await expect.poll(() => drawnText(page)).toEqual(expect.arrayContaining([...labels, ...endpoints]));
+  } catch (error) {
+    await test.info().attach("fmp-drawn-text-failure", {
+      body: JSON.stringify({ expected: [...labels, ...endpoints], drawn: await drawnText(page), anchors: await anchors(page) }),
+      contentType: "application/json",
+    });
+    throw error;
+  }
   await expectLineWidthDrawing(page);
   const positions = await anchors(page);
   const first = positions[categories[0]];
   const last = positions[categories.at(-1)!];
   expect(first.x).toBeLessThan(last.x);
+  const displayedCategories = Object.entries(positions).filter(([text]) => categories.includes(text))
+    .sort(([, a], [, b]) => a.x - b.x).map(([text]) => text);
+  expect(displayedCategories).toEqual(categories.filter(category => displayedCategories.includes(category)));
   // Inspect axis ticks before hovering: crosshair text and earlier family draws cannot satisfy these checks.
   expect(Object.entries(positions).filter(([text, point]) =>
     /^[\d,.]+$/.test(text) && Number(text.replaceAll(",", "")) >= 5 &&
@@ -85,20 +99,24 @@ async function assertRenderedObservations(page: Page, widget: Locator, rows: Obs
   const bounds = await canvas.boundingBox();
   if (!bounds) throw new Error("Visible financial chart required");
   const width = await canvas.evaluate(el => (el as HTMLCanvasElement).width);
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
     const category = `${row.period} ${row.fiscalYear}`;
-    await expect.poll(async () => (await anchors(page))[category]).toBeTruthy();
-    const anchor = (await anchors(page))[category];
-    await page.mouse.move(bounds.x + anchor.x * bounds.width / width + 1,
-      bounds.y + anchor.y * bounds.width / width - 60);
+    // The combo mapper uses evenly spaced categorical row indices; automatic tick thinning omits some labels.
+    const categoryX = first.x + (last.x - first.x) * index / (rows.length - 1);
+    await page.mouse.move(bounds.x + categoryX * bounds.width / width + 1,
+      bounds.y + first.y * bounds.width / width - 60);
     const tooltip = page.getByText(/Revenue USD:\s/).last();
     await expect(tooltip).toContainText(category);
     for (const [index, field] of fields.entries()) {
+      const scale = field === "eps" ? 1 : 1_000_000_000;
+      const suffix = field === "eps" ? "" : " B";
+      const expected = (Math.round(row[field] / scale * 100) / 100).toFixed(2);
       await expect.poll(async () => {
         const text = await tooltip.innerText();
-        const amount = text.match(new RegExp(`${labels[index]}:\\s*([\\d,.]+)`))?.[1];
-        return amount === undefined ? null : Number(amount.replaceAll(",", ""));
-      }).toBe(row[field]);
+        return text.match(new RegExp(`${labels[index]}:\\s*([\\d,.]+(?: [BMT])?)(?=\\n|$)`))?.[1];
+      }).toBe(expected + suffix);
+      const displayed = Number(expected) * scale;
+      expect(Math.abs(displayed - row[field])).toBeLessThanOrEqual(0.005 * scale + Number.EPSILON * row[field]);
     }
   }
   await page.mouse.move(0, 0);
@@ -107,9 +125,9 @@ function assertSaved(content: any) {
   const model = content.data.widgets.find((item: any) => item.widgetId.startsWith("file-")).storage.default.chartModel;
   expect(model.chartType).toBe("customCombo");
   expect(model.seriesChartTypes).toEqual([
-    { colId: labels[0], chartType: "groupedColumn", secondaryAxis: false },
-    { colId: labels[1], chartType: "groupedColumn", secondaryAxis: false },
-    { colId: labels[2], chartType: "line", secondaryAxis: true },
+    { colId: columnIds[0], chartType: "groupedColumn", secondaryAxis: false },
+    { colId: columnIds[1], chartType: "groupedColumn", secondaryAxis: false },
+    { colId: columnIds[2], chartType: "line", secondaryAxis: true },
   ]);
   expect(model.chartOptions.line.series.strokeWidth).toBe(5);
 }
@@ -121,14 +139,28 @@ test("captured FMP observations retain units, combo assignments and appearance t
   await loginDisposableWorkspace(page);
   const diagnostics = await observeApplication(page);
   await observeDrawnText(page);
+  const uploadedFile = page.waitForResponse(response =>
+    response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/pro/files"));
+  const fileRead = uploadedFile.then(async response => {
+    const [file] = await response.json();
+    return page.waitForResponse(candidate =>
+      candidate.request().method() === "GET" && candidate.url() === file.url);
+  });
   const { widget, dashboardUrl } = await importOrdinaryTable(page, {
     csv: source.upload, name: "AAPL annual FMP combination", expectedValue: String(source.rows[0].eps),
   });
+  const importedFile = await fileRead;
+  expect(importedFile.ok()).toBe(true);
+  // Inspect the response consumed by AgGridFile before display formatting changes magnitude or precision.
+  const importedRows = (await importedFile.text()).trim().split(/\r?\n/).map(line => line.split(","));
+  expect(importedRows.shift()).toEqual(["Fiscal period", ...columnIds]);
+  expect(importedRows).toEqual(source.rows.map(row =>
+    [`${row.period} ${row.fiscalYear}`, ...fields.map(field => String(row[field]))]));
   await widget.locator("#chart-view-button").click();
   const editor = await openEditor(page, widget);
-  await selectFamily(editor, "Column Line");
+  await selectFamily(editor, "Column & Line");
   await editor.getByRole("tab", { name: "Set Up", exact: true }).click();
-  await editor.getByRole("combobox", { name: "Category", exact: true }).selectOption({ label: "Fiscal period" });
+  await editor.getByRole("combobox", { name: "Category", exact: true }).selectOption({ label: "Fiscal Period" });
   for (const label of labels.slice(0, 2)) {
     await editor.getByRole("combobox", { name: `${label} series type` }).selectOption("groupedColumn");
     await expect(editor.getByRole("switch", { name: `${label} Secondary Axis` })).not.toBeChecked();

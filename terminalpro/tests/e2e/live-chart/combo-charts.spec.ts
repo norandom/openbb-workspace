@@ -12,7 +12,7 @@ test("combination assignments survive gallery changes, save and reopen in the ex
   const { widget, dashboardUrl } = await importOrdinaryTable(page);
   await widget.locator("#chart-view-button").click();
   const editor = await openEditor(page, widget);
-  await selectFamily(editor, "Column Line");
+  await selectFamily(editor, "Column & Line");
   await editor.getByRole("tab", { name: "Set Up", exact: true }).click();
   await editor.getByRole("combobox", { name: "Category", exact: true }).selectOption({ label: "Category" });
   await expect.poll(() => drawnText(page)).toEqual(expect.arrayContaining(["A", "B", "C"]));
