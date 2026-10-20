@@ -1,8 +1,21 @@
-import type { ChartStorageOutput, RuntimeOptions } from "../compatibility/legacyTypes";
+import {
+  isComboChartFamily,
+  type ApplicationChartFamily,
+  type ComboSessionContext,
+} from "./comboSessionTypes";
+import { selectComboSession } from "./comboSessionSelection";
+import { rebuildComboAxes } from "./comboSessionLifecycle";
+import type {
+  ChartStorageOutput,
+  RuntimeOptions,
+} from "../compatibility/legacyTypes";
 import type { ChartSnapshot } from "../compatibility/snapshotTypes";
 import type { ChartSetupEdit } from "../editor/setup/ChartSetupPanel";
 import { invalidSession, reduceSessionOptions } from "./applicationSessionEdit";
-import { selectApplicationSession, sessionSetup } from "./applicationSessionSelection";
+import {
+  selectApplicationSession,
+  sessionSetup,
+} from "./applicationSessionSelection";
 import { validateSynchronousEditorStamp } from "./applicationSessionStamp";
 import type {
   ApplicationSessionCommit,
@@ -10,13 +23,16 @@ import type {
 } from "./applicationSessionTypes";
 import { applyRangeTransition, validateSessionStamp } from "./sessionState";
 import { transitionOrdinarySetup } from "./setupTransitions";
-import { projectOrdinarySetup, retainOrdinarySetupCapture } from "./setupProjection";
+import {
+  projectOrdinarySetup,
+  retainOrdinarySetupCapture,
+} from "./setupProjection";
 import { sessionRangeFrameKey } from "./applicationSessionRange";
 import type { SessionResult, SessionStamp } from "./types";
 
 export function applyApplicationSetupTransaction(
   storage: ChartStorageOutput,
-  context: ApplicationSessionContext,
+  context: ApplicationSessionContext<ApplicationChartFamily>,
   stamp: SessionStamp,
   edit: ChartSetupEdit,
   recapture?: SessionResult<ChartSnapshot>,
@@ -24,7 +40,27 @@ export function applyApplicationSetupTransaction(
   const checked = validateSynchronousEditorStamp(stamp, context.local.stamp);
   if (checked.status !== "ready") return checked;
   try {
-    const selected = selectApplicationSession(storage, context);
+    const combo = isComboChartFamily(context.inputs.family);
+    if (combo && edit.kind === "switch-category-series")
+      return invalidSession(
+        "Combination charts cannot switch category and series",
+      );
+    const selection = combo
+      ? selectComboSession(storage, context as ComboSessionContext)
+      : undefined;
+    if (selection && selection.status !== "ready") return selection;
+    const selected =
+      selection?.status === "ready"
+        ? selection.value
+        : selectApplicationSession(
+            storage,
+            context as ApplicationSessionContext,
+          );
+    if (selection?.status === "ready")
+      context = {
+        ...context,
+        inputs: { ...context.inputs, family: selection.value.chartType },
+      };
     const previous = sessionSetup(
       context.local.baseline.model,
       context.local.range,
@@ -42,7 +78,9 @@ export function applyApplicationSetupTransaction(
         categoryIds: context.inputs.columns
           .filter((column) => column.role === "category")
           .map((column) => column.id),
-        numericIds: context.inputs.columns.filter((column) => column.role === "number").map((column) => column.id),
+        numericIds: context.inputs.columns
+          .filter((column) => column.role === "number")
+          .map((column) => column.id),
         range: selected.range,
         model: selected.baseline.model,
       },
@@ -50,25 +88,15 @@ export function applyApplicationSetupTransaction(
     );
     if (changed.status !== "ready") return changed;
     const transition = changed.value;
-    let capture = context.capture;
-    if (transition.recapture) {
-      if (!recapture || recapture.status !== "ready")
-        return recapture ?? { status: "waiting" };
-      const fresh = validateSessionStamp(recapture.stamp, context.local.stamp);
-      if (fresh.status !== "ready") return fresh;
-      if (recapture.value.stateAddress !== fresh.stamp.address.stateAddress || recapture.value.dataRevision !== fresh.stamp.dataRevision)
-        return invalidSession("Recapture observations do not match the current frame");
-      if (recapture.value.categoryColumnId !== transition.selection.categoryId)
-        return invalidSession("Category recapture does not match the requested column");
-      const required = new Set([...transition.selection.seriesIds, ...context.capture.selectedColumnIds.filter((id) => id !== context.capture.categoryColumnId)]);
-      if ([...required].some((id) => !recapture.value.selectedColumnIds.includes(id) || !recapture.value.columns.some((column) => column.id === id && column.role === "number")))
-        return invalidSession("Series recapture omits required numeric columns");
-      const retained = retainOrdinarySetupCapture(recapture.value);
-      if (retained.status !== "ready") return retained;
-      capture = retained.value;
-    }
+    const captured = setupCapture(context, transition, recapture);
+    if (captured.status !== "ready") return captured;
+    const capture = captured.value;
     if (transition.selection.seriesIds.length) {
-      const projection = projectOrdinarySetup(capture, transition.selection);
+      const projection = projectOrdinarySetup(
+        capture,
+        transition.selection,
+        combo ? "combo-per-axis" : "single-axis",
+      );
       if (projection.status !== "ready") return projection;
     }
     const key = context.inputs.address.stateKey;
@@ -104,20 +132,76 @@ export function applyApplicationSetupTransaction(
         storage: next,
         capture,
         change: "data",
-        local: {
-          ...context.local,
-          baseline: { ...selected.baseline, model: transition.model },
-          range: transition.range,
-          ...(transition.change === "range"
-            ? { rangeFrameKey: sessionRangeFrameKey(context.inputs, storage) }
-            : {}),
-          legendEnabled: transition.selection.seriesIds.length > 1,
-        },
+        local: rebuildComboAxes(
+          {
+            ...context.local,
+            baseline: { ...selected.baseline, model: transition.model },
+            range: transition.range,
+            ...(transition.change === "range"
+              ? { rangeFrameKey: sessionRangeFrameKey(context.inputs, storage) }
+              : {}),
+            legendEnabled: transition.selection.seriesIds.length > 1,
+          },
+          transition.selection.categoryId,
+        ),
       },
     };
   } catch (error) {
     return invalidSession(
       error instanceof Error ? error.message : "Invalid Set Up transaction",
     );
+  }
+}
+
+function setupCapture(
+  context: ApplicationSessionContext<ApplicationChartFamily>,
+  transition: import("./setupTypes").SetupTransition,
+  recapture?: SessionResult<ChartSnapshot>,
+): SessionResult<ChartSnapshot> {
+  if (!transition.recapture)
+    return {
+      status: "ready" as const,
+      stamp: context.local.stamp,
+      value: context.capture,
+    };
+  {
+    if (!recapture || recapture.status !== "ready")
+      return recapture ?? { status: "waiting" };
+    const fresh = validateSessionStamp(recapture.stamp, context.local.stamp);
+    if (fresh.status !== "ready") return fresh;
+    if (
+      recapture.value.stateAddress !== fresh.stamp.address.stateAddress ||
+      recapture.value.dataRevision !== fresh.stamp.dataRevision
+    )
+      return invalidSession(
+        "Recapture observations do not match the current frame",
+      );
+    if (recapture.value.categoryColumnId !== transition.selection.categoryId)
+      return invalidSession(
+        "Category recapture does not match the requested column",
+      );
+    const required = new Set([
+      ...transition.selection.seriesIds,
+      ...context.capture.selectedColumnIds.filter(
+        (id) => id !== context.capture.categoryColumnId,
+      ),
+    ]);
+    if (
+      [...required].some(
+        (id) =>
+          !recapture.value.selectedColumnIds.includes(id) ||
+          !recapture.value.columns.some(
+            (column) => column.id === id && column.role === "number",
+          ),
+      )
+    )
+      return invalidSession("Series recapture omits required numeric columns");
+    const retained = retainOrdinarySetupCapture(recapture.value);
+    if (retained.status !== "ready") return retained;
+    return {
+      status: "ready" as const,
+      stamp: context.local.stamp,
+      value: retained.value,
+    };
   }
 }

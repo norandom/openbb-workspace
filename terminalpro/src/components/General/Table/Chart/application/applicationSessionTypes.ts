@@ -96,6 +96,9 @@ export interface ApplicationSessionCommit {
   readonly change: "render" | "data";
 }
 export interface ApplicationSessionState {
+  readonly sourceFamily?: ApplicationChartFamily;
+  readonly pendingFamily?: ApplicationChartFamily;
+  readonly assignmentKey?: string;
   readonly local: ApplicationSessionLocal;
   readonly capture?: ChartSnapshot;
   readonly viewport?: { readonly width: number; readonly height: number };

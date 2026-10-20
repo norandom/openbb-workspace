@@ -1,3 +1,4 @@
+import type { ApplicationChartFamily } from "./comboSessionTypes";
 import type { ChartSnapshot } from "../compatibility/snapshotTypes";
 import type {
   ApplicationSessionInputs,
@@ -10,7 +11,7 @@ import type { SessionResult } from "./types";
 
 /** Called outside Widget reducers; public grid reads are not replayable state calculations. */
 function capture(
-  inputs: ApplicationSessionInputs,
+  inputs: ApplicationSessionInputs<ApplicationChartFamily>,
   state: ApplicationSessionState,
   categoryId?: string,
   additionalSeriesIds: readonly string[] = [],
@@ -21,14 +22,21 @@ function capture(
     local: state.local,
     capture: state.capture as ChartSnapshot,
   };
-  const setup = sessionSetup(state.local.baseline.model, state.local.range, context);
+  const setup = sessionSetup(
+    state.local.baseline.model,
+    state.local.range,
+    context,
+  );
   if (!setup.seriesIds.length) return { status: "waiting" };
   const categoryColumnId = categoryId ?? setup.categoryId;
   const numeric =
     state.capture?.selectedColumnIds.filter(
       (id) => id !== state.capture?.categoryColumnId,
     ) ?? setup.seriesIds;
-  const columnIds = [categoryColumnId, ...new Set([...numeric, ...setup.seriesIds, ...additionalSeriesIds])];
+  const columnIds = [
+    categoryColumnId,
+    ...new Set([...numeric, ...setup.seriesIds, ...additionalSeriesIds]),
+  ];
   const captured = captureDisplayedChart({
     api: inputs.api,
     stamp: state.local.stamp,
@@ -47,7 +55,7 @@ function capture(
 }
 
 export function captureApplicationSession(
-  inputs: ApplicationSessionInputs,
+  inputs: ApplicationSessionInputs<ApplicationChartFamily>,
   state: ApplicationSessionState,
   categoryId?: string,
   additionalSeriesIds: readonly string[] = [],
@@ -61,7 +69,8 @@ export function captureApplicationSession(
         {
           code: "application-capture",
           path: [],
-          message: error instanceof Error ? error.message : "Invalid capture inputs",
+          message:
+            error instanceof Error ? error.message : "Invalid capture inputs",
         },
       ],
     };

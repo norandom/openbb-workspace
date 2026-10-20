@@ -1,3 +1,4 @@
+import type { ApplicationChartFamily } from "./comboSessionTypes";
 import { readAxisSettings, saveAxisSettings } from "./axisPersistence";
 import cloneDeep from "lodash/cloneDeep";
 import set from "lodash/set";
@@ -32,9 +33,9 @@ export function invalidSession(message: string): SessionResult<never> {
     diagnostics: [{ code: "application-session", path: [], message }],
   };
 }
-export function reduceSessionOptions(
+export function reduceSessionOptions<F extends ApplicationChartFamily>(
   storage: ChartStorageOutput,
-  context: ApplicationSessionContext,
+  context: ApplicationSessionContext<F>,
   model: ApplicationSessionLocal["baseline"]["model"],
   resolvedOptions: RuntimeOptions,
   eventOptions: RuntimeOptions,
@@ -73,7 +74,8 @@ function rotationRuntime(
   const retained = local.manualRotations[intent.axis] ?? current;
   const manual =
     intent.edit.field === "rotation" ? (intent.edit.value as number) : retained;
-  if (intent.edit.field === "rotation") set(axis.options, "label.rotation", manual);
+  if (intent.edit.field === "rotation")
+    set(axis.options, "label.rotation", manual);
   else {
     set(axis.options, "label.autoRotate", intent.edit.value);
     set(axis.options, "label.rotation", intent.edit.value ? undefined : manual);
@@ -89,13 +91,19 @@ export function applyApplicationEditorTransaction(
   context: ApplicationSessionContext,
   command: ApplicationEditorCommand,
 ): SessionResult<ApplicationSessionCommit> {
-  const checked = validateSynchronousEditorStamp(command.stamp, context.local.stamp);
+  const checked = validateSynchronousEditorStamp(
+    command.stamp,
+    context.local.stamp,
+  );
   if (checked.status !== "ready") return checked;
   if (command.family !== context.inputs.family) return { status: "stale" };
   try {
     const selected = selectApplicationSession(storage, context);
-    if (JSON.stringify(readAxisSettings(selected.baseline.model)) !==
-      JSON.stringify(readAxisSettings(context.local.baseline.model))) return { status: "stale" };
+    if (
+      JSON.stringify(readAxisSettings(selected.baseline.model)) !==
+      JSON.stringify(readAxisSettings(context.local.baseline.model))
+    )
+      return { status: "stale" };
     const previous = sessionSetup(
       context.local.baseline.model,
       context.local.range,
@@ -134,24 +142,39 @@ export function applyApplicationEditorTransaction(
       if (!mapped.valid) return invalidSession(mapped.error);
       patch = mapped.value;
       local = rotationRuntime(local, command, context, storage);
-      if (command.intent.panel === "legend" && command.intent.edit.field === "enabled")
-        local = { ...local, legendEnabled: command.intent.edit.value as boolean };
+      if (
+        command.intent.panel === "legend" &&
+        command.intent.edit.field === "enabled"
+      )
+        local = {
+          ...local,
+          legendEnabled: command.intent.edit.value as boolean,
+        };
     }
     const next = reduceSessionOptions(
       storage,
       context,
-      command.intent.panel === "axisStructure" && ["type", "timeFormat"].includes(command.intent.edit.field)
+      command.intent.panel === "axisStructure" &&
+        ["type", "timeFormat"].includes(command.intent.edit.field)
         ? saveAxisSettings(selected.baseline.model, local.axes)
         : selected.baseline.model,
       selected.baseline.options,
       patch,
       selected.setup.seriesIds.length,
     );
-    local = { ...local, baseline: sessionBaseline(next, { ...context, local }) };
+    local = {
+      ...local,
+      baseline: sessionBaseline(next, { ...context, local }),
+    };
     return {
       status: "ready",
       stamp: checked.stamp,
-      value: { storage: next, local, capture: context.capture, change: "render" },
+      value: {
+        storage: next,
+        local,
+        capture: context.capture,
+        change: "render",
+      },
     };
   } catch (error) {
     return invalidSession(

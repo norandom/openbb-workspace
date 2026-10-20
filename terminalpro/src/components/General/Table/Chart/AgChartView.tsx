@@ -1,5 +1,14 @@
-import type { ChartModel, ColDef, CreateRangeChartParams } from "ag-grid-community";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallerDock } from "./caller/useCallerDock";
+import {
+  isComboChartFamily,
+  type ApplicationChartFamily,
+} from "./application/comboSessionTypes";
+import type {
+  ChartModel,
+  ColDef,
+  CreateRangeChartParams,
+} from "ag-grid-community";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { SetLoadingOnResize } from "~/components/DraggableCard/SetLoadingOnResize";
 import Icon from "~/components/Icon";
 import Tooltip from "~/components/Tooltip";
@@ -10,16 +19,14 @@ import { cn } from "~/lib/utils";
 import { useAgGridContext } from "../hooks/useTableContext";
 import type { ChartDataT } from "../hooks/types";
 import { useApplyColumnState } from "../hooks/useUpdateColumnState";
-import { getStateKey } from "../communityState";
 import { useApplicationChartSession } from "./application/useApplicationChartSession";
 import type { ApplicationSessionInputs } from "./application/applicationSessionTypes";
 import { useCallerSessionInputs } from "./caller/useCallerSessionInputs";
-import { changeCallerChartType, hasCallerSeries } from "./caller/chartInputs";
+import { hasCallerSeries } from "./caller/chartInputs";
 export { customChartWidgetIds } from "./caller/orientation";
 import { EChartsHost, type EChartsHostHandle } from "./echarts/EChartsHost";
 import { ApplicationChartEditor } from "./editor/ApplicationChartEditor";
-import { ChartEditorDock, type ChartEditorTab } from "./editor/ChartEditorDock";
-import { chartTypeGalleryGroups } from "./editor/chartTypeGalleryCatalog";
+import { ChartEditorDock } from "./editor/ChartEditorDock";
 import { isCartesianFamily } from "./echarts/cartesianTypes";
 export type CreateRangeChartProps = {
   chartData: ChartDataT;
@@ -32,7 +39,9 @@ export type CreateRangeChart = {
   chartParams: CreateRangeChartParams;
 };
 
-export function createRangeChart(props: CreateRangeChartProps): CreateRangeChart {
+export function createRangeChart(
+  props: CreateRangeChartProps,
+): CreateRangeChart {
   const { chartModel = {}, chartData } = props;
 
   const { rowData, columnDefs, columns } = chartData;
@@ -41,7 +50,8 @@ export function createRangeChart(props: CreateRangeChartProps): CreateRangeChart
     chartType: chartData.chartType ?? "groupedColumn",
     suppressChartRanges: true,
     cellRange: { columns },
-    switchCategorySeries: !!chartData?.transpose || chartModel?.switchCategorySeries,
+    switchCategorySeries:
+      !!chartData?.transpose || chartModel?.switchCategorySeries,
     aggFunc: chartModel?.aggFunc,
     seriesChartTypes: chartModel?.seriesChartTypes,
     seriesGroupType: chartModel?.seriesGroupType,
@@ -61,14 +71,16 @@ export function ChartViewElement() {
       >
         {inputs.valid &&
         !inputs.value.pendingReason &&
-        isCartesianFamily(inputs.value.family) ? (
+        (isCartesianFamily(inputs.value.family) ||
+          isComboChartFamily(inputs.value.family)) ? (
           <LiveCallerChart inputs={inputs.value} />
         ) : (
           <PendingCallerChart
             chartType={inputs.valid ? inputs.value.chartType : undefined}
             reason={
               inputs.valid
-                ? (inputs.value.pendingReason ?? "chart family pending renderer parity")
+                ? (inputs.value.pendingReason ??
+                  "chart family pending renderer parity")
                 : inputs.error
             }
           />
@@ -141,46 +153,6 @@ export function ChartViewButton() {
   );
 }
 
-function useCallerDock(chartType: string | undefined) {
-  const { widget, updateWidget } = useWidgetContext();
-  // Family reprojection remounts the editor; its navigation position stays local.
-  const galleryScroll = useRef(0);
-  const [activeTab, onTabChange] = useState<ChartEditorTab>("chart");
-  const onOpenChange = (open: boolean) =>
-    updateWidget?.((previous) => ({
-      ...previous,
-      storage: { ...previous.storage, chartSettingsOpen: open },
-    }));
-  const model =
-    widget.storage?.[getStateKey(widget)]?.chartModel ?? widget.storage?.chartModel;
-  const groups = model?.seriesChartTypes?.length
-    ? chartTypeGalleryGroups.map((group) =>
-        group.name === "Combination"
-          ? {
-              ...group,
-              items: [
-                ...group.items,
-                { modelType: "customCombo", name: "Custom Combination" },
-              ],
-            }
-          : group,
-      )
-    : chartTypeGalleryGroups;
-  return {
-    open: Boolean(widget.storage?.chartSettingsOpen),
-    activeTab,
-    onTabChange,
-    onOpenChange,
-    themeResetKey: chartType ?? "pending",
-    galleryProps: {
-      scrollPositionRef: galleryScroll,
-      groups,
-      selectedType: chartType,
-      onSelect: (type: string) =>
-        updateWidget?.((previous) => changeCallerChartType(previous, type)),
-    },
-  };
-}
 function PendingCallerChart({
   chartType,
   reason,
@@ -202,14 +174,24 @@ function PendingCallerChart({
     </>
   );
 }
-function LiveCallerChart({ inputs }: { inputs: ApplicationSessionInputs }) {
+function LiveCallerChart({
+  inputs,
+}: {
+  inputs: ApplicationSessionInputs<ApplicationChartFamily>;
+}) {
   const session = useApplicationChartSession(inputs);
-  const dock = useCallerDock(inputs.family);
+  const dock = useCallerDock(
+    session.chartType,
+    session.onChartType,
+    session.hasCustomCombo,
+  );
   const { applicationChartRef, updateAgGrid } = useAgGridContext();
   const { updateWidget } = useWidgetContext();
   const host = useRef<EChartsHostHandle>(null);
   const ready =
-    session.projection.status === "ready" ? session.projection.value : undefined;
+    session.projection.status === "ready"
+      ? session.projection.value
+      : undefined;
   useLayoutEffect(() => {
     const registration =
       ready && host.current
@@ -239,7 +221,10 @@ function LiveCallerChart({ inputs }: { inputs: ApplicationSessionInputs }) {
     const summary = isReady
       ? { family: inputs.family, seriesCount: session.seriesCount ?? 0 }
       : undefined;
-    updateAgGrid((previous) => ({ ...previous, applicationChartSummary: summary }));
+    updateAgGrid((previous) => ({
+      ...previous,
+      applicationChartSummary: summary,
+    }));
     return () =>
       updateAgGrid((previous) =>
         previous.applicationChartSummary === summary
@@ -283,6 +268,16 @@ function LiveCallerChart({ inputs }: { inputs: ApplicationSessionInputs }) {
           {...dock}
           themeResetKey={inputs.theme.name}
           state={ready.editor}
+          mode={
+            ready.kind === "combo"
+              ? {
+                  kind: "combo",
+                  ...ready.combo,
+                  onAssignment: session.onComboAssignment,
+                  onGeometry: session.onComboGeometry,
+                }
+              : { kind: "ordinary" }
+          }
           onIntent={session.onIntent}
           onAxisStructure={session.onAxisStructure}
           setupProps={{ ...ready.setupProps, onEdit: session.onSetup }}

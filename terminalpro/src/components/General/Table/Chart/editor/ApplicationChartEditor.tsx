@@ -1,5 +1,8 @@
 import { ChartEditorDock, type ChartEditorDockProps } from "./ChartEditorDock";
-import { ChartSetupPanel, type ChartSetupPanelProps } from "./setup/ChartSetupPanel";
+import {
+  ChartSetupPanel,
+  type ChartSetupPanelProps,
+} from "./setup/ChartSetupPanel";
 import {
   ApplicationCustomizeEditor,
   type ApplicationCustomizeEditorProps,
@@ -16,14 +19,16 @@ export function ApplicationChartEditor({
   onIntent,
   onAxisStructure,
   setupProps,
+  mode = { kind: "ordinary" },
   ...dock
 }: ApplicationChartEditorProps) {
   return (
     <ChartEditorDock
       {...dock}
-      setup={<ChartSetupPanel {...setupProps} />}
+      setup={<ChartSetupPanel {...setupProps} mode={mode} />}
       customize={
         <ApplicationCustomizeEditor
+          mode={mode}
           state={state}
           onIntent={onIntent}
           onAxisStructure={onAxisStructure}

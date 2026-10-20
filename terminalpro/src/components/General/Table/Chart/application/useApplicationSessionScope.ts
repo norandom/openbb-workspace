@@ -1,3 +1,4 @@
+import type { ApplicationChartFamily } from "./comboSessionTypes";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { WidgetTransactionAdapter } from "../../../../widgetSync/transactions";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
@@ -19,13 +20,14 @@ import { latestWidgetRangeInputs } from "./applicationSessionRange";
 function scopeValue(
   owner: WidgetTransactionAdapter,
   token: symbol | undefined,
-  inputs: ApplicationSessionInputs,
+  inputs: ApplicationSessionInputs<ApplicationChartFamily>,
 ): ApplicationSessionState | undefined {
   if (!token || owner.scope?.token !== token) return;
   const value = owner.scope.value as ApplicationSessionState;
   if (
     value.local.stamp.address.stateAddress !== inputs.address.stateAddress ||
-    value.local.baseline.chartType !== inputs.family
+    (value.local.baseline.chartType !== inputs.family &&
+      value.sourceFamily !== inputs.family)
   )
     return;
   return value;
@@ -33,7 +35,7 @@ function scopeValue(
 function useScopeSynchronization(
   owner: WidgetTransactionAdapter,
   token: symbol | undefined,
-  inputs: ApplicationSessionInputs,
+  inputs: ApplicationSessionInputs<ApplicationChartFamily>,
 ) {
   const dataKey = sessionDataKey(inputs);
   const appearanceKey = sessionAppearanceKey(inputs);
@@ -50,7 +52,8 @@ function useScopeSynchronization(
           ),
         };
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Invalid chart state";
+        const message =
+          error instanceof Error ? error.message : "Invalid chart state";
         return {
           widget,
           value:
@@ -60,12 +63,19 @@ function useScopeSynchronization(
         };
       }
     });
-  }, [token, owner.transact, owner.widget.storage, dataKey, appearanceKey]);
+  }, [
+    token,
+    owner.transact,
+    owner.widget.storage,
+    dataKey,
+    appearanceKey,
+    inputs.family,
+  ]);
 }
 function useScopeCapture(
   owner: WidgetTransactionAdapter,
   token: symbol | undefined,
-  inputs: ApplicationSessionInputs,
+  inputs: ApplicationSessionInputs<ApplicationChartFamily>,
   state: ApplicationSessionState | undefined,
 ) {
   useLayoutEffect(() => {
@@ -80,7 +90,10 @@ function useScopeCapture(
     const captured = captureApplicationSession(inputs, state);
     if (captured.status === "waiting") return;
     owner.transact(token, (widget, value: ApplicationSessionState) => {
-      if (validateSessionStamp(state.local.stamp, value.local.stamp).status !== "ready")
+      if (
+        validateSessionStamp(state.local.stamp, value.local.stamp).status !==
+        "ready"
+      )
         return { widget, value };
       return {
         widget,
@@ -109,7 +122,7 @@ function useScopeCapture(
 function useDisplayRefresh(
   owner: WidgetTransactionAdapter,
   token: symbol | undefined,
-  inputs: ApplicationSessionInputs,
+  inputs: ApplicationSessionInputs<ApplicationChartFamily>,
 ) {
   const previous = useRef(inputs.display);
   useLayoutEffect(() => {
@@ -120,14 +133,17 @@ function useDisplayRefresh(
       widget,
       value: {
         ...value,
-        local: { ...value.local, stamp: nextSessionStamp(value.local.stamp, "render") },
+        local: {
+          ...value.local,
+          stamp: nextSessionStamp(value.local.stamp, "render"),
+        },
       },
     }));
   }, [inputs.display, token, owner.transact]);
 }
 export function useApplicationSessionScope(
   owner: WidgetTransactionAdapter,
-  inputs: ApplicationSessionInputs,
+  inputs: ApplicationSessionInputs<ApplicationChartFamily>,
 ) {
   const [token, setToken] = useState<symbol>();
   const generation = useRef(0);
@@ -143,13 +159,7 @@ export function useApplicationSessionScope(
       ),
     );
     return () => owner.release(identity);
-  }, [
-    owner.register,
-    owner.release,
-    inputs.address.stateAddress,
-    inputs.api,
-    inputs.family,
-  ]);
+  }, [owner.register, owner.release, inputs.address.stateAddress, inputs.api]);
   const state = scopeValue(owner, token, inputs);
   useScopeSynchronization(owner, token, inputs);
   useScopeCapture(owner, token, inputs, state);

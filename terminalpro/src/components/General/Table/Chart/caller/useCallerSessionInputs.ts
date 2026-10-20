@@ -1,3 +1,4 @@
+import type { ApplicationChartFamily } from "../application/comboSessionTypes";
 import dayjs from "dayjs";
 import type { GridApi } from "ag-grid-community";
 import { useMemo } from "react";
@@ -21,7 +22,9 @@ export function useCallerSessionInputs() {
   const { widget, widgetFromJSON } = useWidgetContext();
   const { gridState, gridRef } = useAgGridContext();
   const mode = useShallowThemeStore((state) => state.theme);
-  const globalDecimalDigits = useShallowThemeStore((state) => state.decimalDigits);
+  const globalDecimalDigits = useShallowThemeStore(
+    (state) => state.decimalDigits,
+  );
   const themes = useAgThemes(mode);
   const api = (gridState?.gridReady ? gridRef.current?.api : undefined) as
     | GridApi<Record<string, unknown>>
@@ -78,15 +81,20 @@ export function useCallerSessionInputs() {
     valid: true as const,
     value: {
       ...result.value,
-      family: chartType as CartesianFamily,
+      family: chartType as ApplicationChartFamily,
       api,
       address: {
         widgetId,
         stateKey,
         stateAddress: JSON.stringify([widgetId, stateKey]),
       },
-      dataRevision: (gridState?.dataRevision ?? 0) + (gridState?.displayRevision ?? 0),
-      theme: projectCallerTheme(mode, themes.chartThemes, themes.customChartThemes),
+      dataRevision:
+        (gridState?.dataRevision ?? 0) + (gridState?.displayRevision ?? 0),
+      theme: projectCallerTheme(
+        mode,
+        themes.chartThemes,
+        themes.customChartThemes,
+      ),
       generated:
         (dataOnlyOptions(gridState?.chartThemeOverrides) as RuntimeOptions) ??
         callerGeneratedOptions(widgetFromJSON?.data?.table?.chartView),

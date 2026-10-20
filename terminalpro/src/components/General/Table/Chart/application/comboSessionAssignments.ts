@@ -204,7 +204,11 @@ export function selectComboSessionAssignments(
       status: "ready",
       stamp: context.local.stamp,
       value: {
-        baseline,
+        baseline: {
+          ...baseline,
+          chartType: resolved.chartType,
+          model: { ...baseline.model, chartType: resolved.chartType },
+        },
         range,
         chartType: resolved.chartType,
         seriesChartTypes: resolved.seriesChartTypes,

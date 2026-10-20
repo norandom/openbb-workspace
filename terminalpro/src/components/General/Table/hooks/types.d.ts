@@ -1,3 +1,4 @@
+import type { ApplicationChartFamily } from "../Chart/application/comboSessionTypes";
 import type { AgChartThemeOverrides } from "ag-charts-community";
 import type {
   GridState as AgGridState,
@@ -84,7 +85,7 @@ export declare type GridStateT = Partial<ManagedGridOptions> & {
   dataRevision?: number | null;
   displayRevision?: number;
   applicationChartSummary?: {
-    family: "groupedColumn" | "stackedColumn" | "line";
+    family: ApplicationChartFamily;
     seriesCount: number;
   };
 };

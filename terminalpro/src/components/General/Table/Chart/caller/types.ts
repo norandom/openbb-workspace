@@ -1,12 +1,14 @@
 import type { EChartsHostHandle } from "../echarts/EChartsHost";
 import type { SessionResult, SessionStamp } from "../application/types";
-import type { CartesianFamily } from "../echarts/cartesianTypes";
+import type { ApplicationChartFamily } from "../application/comboSessionTypes";
 
 export interface ApplicationChartHandle {
   readonly host: EChartsHostHandle;
   readonly stamp: SessionStamp;
   readonly revision: number;
-  readonly family: CartesianFamily;
+  readonly family: ApplicationChartFamily;
   readonly seriesCount: number;
-  readonly validateCurrent: (stamp: SessionStamp) => SessionResult<SessionStamp>;
+  readonly validateCurrent: (
+    stamp: SessionStamp,
+  ) => SessionResult<SessionStamp>;
 }

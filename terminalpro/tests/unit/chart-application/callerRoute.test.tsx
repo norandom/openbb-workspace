@@ -299,6 +299,30 @@ afterEach(() => {
   };
 });
 describe("ordinary table joins the production session", () => {
+  it.each([false, true])("joins the actual combo editor and retains custom assignments through ordinary gallery choices (file=%s)", async file => {
+    fixture.fileMode = file;
+    fixture.processed.columnDefs.push({ field: "costs", chartDataType: "series", cellDataType: "number" } as any);
+    fixture.processed.rowData.forEach(row => Object.assign(row, { costs: 10 }));
+    render(<Owner file={file} family="columnLineCombo" enabled settingsOpen />);
+    await waitFor(() => expect(fixture.options.series?.map((s:any) => s.type)).toEqual(["bar", "line"]));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Set Up" }), { button: 0, ctrlKey: false });
+    fireEvent.change(screen.getByRole("combobox", { name: "costs series type" }), { target: { value: "area" } });
+    await waitFor(() => expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("customCombo"));
+    expect(screen.queryByRole("switch", { name: "Switch Category / Series" })).toBeNull();
+    const tab = (name: string) => fireEvent.mouseDown(screen.getByRole("tab", { name, exact: true } as any), {button:0,ctrlKey:false});
+    tab("Chart");
+    fireEvent.click(screen.getByRole("button", { name: "Line" }));
+    await waitFor(() => expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("line"));
+    fireEvent.click(screen.getByRole("button", { name: "Custom Combination" }));
+    await waitFor(() => expect(fixture.owner.widget.storage.default.chartModel.seriesChartTypes[1].chartType).toBe("area"));
+    tab("Set Up");
+    expect((screen.getByRole("combobox", { name: "costs series type" }) as HTMLSelectElement).value).toBe("area");
+    tab("Customize");
+    fireEvent.click(screen.getByRole("button", { name: /Series/ }));
+    expect(screen.getByRole("combobox", { name: "Series Type" })).toBeTruthy();
+    act(() => fixture.owner.save());
+    expect(fixture.store.mock.calls.at(-1)?.[1].storage.default.chartModel.seriesChartTypes[1].chartType).toBe("area");
+  });
   it("refreshes imported chart color eligibility from the ready session without root derived fields", async () => {
     fixture.fileMode = true;
     fixture.processed.columnDefs.push({
@@ -604,7 +628,7 @@ describe("ordinary table joins the production session", () => {
   ])("opens %s from original navbar and plots displayed raw values", async (family) => {
     render(<Owner family={family} />);
     fireEvent.click(document.querySelector("#chart-view-button")!);
-    await waitFor(() => expect(fixture.options.series?.[0]?.data).toEqual([50, 100]));
+    await waitFor(() => expect(fixture.options.series?.[0]?.data).toEqual(family === "line" ? [[0, 50], [1, 100]] : [50, 100]));
     expect(screen.getByTestId("retained-table")).toBeTruthy();
     expect(fixture.options.series[0].type).toBe(family === "line" ? "line" : "bar");
     expect(fixture.options.series[0].stack).toBe(
@@ -619,7 +643,7 @@ describe("ordinary table joins the production session", () => {
       fixture.visible = [1];
       fixture.gridProps.onFilterChanged({ api });
     });
-    await waitFor(() => expect(fixture.options.series?.[0]?.data).toEqual([-20]));
+    await waitFor(() => expect(fixture.options.series?.[0]?.data).toEqual(family === "line" ? [[0, -20]] : [-20]));
     fireEvent.click(document.querySelector("#chart-view-button")!);
     expect(screen.queryByTestId("chart-canvas")).toBeNull();
     expect(screen.getByTestId("retained-table")).toBeTruthy();
