@@ -2,6 +2,8 @@ import type { CustomSeriesOption } from "echarts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { translateHistogram } from "../../../src/components/General/Table/Chart/echarts/histogram";
 import { histogramTooltip } from "../../../src/components/General/Table/Chart/echarts/histogramTooltip";
+import { histogramAxisPixels } from "../../../src/components/General/Table/Chart/echarts/histogramLayout";
+import { histogramNiceExtent } from "../../../src/components/General/Table/Chart/echarts/histogramNiceExtent";
 import * as histogramBins from "../../../src/components/General/Table/Chart/compatibility/histogramBins";
 import type { CartesianTranslationResult } from "../../../src/components/General/Table/Chart/echarts/cartesianTypes";
 import { histogramData, histogramInput, histogramOptions } from "./histogram.fixtures";
@@ -158,4 +160,110 @@ it("never returns a category bar or statistical transform", () => {
   const options = histogramOptions(histogramInput());
   expect(options.dataset).toBeUndefined();
   expect((options.series as CustomSeriesOption[])[0].type).toBe("custom");
+});
+
+it("rounds the authentic revenue distribution by usable pixels without changing calculated bins", () => {
+  const billions = [46.852, 78.351, 52.896, 45.408, 52.579, 88.293, 61.137, 53.265,
+    62.9, 84.31, 58.015, 53.809, 64.04, 91.819, 58.313, 59.685, 64.698, 111.439,
+    89.584, 81.434, 83.36, 123.945, 97.278, 82.959, 90.146, 117.154, 94.836, 81.797,
+    89.498, 119.575, 90.753, 85.777, 94.93, 124.3, 95.359, 94.036, 102.466, 143.756,
+    111.184, 109.417];
+  const input = histogramInput(billions.map(v => Math.round(v * 1e9)));
+  input.binning = {};
+  input.context.viewport = { width: 359, height: 284 };
+  input.context.display.numericAxis = v => v >= 1e9 ? `${v / 1e9} B` : String(v);
+  input.style.application.title.enabled = input.style.application.subtitle.enabled = false;
+  input.style.application.legend.enabled = false;
+  input.style.application.padding = { top: 20, right: 20, bottom: 20, left: 20 };
+  for (const axis of Object.values(input.style.axes)) {
+    axis.appearance.title.enabled = false;
+    axis.appearance.labels.rotation = 0;
+  }
+  const result = translateHistogram(input);
+  if (result.status !== "supported") throw Error("Expected supported revenue histogram");
+  expect(result.domain).toEqual({ x: [40e9, 150e9], y: [0, 9], emptyAxes: [] });
+  expect(result.options.xAxis).toMatchObject({ min: 0, max: 150e9, interval: 50e9 });
+  expect(result.options.yAxis).toMatchObject({ min: 0, max: 10, interval: 5 });
+  expect(result.projection.calculation.bins).toHaveLength(11);
+  expect(result.projection.calculation.groups.map(g => [g.intervalIndex, g.frequency])).toEqual([
+    [0, 2], [1, 7], [2, 4], [3, 1], [4, 9], [5, 8], [6, 2], [7, 4], [8, 2], [10, 1],
+  ]);
+  input.context.viewport.width = 1000;
+  expect(histogramOptions(input).xAxis).toMatchObject({ min: 40e9, max: 160e9, interval: 20e9 });
+  input.context.viewport.width = 359;
+  input.binning = { binCount: 4 };
+  const four = translateHistogram(input);
+  if (four.status !== "supported") throw Error("Expected four-bin numerical projection");
+  expect(four.projection.calculation.bins).toEqual([
+    [40e9, 64.587e9], [64.587e9, 89.174e9], [89.174e9, 113.761e9], [113.761e9, 143.756e9],
+  ]);
+  expect(four.projection.calculation.groups.map(g => g.frequency)).toEqual([12, 9, 14, 5]);
+  expect(four.options.yAxis).toMatchObject({ min: 0, max: 15, interval: 5 });
+});
+
+it("keeps explicit sides exact while rounding signed and positive automatic extents", () => {
+  const input = histogramInput([42, 149]);
+  input.binning = { bins: [[41, 150]] };
+  expect(histogramOptions(input).xAxis).toMatchObject({ min: 40, max: 160, interval: 20 });
+  input.binning = { bins: [[-41, 149]] };
+  expect(histogramOptions(input).xAxis).toMatchObject({ min: -50, max: 150, interval: 50 });
+  Object.assign(input.style.axes.x, { min: -43, max: 153 });
+  expect(histogramOptions(input).xAxis).toMatchObject({ min: -43, max: 153 });
+  delete input.style.axes.x.max;
+  expect(histogramOptions(input).xAxis).toMatchObject({ min: -43, max: 150 });
+  input.style.axes.x.min = 200;
+  expect(histogramOptions(input).xAxis).toMatchObject({ show: false, min: 0, max: 1 });
+  delete input.style.axes.x.min;
+  expect(histogramOptions(input).xAxis).toMatchObject({ show: true, min: -50, max: 150 });
+});
+
+it("budgets endpoint labels, rotation, ticks and titles without changing grid margins", () => {
+  const input = histogramInput();
+  input.context.viewport = { width: 359, height: 284 };
+  input.context.display.numericAxis = String;
+  const grid = { left: 20, right: 20, top: 20, bottom: 20 };
+  const domain = { x: [40e9, 150e9] as const, y: [0, 9] as const, emptyAxes: [] };
+  for (const axis of Object.values(input.style.axes)) {
+    axis.appearance.title.enabled = false;
+    axis.appearance.labels.padding = 8;
+    axis.appearance.labels.rotation = 0;
+    axis.appearance.ticks.length = 7;
+  }
+  const before = JSON.stringify(grid);
+  // Provisional nice Y expands 9 to 10, so two glyphs consume twelve pixels.
+  expect(histogramAxisPixels(input, grid, domain)).toEqual({ x: 292, y: 223 });
+  input.style.axes.y.appearance.labels.rotation = 90;
+  expect(histogramAxisPixels(input, grid, domain).x).toBeCloseTo(298);
+  input.style.axes.x.appearance.labels.rotation = 90;
+  expect(histogramAxisPixels(input, grid, domain).y).toBeLessThan(223);
+  input.style.axes.y.appearance.title.enabled = true;
+  expect(histogramAxisPixels(input, grid, domain).x).toBeLessThan(298);
+  expect(JSON.stringify(grid)).toBe(before);
+  expect(histogramAxisPixels(input, { ...grid, bottom: 100 }, domain).y)
+    .toBeCloseTo(histogramAxisPixels(input, grid, domain).y - 80);
+  input.context.viewport = { width: 0, height: 1 };
+  expect(histogramAxisPixels(input, grid, domain)).toEqual({ x: 0, y: 0 });
+});
+
+it("falls back to validated extents for unusable budgets, subnormal steps and overflowing rounding", () => {
+  for (const pixels of [0, -1, NaN, Infinity])
+    expect(histogramNiceExtent(41, 149, pixels)).toEqual({ min: 41, max: 149 });
+  expect(histogramNiceExtent(Number.MIN_VALUE, Number.MIN_VALUE * 2, 295))
+    .toEqual({ min: Number.MIN_VALUE, max: Number.MIN_VALUE * 2 });
+  expect(histogramNiceExtent(1.6e308, 1.79e308, 100)).toEqual({ min: 1.6e308, max: 1.79e308 });
+  for (const [min, max] of [[-1e-300, 1e-300], [1e-20, 9e-20], [-149, -41]]) {
+    const nice = histogramNiceExtent(min, max, 295);
+    expect(Object.values(nice).every(Number.isFinite)).toBe(true);
+    expect(nice.min).toBeLessThanOrEqual(min);
+    expect(nice.max).toBeGreaterThanOrEqual(max);
+    expect(nice.min).toBeLessThan(nice.max);
+  }
+  const input = histogramInput([1]);
+  input.binning = { bins: [[0, 2]] };
+  input.context.viewport = { width: 1, height: 1 };
+  const options = histogramOptions(input);
+  expect(options.xAxis).toMatchObject({ min: 0, max: 2 });
+  expect(options.yAxis).toMatchObject({ min: 0, max: 1 });
+  expect(options.xAxis).not.toHaveProperty("interval");
+  expect(options.yAxis).not.toHaveProperty("interval");
 });

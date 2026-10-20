@@ -120,3 +120,60 @@ it("native ECharts retains frequencies under interval zoom and native legend hid
     expect(chart.renderToSVGString()).not.toMatch(/NaN|Infinity/);
   } finally { chart.dispose(); }
 });
+
+it("uses the decorated main-grid pixel budget and clears intervals for hidden or empty windows", () => {
+  const input = histogramInput(Array.from({ length: 9 }, () => 3));
+  input.context.viewport = { width: 359, height: 284 };
+  input.style.application.title.enabled = input.style.application.subtitle.enabled = false;
+  input.style.application.legend.enabled = false;
+  input.style.application.padding = { top: 20, right: 20, bottom: 20, left: 20 };
+  for (const axis of Object.values(input.style.axes)) {
+    axis.appearance.title.enabled = false;
+    axis.appearance.labels.rotation = 0;
+  }
+  const calculate = vi.spyOn(bins, "calculateHistogramBins");
+  const options = histogramNavigator(histogramOptions(input), input, true, true,
+    projectCallerTheme("light", [], {}), { width: 359 });
+  const count = calculate.mock.calls.length;
+  expect(options.openbbHistogram?.yPixels).toBeGreaterThan(0);
+  expect(options.openbbHistogram?.yPixels).toBeLessThan(200);
+  expect(histogramNavigationWindow(options, current(0, 100))).toMatchObject({ yAxis: { min: 0, max: 10, interval: 5 } });
+  for (const window of [current(0, 100, false), current(110, 120)]) {
+    const empty = histogramNavigationWindow(options, window);
+    expect(empty?.yAxis).toMatchObject({ show: false, min: 0, max: 1 });
+    expect(empty?.yAxis.interval).toBeUndefined();
+  }
+  const exhausted = { ...options, openbbHistogram: { yPixels: 0 } };
+  expect(histogramNavigationWindow(exhausted, current(0, 100))?.yAxis).toMatchObject({ min: 0, max: 9 });
+  expect(histogramNavigationWindow(exhausted, current(0, 100))?.yAxis.interval).toBeUndefined();
+  expect(histogramNavigationWindow(options, current(0, 100))?.yAxis.interval).toBe(5);
+  expect(calculate.mock.calls.length).toBe(count);
+});
+
+it("clears a retained native interval through ECharts merge for empty and fallback windows", async () => {
+  const engine = await vi.importActual<typeof import("echarts")>("echarts");
+  const { options } = fixture();
+  const chart = engine.init(null, undefined, { renderer: "svg", ssr: true, width: 800, height: 500 });
+  try {
+    chart.setOption(options);
+    const nativeY = () => {
+      const axes = chart.getOption().yAxis;
+      return Array.isArray(axes) ? axes[0] : axes;
+    };
+    for (const [retained, window] of [[options, current(0, 100, false)],
+      [options, current(110, 120)], [{ ...options, openbbHistogram: { yPixels: 0 } }, current(0, 100)]] as const) {
+      chart.setOption({ yAxis: [{ type: "value", min: 0, max: 10, interval: 5 }] });
+      expect(nativeY()).toHaveProperty("interval", 5);
+      const update = histogramNavigationWindow(retained, window);
+      if (!update) throw Error("Expected retained histogram window");
+      chart.setOption({ yAxis: [update.yAxis] });
+      expect(nativeY()).toHaveProperty("interval", undefined);
+      const restored = histogramNavigationWindow(options, current(0, 100));
+      if (!restored) throw Error("Expected restored histogram window");
+      chart.setOption({ yAxis: [restored.yAxis] });
+      expect(nativeY()).toHaveProperty("interval", restored.yAxis.interval);
+      expect(nativeY()).toMatchObject({ show: true, min: 0, max: 3 });
+    }
+    expect(chart.renderToSVGString()).not.toMatch(/NaN|Infinity/);
+  } finally { chart.dispose(); }
+});

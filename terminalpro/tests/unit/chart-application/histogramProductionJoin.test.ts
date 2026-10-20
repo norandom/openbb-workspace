@@ -9,6 +9,7 @@ import { projectOrdinarySetup } from "../../../src/components/General/Table/Char
 import { DEFAULT_SETUP_CATEGORY } from "../../../src/components/General/Table/Chart/application/setupTypes";
 import * as bins from "../../../src/components/General/Table/Chart/compatibility/histogramBins";
 import * as aggregation from "../../../src/components/General/Table/Chart/application/setupAggregation";
+import type { ApplicationSessionContext } from "../../../src/components/General/Table/Chart/application/applicationSessionTypes";
 beforeEach(() => vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ measureText: (s: string) => ({ width: s.length * 7 }) } as any));
 afterEach(() => vi.restoreAllMocks());
 function fixture() {
@@ -17,7 +18,7 @@ function fixture() {
     local: { ...source.local, baseline: { ...source.local.baseline, chartType: "histogram",
       model: { ...source.local.baseline.model, chartType: "histogram" } } } };
 }
-function project(context = fixture(), storage: any = {}) {
+function project(context: ApplicationSessionContext<"histogram"> = fixture(), storage: any = {}) {
   const state = { ...initialApplicationSession(storage, context.inputs, 1), local: context.local,
     capture: context.capture, viewport: { width: 800, height: 500 } };
   const result = projectHistogramSession(storage, context.inputs, state);
@@ -118,8 +119,9 @@ it("normalizes at capture before finite validation and aggregation while ordinar
   expect(captureDisplayedChart({ ...input, snapshotPolicy: "histogram-observations" }).status).toBe("unresolved");
 });
 it("preserves inactive inversion entering histogram while ordinary family transitions retain their reset", () => {
-  const context = sessionFixture();
-  context.local.baseline.model = { ...context.local.baseline.model, switchCategorySeries: true } as any;
+  const source = sessionFixture();
+  const context = { ...source, local: { ...source.local, baseline: { ...source.local.baseline,
+    model: { ...source.local.baseline.model, switchCategorySeries: true } } } };
   const entered = applyComboFamilyTransaction({}, context, context.local.stamp, "histogram");
   if (entered.status !== "ready") throw Error(JSON.stringify(entered));
   expect(entered.value.local.baseline.model.switchCategorySeries).toBe(true);
@@ -150,9 +152,12 @@ it.each(["light", "dark"] as const)("resolves saved styles and each axis leaf in
     title: { text: "Distribution", enabled: true }, padding: { left: 40 }, background: { fill: "#123456" } });
 });
 it("common controls change histogram renderer effects and preserve inactive options", () => {
-  let context = fixture();
+  const source = fixture();
+  let context: ApplicationSessionContext<"histogram"> = { ...source, local: { ...source.local,
+    baseline: { ...source.local.baseline, options: {
+      histogram: { series: { bins: [[0, 200]] } }, bubble: { paired: false },
+    } } } };
   let storage: any = {};
-  context.local.baseline.options = { histogram: { series: { bins: [[0, 200]] } }, bubble: { paired: false } } as any;
   const edits: import("../../../src/components/General/Table/Chart/application/applicationChartSessionTypes").ApplicationChartCommand["intent"][] = [
     { panel: "series", edit: { field: "strokeWidth", value: 4 } },
     { panel: "series", edit: { field: "lineDash", value: 6 } },

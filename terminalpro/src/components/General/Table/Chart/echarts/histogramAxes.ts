@@ -1,6 +1,7 @@
 import type { XAXisComponentOption, YAXisComponentOption } from "echarts";
 import { fontStyle } from "./cartesianDisplay";
 import { alternatingGrid } from "./cartesianGrid";
+import { histogramNiceExtent } from "./histogramNiceExtent";
 import type { ResolvedXyAxis } from "./xyTypes";
 import type { HistogramDomain, HistogramMappingInput, HistogramProjection } from "./histogramTypes";
 
@@ -30,14 +31,16 @@ export function histogramDomain(projection: HistogramProjection): HistogramDomai
     emptyAxes,
   };
 }
-function axis(input: HistogramMappingInput, id: "x" | "y", domain: HistogramDomain): XAXisComponentOption {
+function axis(input: HistogramMappingInput, id: "x" | "y", domain: HistogramDomain, pixels: number): XAXisComponentOption {
   const a = input.style.axes[id].appearance;
-  const [min, max] = domain[id];
+  const [low, high] = domain[id];
+  const extent = domain.emptyAxes.includes(id) ? { min: low, max: high }
+    : histogramNiceExtent(low, high, pixels, input.style.axes[id]);
   // Check callback projections while diagnostics can still reject the option atomically.
-  input.context.display.numericAxis(min);
-  input.context.display.numericAxis(max);
+  input.context.display.numericAxis(extent.min);
+  input.context.display.numericAxis(extent.max);
   return {
-    type: "value", show: !domain.emptyAxes.includes(id), scale: true, min, max,
+    type: "value", show: !domain.emptyAxes.includes(id), scale: true, ...extent,
     position: a.fields.position as "bottom" | "top",
     name: a.title.enabled ? a.title.text : "", nameLocation: "middle",
     nameGap: a.title.spacing + a.labels.size + a.labels.padding, nameTextStyle: fontStyle(a.title),
@@ -50,12 +53,12 @@ function axis(input: HistogramMappingInput, id: "x" | "y", domain: HistogramDoma
       color: a.gridStyles.map(s => s.stroke), width: a.grid.thickness, type: [...a.gridStyles[0].lineDash] } },
   };
 }
-export function histogramAxes(input: HistogramMappingInput, domain: HistogramDomain) {
+export function histogramAxes(input: HistogramMappingInput, domain: HistogramDomain, pixels: Readonly<Record<"x" | "y", number>>) {
   const axes = (["x", "y"] as const).flatMap(id => {
     const a = input.style.axes[id].appearance;
     return a.grid.enabled && alternatingGrid(a) && !domain.emptyAxes.includes(id)
       ? [{ axis: id === "x" ? "xAxis" : "yAxis", width: a.grid.thickness, styles: a.gridStyles }] : [];
   });
-  return { xAxis: axis(input, "x", domain), yAxis: axis(input, "y", domain) as YAXisComponentOption,
+  return { xAxis: axis(input, "x", domain, pixels.x), yAxis: axis(input, "y", domain, pixels.y) as YAXisComponentOption,
     ...(axes.length ? { qopenbbGrid: { axes } } : {}) };
 }

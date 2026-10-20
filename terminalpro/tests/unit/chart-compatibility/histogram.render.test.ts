@@ -12,7 +12,7 @@ beforeEach(() => {
 });
 function render(input: HistogramMappingInput, check: (chart: EChartsType, rects: InstanceType<typeof graphic.Rect>[], svg: string) => void,
   configure?: (options: EChartsOption) => void) {
-  const chart = init(null, undefined, { renderer: "svg", ssr: true, width: 800, height: 500 });
+  const chart = init(null, undefined, { renderer: "svg", ssr: true, ...input.context.viewport });
   try {
     const options = histogramOptions(input);
     configure?.(options);
@@ -243,4 +243,34 @@ it("restores initially hidden full data through native legend actions on the sam
       series.renderItem = (params, api) => { renderCalls++; return renderer(params, api); };
     });
   } finally { binning.mockRestore(); }
+});
+
+it("uses rounded native ticks and rectangle endpoints for the reference-sized revenue distribution", () => {
+  const frequencies = [2, 7, 4, 1, 9, 8, 2, 4, 2, 0, 1];
+  const input = histogramInput(frequencies.flatMap((count, i) => Array(count).fill((45 + i * 10) * 1e9)));
+  input.binning = { bins: frequencies.map((_, i) => [(40 + i * 10) * 1e9, (50 + i * 10) * 1e9]) };
+  input.context.viewport = { width: 359, height: 284 };
+  input.context.display.numericAxis = v => v >= 1e9 ? `${v / 1e9} B` : String(v);
+  input.style.application.title.enabled = input.style.application.subtitle.enabled = false;
+  input.style.application.legend.enabled = false;
+  input.style.application.padding = { top: 20, right: 20, bottom: 20, left: 20 };
+  for (const axis of Object.values(input.style.axes)) {
+    axis.appearance.title.enabled = false;
+    axis.appearance.labels.rotation = 0;
+  }
+  render(input, (chart, rects) => {
+    const model = (chart as any).getModel();
+    expect(model.getComponent("xAxis").axis.scale.getTicks().map((tick: any) => tick.value))
+      .toEqual([0, 50e9, 100e9, 150e9]);
+    expect(model.getComponent("yAxis").axis.scale.getTicks().map((tick: any) => tick.value))
+      .toEqual([0, 5, 10]);
+    expect(rects).toHaveLength(10);
+    const [left, bottom] = pixel(chart, 0, 0), [right, top] = pixel(chart, 150e9, 10);
+    const occupied = frequencies.flatMap((count, index) => count ? [{ count, index }] : []);
+    rects.forEach((rect, i) => {
+      expect(rect.shape.x).toBeCloseTo(left + (40 + occupied[i].index * 10) / 150 * (right - left));
+      expect(rect.shape.width).toBeCloseTo((right - left) / 15);
+      expect(rect.shape.height).toBeCloseTo(occupied[i].count / 10 * (bottom - top));
+    });
+  });
 });

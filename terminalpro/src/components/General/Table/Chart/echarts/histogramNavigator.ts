@@ -3,10 +3,11 @@ import type { ApplicationThemeInput } from "../application/appearanceModel";
 import { cartesianNavigator } from "./cartesianNavigator";
 import { navigatorAxes } from "./cartesianNavigatorOverview";
 import { createHistogramRenderer } from "./histogramSeries";
+import { histogramAxisPixels } from "./histogramLayout";
 import type { HistogramDatum, HistogramMappingInput } from "./histogramTypes";
 
 export interface HistogramNavigationOptions extends EChartsOption {
-  readonly openbbHistogram?: { readonly yMin?: number; readonly yMax?: number };
+  readonly openbbHistogram?: { readonly yMin?: number; readonly yMax?: number; readonly yPixels?: number };
 }
 export function histogramNavigator(
   options: EChartsOption, input: HistogramMappingInput, enabled: boolean, mini: boolean,
@@ -18,7 +19,12 @@ export function histogramNavigator(
   })) };
   const decorated = cartesianNavigator(options, enabled, mini, theme, viewport, overview);
   const y = input.style.axes.y;
-  const retained = { ...decorated, openbbHistogram: { yMin: y.min, yMax: y.max } };
+  const xAxis = navigatorAxes(options.xAxis)[0], yAxis = navigatorAxes(options.yAxis)[0];
+  const domain = { x: [Number(xAxis.min), Number(xAxis.max)] as const,
+    y: [Number(yAxis.min), Number(yAxis.max)] as const,
+    emptyAxes: (["x", "y"] as const).filter(id => (id === "x" ? xAxis : yAxis).show === false) };
+  const yPixels = histogramAxisPixels(input, navigatorAxes(decorated.grid)[0], domain).y;
+  const retained = { ...decorated, openbbHistogram: { yMin: y.min, yMax: y.max, yPixels } };
   if (!enabled && !mini) return retained;
   const slider = navigatorAxes(decorated.dataZoom)[0];
   return { ...retained, dataZoom: [

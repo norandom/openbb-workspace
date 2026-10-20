@@ -26,7 +26,7 @@ function numberExtent(snapshot: ChartSnapshot, pixels: number) {
   const max = values.reduce((result, value) => Math.max(result, value), 0);
   return niceNumberExtent(min, max, pixels);
 }
-function niceNumberExtent(min: number, max: number, pixels: number) {
+export function niceNumberExtent(min: number, max: number, pixels: number) {
   if (min === max) return {};
   // Original linear scales choose 1/2/5 steps around five ticks, at least 50px apart.
   const count = Math.max(1, Math.min(5, Math.floor(pixels / 50)));

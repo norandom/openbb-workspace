@@ -1,13 +1,14 @@
 import type { CustomSeriesOption, EChartsOption } from "echarts";
 import { navigatorAxes } from "./cartesianNavigatorOverview";
 import { isHistogramOptions } from "./histogramNavigator";
+import { histogramNiceExtent } from "./histogramNiceExtent";
 import type { HistogramDatum } from "./histogramTypes";
 
 /** Windowing changes only the visible Y domain; intervals and frequencies stay retained. */
 export function histogramNavigationWindow(options: EChartsOption, current: EChartsOption) {
   if (!isHistogramOptions(options)) return;
   const x = navigatorAxes(options.xAxis)[0], y = navigatorAxes(options.yAxis)[0];
-  if (!x || !y || typeof x.min !== "number" || typeof x.max !== "number") return;
+  if (!x || !y || y.type !== "value" || typeof x.min !== "number" || typeof x.max !== "number") return;
   const zoom = navigatorAxes(current.dataZoom).find(z => z.id === "openbb-navigator");
   const start = typeof zoom?.start === "number" ? zoom.start : 0;
   const end = typeof zoom?.end === "number" ? zoom.end : 100;
@@ -30,5 +31,8 @@ export function histogramNavigationWindow(options: EChartsOption, current: EChar
     if (bounds.yMax === undefined) max += delta;
     else min -= delta;
   }
-  return { start, end, changed: false, yAxis: { ...y, show: !empty, min, max } };
+  const { interval: _interval, ...retainedY } = y;
+  const extent = empty ? { min, max }
+    : histogramNiceExtent(min, max, bounds.yPixels ?? 0, { min: bounds.yMin, max: bounds.yMax });
+  return { start, end, changed: false, yAxis: { ...retainedY, show: !empty, interval: undefined, ...extent } };
 }
