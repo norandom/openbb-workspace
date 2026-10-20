@@ -7,7 +7,7 @@ import type { HistogramDomain, HistogramMappingInput, HistogramProjection } from
 type HistogramGrid = { readonly left?: number | string; readonly right?: number | string;
   readonly top?: number | string; readonly bottom?: number | string };
 
-function axisFootprint(input: HistogramMappingInput, id: "x" | "y", domain: HistogramDomain): number {
+export function axisFootprint(input: HistogramMappingInput, id: "x" | "y", domain: HistogramDomain): number {
   if (domain.emptyAxes.includes(id)) return 0;
   const a = input.style.axes[id].appearance;
   const angle = (a.labels.rotation ?? 0) * Math.PI / 180;

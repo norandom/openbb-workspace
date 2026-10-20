@@ -1,25 +1,108 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { histogramInput, histogramOptions } from "./histogram.fixtures";
+import { histogramInput } from "./histogram.fixtures";
 import { histogramNavigator } from "../../../src/components/General/Table/Chart/echarts/histogramNavigator";
 import { histogramNavigationWindow } from "../../../src/components/General/Table/Chart/echarts/histogramNavigationWindow";
 import { retainNavigatorExtent } from "../../../src/components/General/Table/Chart/echarts/cartesianNavigator";
 import { createChartLifecycle } from "../../../src/components/General/Table/Chart/echarts/lifecycle";
 import { projectCallerTheme } from "../../../src/components/General/Table/Chart/caller/themeInputs";
 import * as bins from "../../../src/components/General/Table/Chart/compatibility/histogramBins";
+import { translateHistogram } from "../../../src/components/General/Table/Chart/echarts/histogram";
 const mocks = vi.hoisted(() => ({ init: vi.fn() }));
 vi.mock("echarts", async importOriginal => ({ ...await importOriginal<typeof import("echarts")>(), init: mocks.init }));
 beforeEach(() => vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ measureText: (s: string) => ({ width: s.length * 7 }) } as any));
 afterEach(() => vi.restoreAllMocks());
+function navigation(input: ReturnType<typeof histogramInput>) {
+  const result = translateHistogram(input);
+  if (result.status !== "supported") throw Error(JSON.stringify(result));
+  return histogramNavigator(result.options, result.projection.input, true, true,
+    projectCallerTheme("light", [], {}), input.context.viewport, result.projection.calculation.bins);
+}
 function fixture() {
   const input = histogramInput([1, 1, 3, 6, 7, 8]);
   input.style.series.labels.enabled = true;
-  const options = histogramNavigator(histogramOptions(input), input, true, true,
-    projectCallerTheme("light", [], {}), { width: 800 });
+  const options = navigation(input);
   return { input, options };
 }
 function current(start: number, end: number, selected = true): any {
   return { dataZoom: [{ id: "openbb-navigator", start, end }], legend: [{ selected: { amount: selected } }] };
 }
+it.each([["left", 2, false], ["right", 2, false], ["left", 10, false], ["right", 10, false],
+  ["left", 2, true], ["right", 2, true]] as const)("renders an 18px overview aligned with the native main plot for a %s Y axis with %i counts and Y decorations %s", async (position, count, decorated) => {
+  const engine = await vi.importActual<typeof import("echarts")>("echarts");
+  const input = histogramInput(Array.from({ length: count }, (_, i) => (80 + i) * 1e9));
+  input.binning = { bins: [[40e9, 60e9], [60e9, 100e9], [100e9, 150e9]] };
+  input.context.viewport = { width: 639, height: 400 };
+  input.context.display.numericAxis = value => value >= 1e9 ? `${value / 1e9} B` : String(value);
+  input.style.axes.y.appearance.fields.position = position;
+  for (const axis of Object.values(input.style.axes)) {
+    axis.appearance.title.enabled = axis.appearance.ticks.enabled = false;
+    axis.appearance.labels.rotation = 0;
+  }
+  input.style.axes.y.appearance.title.enabled = input.style.axes.y.appearance.ticks.enabled = decorated;
+  input.style.axes.y.appearance.title.text = "Frequency";
+  input.style.axes.y.appearance.ticks.length = 7;
+  const calculate = vi.spyOn(bins, "calculateHistogramBins");
+  const options = navigation(input);
+  expect(calculate).toHaveBeenCalledTimes(1);
+  const [mainX, miniX] = options.xAxis as any[];
+  const retained = JSON.stringify((options.series as any[]).map(s => s.data));
+  const chart = engine.init(null, undefined, { renderer: "svg", ssr: true, ...input.context.viewport });
+  try {
+    chart.setOption(options);
+    const model = (chart as any).getModel();
+    const main = model.getComponent("grid", 0).coordinateSystem.getRect();
+    const mini = model.getComponent("grid", 1).coordinateSystem.getRect();
+    if (count === 2) expect(model.getComponent("yAxis", 0).axis.scale.getTicks().map((tick: any) => tick.value)).toContain(0.5);
+    expect(mini.height).toBe(18);
+    expect((chart.getOption().yAxis as any[])[0]).toMatchObject({ name: decorated ? "Frequency" : "", axisTick: { show: decorated, length: 7 } });
+    expect([miniX.min, miniX.max]).toEqual([40e9, 150e9]);
+    expect(mainX.max).toBeGreaterThan(miniX.max);
+    expect(mainX.axisLabel.formatter(100e9)).toBe("100 B");
+    expect(miniX.axisLabel.formatter(100e9)).toBe("100000000000");
+    expect(miniX.interval).toBeUndefined();
+    expect(mini.x).toBeCloseTo(main.x, 5);
+    expect(mini.width).toBeCloseTo(main.width, 5);
+    expect((options.grid as any[])[0]).toMatchObject({ containLabel: true,
+      left: input.style.application.padding.left, right: input.style.application.padding.right });
+    const slider = (options.dataZoom as any[])[0], mask = (options.graphic as any[])[0];
+    expect(slider).toMatchObject({ height: 18, left: mini.x, right: 639 - mini.x - mini.width });
+    expect(mask.left).toBe(mini.x);
+    expect(mask.children[0].shape).toMatchObject({ width: mini.width, height: 18 });
+    for (const [index, bounds] of [[0, main], [1, mini]] as const) {
+      const series = model.getSeries()[index], rect = series.getData().getItemGraphicEl(0);
+      const lower = chart.convertToPixel({ gridIndex: index }, [60e9, 0]) as number[];
+      const upper = chart.convertToPixel({ gridIndex: index }, [100e9, count]) as number[];
+      expect(rect.shape.x).toBeCloseTo(lower[0], 5);
+      expect(rect.shape.width).toBeCloseTo(upper[0] - lower[0], 5);
+      expect(rect.shape.y).toBeCloseTo(upper[1], 5);
+      expect(rect.shape.height).toBeCloseTo(lower[1] - upper[1], 5);
+      expect(rect.shape.x).toBeGreaterThan(bounds.x);
+    }
+    expect(model.getComponent("xAxis", 1).axis.scale.getExtent()).toEqual([40e9, 150e9]);
+    expect(chart.renderToSVGString()).toContain(">100000000000</text>");
+    chart.dispatchAction({ type: "dataZoom", start: 20, end: 80 });
+    expect(JSON.stringify((chart.getOption().series as any[]).map(s => s.data))).toBe(retained);
+    expect(model.getComponent("xAxis", 1).axis.scale.getExtent()).toEqual([40e9, 150e9]);
+    expect(calculate).toHaveBeenCalledTimes(1);
+  } finally { chart.dispose(); }
+});
+it("keeps empty calculated bins finite and recovers the full overview domain", async () => {
+  const engine = await vi.importActual<typeof import("echarts")>("echarts");
+  const input = histogramInput([]);
+  input.binning = {};
+  const chart = engine.init(null, undefined, { renderer: "svg", ssr: true, ...input.context.viewport });
+  try {
+    const empty = navigation(input);
+    expect((empty.xAxis as any[])[1]).toMatchObject({ min: 0, max: 1 });
+    chart.setOption(empty);
+    expect(chart.renderToSVGString()).not.toMatch(/NaN|Infinity/);
+    input.snapshot.rows = histogramInput([3, 4]).snapshot.rows;
+    input.binning = { bins: [[0, 2], [2, 5], [5, 10]] };
+    chart.setOption(navigation(input), { notMerge: true });
+    expect((chart as any).getModel().getComponent("xAxis", 1).axis.scale.getExtent()).toEqual([0, 10]);
+    expect(chart.renderToSVGString()).not.toMatch(/NaN|Infinity/);
+  } finally { chart.dispose(); }
+});
 it("includes partial and boundary-touching bins without an observation minimum; empty windows recover", () => {
   const { options } = fixture();
   const original = JSON.stringify((options.series as any[]).map(s => s.data));
@@ -132,8 +215,7 @@ it("uses the decorated main-grid pixel budget and clears intervals for hidden or
     axis.appearance.labels.rotation = 0;
   }
   const calculate = vi.spyOn(bins, "calculateHistogramBins");
-  const options = histogramNavigator(histogramOptions(input), input, true, true,
-    projectCallerTheme("light", [], {}), { width: 359 });
+  const options = navigation(input);
   const count = calculate.mock.calls.length;
   expect(options.openbbHistogram?.yPixels).toBeGreaterThan(0);
   expect(options.openbbHistogram?.yPixels).toBeLessThan(200);
@@ -185,8 +267,7 @@ it("updates endpoint labels through native zoom, reset and resize while isolatin
   input.style.axes.x.appearance.labels.color = "#b12345";
   input.style.application.padding.right = 20;
   Object.assign(input.style.axes.x, { min: 0, max: 10 });
-  const options = histogramNavigator(histogramOptions(input), input, true, true,
-    projectCallerTheme("light", [], {}), { width: 800 });
+  const options = navigation(input);
   for (const axis of options.xAxis as any[]) axis.interval = 2;
   const data = JSON.stringify((options.series as any[]).map(series => series.data));
   const calculate = vi.spyOn(bins, "calculateHistogramBins");

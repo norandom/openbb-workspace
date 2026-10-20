@@ -93,6 +93,20 @@ it("retains histogram geometry and counts across legend projections without binn
   expect(hidden.series.map((s: any) => s.data)).toEqual(restored.series.map((s: any) => s.data));
   expect(restored.series[1].silent).toBe(true);
 });
+it("passes full immutable calculated bins to the production overview including unoccupied outer intervals", () => {
+  const context = fixture();
+  context.local.baseline.options = { histogram: { series: { bins: [[0, 100], [100, 150], [150, 210]] } } };
+  const calculate = vi.spyOn(bins, "calculateHistogramBins");
+  const aggregate = vi.spyOn(aggregation, "aggregateSetupRows");
+  const result = project(context, { chartNavigatorEnabled: true, chartMiniChartEnabled: true });
+  expect([calculate.mock.calls.length, aggregate.mock.calls.length]).toEqual([1, 1]);
+  const options: any = result.options;
+  expect(options.series[0].data.map((datum: any) => datum.value)).toEqual([[100, 150, 2]]);
+  expect(options.series[1].data).toEqual(options.series[0].data);
+  expect(options.xAxis[1]).toMatchObject({ min: 0, max: 210 });
+  expect(options.xAxis[1].axisLabel.formatter(100000000000)).toBe("100000000000");
+  expect(options.grid[1]).toMatchObject({ height: 18, outerBoundsMode: "none" });
+});
 import { captureDisplayedChart } from "../../../src/components/General/Table/Chart/application/gridCapture";
 import { applyComboFamilyTransaction } from "../../../src/components/General/Table/Chart/application/comboSessionAssignments";
 it("normalizes at capture before finite validation and aggregation while ordinary/XY remain strict", () => {

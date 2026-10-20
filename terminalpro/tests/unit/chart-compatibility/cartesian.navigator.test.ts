@@ -9,6 +9,9 @@ it("clones every independent scale and remaps series", () => {
  expect(out.series.slice(2).map((s: any) => s.yAxisIndex)).toEqual([2, 3]);
  expect(out.yAxis[3]).toMatchObject({ min: 0, max: 5, interval: 1, inverse: true, offset: 0, show: false, gridIndex: 1 });
  expect(out.dataZoom[0].xAxisIndex).toEqual([0]); expect(input).toEqual(before);
+ expect(out.grid[1]).toMatchObject({ height: 40, left: 30, right: 30, outerBoundsMode: "same" });
+ expect(out.dataZoom[0]).toMatchObject({ height: 40, left: 30, right: 30 });
+ expect(out.graphic[0].children[0].shape.height).toBe(40);
 });
 it("keeps disabled identity and retained slider ranges", () => {
  const input = source(); expect(cartesianNavigator(input, false, false, theme, { width: 800 })).toBe(input);

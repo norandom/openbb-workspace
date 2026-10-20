@@ -32,7 +32,8 @@ export function projectHistogramSession(
       status: result.status === "invalid" ? "invalid" : "unresolved", diagnostics: result.diagnostics,
     };
     const options = histogramNavigator(result.options, result.projection.input,
-      Boolean(storage.chartNavigatorEnabled), Boolean(storage.chartMiniChartEnabled), inputs.theme, state.viewport);
+      Boolean(storage.chartNavigatorEnabled), Boolean(storage.chartMiniChartEnabled), inputs.theme, state.viewport,
+      result.projection.calculation.bins);
     const projectLegendSelection = (selected: Readonly<Record<string, boolean>>) => {
       const retained = { ...options, legend: navigatorAxes(options.legend).map(item => ({ ...item, selected: { ...selected } })) };
       const window = histogramNavigationWindow(retained, retained);

@@ -10,6 +10,12 @@ import {
 } from "./cartesianNavigatorMask";
 
 const ID = "openbb-navigator";
+interface NavigatorGeometry {
+  readonly miniHeight?: number;
+  readonly left?: number;
+  readonly right?: number;
+  readonly overviewOuterBoundsMode?: "same" | "none";
+}
 type Zoom = { id?: string; start?: number; end?: number };
 function navigator(options: unknown): Zoom | undefined {
   if (!options || typeof options !== "object") return;
@@ -50,6 +56,7 @@ export function cartesianNavigator(
   theme: ApplicationThemeInput,
   viewport: { readonly width: number },
   overviewOptions: EChartsOption = options,
+  geometry: NavigatorGeometry = {},
 ): EChartsOption {
   if (!enabled && !mini) return options;
   const grid = options.grid as {
@@ -58,7 +65,9 @@ export function cartesianNavigator(
     top: number;
     bottom: number;
   };
-  const height = mini ? 40 : 18;
+  const height = mini ? geometry.miniHeight ?? 40 : 18;
+  const left = geometry.left ?? grid.left;
+  const right = geometry.right ?? grid.right;
   const labelSpace = mini
     ? Math.ceil((theme.navigatorFont?.fontSize ?? 10) * 1.2) + 5
     : 0;
@@ -70,8 +79,8 @@ export function cartesianNavigator(
   return {
     ...options,
     graphic: navigatorMask(
-      grid.left,
-      grid.right,
+      left,
+      right,
       bottom,
       height,
       viewport.width,
@@ -81,12 +90,12 @@ export function cartesianNavigator(
       ? [
           { ...grid, bottom: bottom + height + 10 },
           {
-            left: grid.left,
-            right: grid.right,
+            left,
+            right,
             bottom,
             height,
             containLabel: false,
-            outerBoundsMode: "same",
+            outerBoundsMode: geometry.overviewOuterBoundsMode ?? "same",
           },
         ]
       : { ...grid, bottom: grid.bottom + height + 10 },
@@ -98,8 +107,8 @@ export function cartesianNavigator(
         orient: "horizontal",
         // Numeric range selection crops geometry without dropping category rows.
         filterMode: xs[0]?.type === "value" && ys[0]?.inverse ? "none" : "filter",
-        left: grid.left,
-        right: grid.right,
+        left,
+        right,
         bottom,
         height,
         start: 0,
