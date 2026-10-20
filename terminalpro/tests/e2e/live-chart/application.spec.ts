@@ -47,7 +47,7 @@ test("ordinary imported chart edits reach rendering and dashboard storage", asyn
     await exerciseActualChartActions(page, widget, editor);
     await editor.getByRole("textbox", { name: "Title", exact: true }).blur();
     for (const dark of [false, true]) {
-      if ((await page.locator("html").getAttribute("class"))?.split(" ").includes("dark") !== dark) {
+      if (((await page.locator("html").getAttribute("class"))?.split(" ").includes("dark") ?? false) !== dark) {
         await resetDrawnText(page);
         const themeSaved = page.waitForResponse((response) =>
           response.request().method() === "POST" && new URL(response.url()).pathname === "/api/pro/display-settings",

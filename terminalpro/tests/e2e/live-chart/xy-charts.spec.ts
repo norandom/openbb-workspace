@@ -3,7 +3,7 @@ import { importOrdinaryTable } from "./journey";
 import { expand, openEditor, saveDashboard, selectFamily } from "./editor";
 import { expectApplicationDiagnostics, observeApplication, observeDrawnText } from "./diagnostics";
 import { reopenSavedDashboard } from "./persistence";
-import { assertXyExport, chartModel, currentCircles, matchCoordinates, numberControl, observeXy } from "./xy-observer";
+import { assertXyExport, chartModel, currentCircles, hoverPoint, matchCoordinates, numberControl, observeXy } from "./xy-observer";
 
 test("XY roles, incomplete groups and raw signed-size geometry survive family changes and reopen", async ({ page, browser }, info) => {
   test.setTimeout(240000);
@@ -96,6 +96,86 @@ test("XY roles, incomplete groups and raw signed-size geometry survive family ch
     expect(chartModel(restored.content)).toEqual(model);
     const points = matchCoordinates(await currentCircles(restored.page), rows, 10, 40, [-2, 16]);
     await assertXyExport(restored.page, restored.widget, info, points);
+    expectApplicationDiagnostics(restored.diagnostics);
+  } finally { await restored.context.close(); }
+});
+
+test("Scatter shares raw numeric X across signed Y series through theme, refresh and reopen/export", async ({ page, browser }, info) => {
+  test.setTimeout(240000);
+  await loginDisposableWorkspace(page);
+  const diagnostics = await observeApplication(page);
+  await observeDrawnText(page);
+  await observeXy(page);
+  const csv = "Label,X,Alpha,Beta\nA,-5,3,-9\nB,2,-4,11\nC,13,,5\nD,21,8,\nE,,6,7\n";
+  const { widget, dashboardUrl } = await importOrdinaryTable(page, { csv, name: "Scatter shared coordinates", expectedValue: "21" });
+  await widget.locator("#chart-view-button").click();
+  const editor = await openEditor(page, widget);
+  await selectFamily(editor, "Scatter");
+  await editor.getByRole("tab", { name: "Set Up", exact: true }).click();
+  await editor.getByRole("combobox", { name: "Labels", exact: true }).selectOption({ label: "Label" });
+  const paired = editor.getByRole("switch", { name: "Paired Mode", exact: true });
+  await expect(paired).toBeChecked();
+  await paired.click();
+  await expect(paired).not.toBeChecked();
+  const reorder = editor.getByRole("button", { name: "Reorder Beta", exact: true });
+  await reorder.focus();
+  await reorder.press("ArrowUp");
+  for (const [field, role] of [["X", "X"], ["Beta", "Y"], ["Alpha", "Y"]]) {
+    await expect(editor.getByRole("button", { name: `Remove ${field}`, exact: true }).locator("..")).toContainText(`(${role})`);
+  }
+  await editor.getByRole("tab", { name: "Customize", exact: true }).click();
+  await expand(editor, "Series");
+  await editor.getByRole("combobox", { name: "Shape", exact: true }).selectOption("circle");
+  await numberControl(editor, "Size", 12);
+  await numberControl(editor, "Stroke Width", 3);
+  await expect(editor.getByRole("spinbutton", { name: "Max Size value", exact: true })).toHaveCount(0);
+  const rows = [
+    { x: -5, y: 3, size: null, field: "Alpha", category: "A" },
+    { x: 2, y: -4, size: null, field: "Alpha", category: "B" },
+    { x: 21, y: 8, size: null, field: "Alpha", category: "D" },
+    { x: -5, y: -9, size: null, field: "Beta", category: "A" },
+    { x: 2, y: 11, size: null, field: "Beta", category: "B" },
+    { x: 13, y: 5, size: null, field: "Beta", category: "C" },
+  ];
+  const points = matchCoordinates(await currentCircles(page), rows, 12, 12, [0, 0]);
+  for (const [index, row] of rows.entries()) {
+    await hoverPoint(page, widget, points[index]);
+    const tooltip = page.getByText(/X:\s/).last();
+    await expect(tooltip).toContainText(row.category);
+    await expect.poll(() => tooltip.innerText()).toMatch(new RegExp(`X:\\s*${row.x}(?:\\.0+)?(?=\\s|$)`));
+    await expect.poll(() => tooltip.innerText()).toMatch(new RegExp(`${row.field}:\\s*${row.y}(?:\\.0+)?(?=\\s|$)`));
+    await expect(tooltip).not.toContainText(`${row.field === "Alpha" ? "Beta" : "Alpha"}:`);
+  }
+  await page.mouse.move(0, 0);
+  const dark = (await page.locator("html").getAttribute("class"))?.split(" ").includes("dark") ?? false;
+  const themeSaved = page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/pro/display-settings");
+  await page.keyboard.press("Control+m");
+  expect((await themeSaved).ok()).toBe(true);
+  await expect.poll(async () => (await page.locator("html").getAttribute("class"))?.split(" ").includes("dark") ?? false).toBe(!dark);
+  matchCoordinates(await currentCircles(page), rows, 12, 12, [0, 0]);
+  const id = new URL(dashboardUrl).pathname.split("/").at(-1)!;
+  const saved = (await saveDashboard(page)).items[id];
+  const model = chartModel(saved);
+  expect(model).toMatchObject({ chartType: "scatter", cellRange: { columns: ["Label", "X", "Beta", "Alpha"] },
+    chartOptions: { scatter: { paired: false, series: { shape: "circle", size: 12, strokeWidth: 3 } } } });
+  const fileUrl = new URL(saved.data.widgets.find((item: any) => item.widgetId.startsWith("file-")).endpoint.url, page.url()).href;
+  const bounds = await widget.boundingBox();
+  if (!bounds) throw new Error("Visible File widget required");
+  await page.mouse.click(bounds.x + 12, bounds.y + bounds.height + 24, { button: "right" });
+  const refreshed = page.waitForResponse(response => response.request().method() === "GET" && response.url() === fileUrl);
+  await page.getByRole("menuitem", { name: "Refresh data", exact: true }).click();
+  const response = await refreshed;
+  expect(response.ok()).toBe(true);
+  expect(await response.finished()).toBeNull();
+  expect((await response.text()).replaceAll("\r\n", "\n")).toBe(csv);
+  matchCoordinates(await currentCircles(page), rows, 12, 12, [0, 0]);
+  expectApplicationDiagnostics(diagnostics);
+  const restored = await reopenSavedDashboard(browser, dashboardUrl);
+  try {
+    await observeXy(restored.page);
+    expect(chartModel(restored.content)).toEqual(model);
+    const restoredPoints = matchCoordinates(await currentCircles(restored.page), rows, 12, 12, [0, 0]);
+    await assertXyExport(restored.page, restored.widget, info, restoredPoints);
     expectApplicationDiagnostics(restored.diagnostics);
   } finally { await restored.context.close(); }
 });
