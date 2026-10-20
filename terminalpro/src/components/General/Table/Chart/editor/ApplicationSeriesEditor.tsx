@@ -18,11 +18,11 @@ export function ApplicationSeriesEditor({
   return (
     <ApplicationEditorGroup label="Series">
       {mode?.kind === "combo" && <ComboGeometryControl mode={mode} />}
-      {mode?.kind === "histogram" && <HistogramBinControls mode={mode} />}
       <ChartTooltipsPanel
         {...state.tooltips}
         onEdit={(edit) => onIntent({ panel: "tooltips", edit })}
       />
+      {mode?.kind === "histogram" && <HistogramBinControls mode={mode} />}
       {mode?.kind === "xy" ? <XyPointControls mode={mode} /> : <ChartSeriesStylePanel
         {...state.series}
         onEdit={(edit) => onIntent({ panel: "series", edit })}

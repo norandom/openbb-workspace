@@ -177,3 +177,51 @@ it("clears a retained native interval through ECharts merge for empty and fallba
     expect(chart.renderToSVGString()).not.toMatch(/NaN|Infinity/);
   } finally { chart.dispose(); }
 });
+
+it("updates endpoint labels through native zoom, reset and resize while isolating overview and Y", async () => {
+  const engine = await vi.importActual<typeof import("echarts")>("echarts");
+  const input = histogramInput();
+  input.context.display.numericAxis = value => `X-value-${value}-long`;
+  input.style.axes.x.appearance.labels.color = "#b12345";
+  input.style.application.padding.right = 20;
+  Object.assign(input.style.axes.x, { min: 0, max: 10 });
+  const options = histogramNavigator(histogramOptions(input), input, true, true,
+    projectCallerTheme("light", [], {}), { width: 800 });
+  for (const axis of options.xAxis as any[]) axis.interval = 2;
+  const data = JSON.stringify((options.series as any[]).map(series => series.data));
+  const calculate = vi.spyOn(bins, "calculateHistogramBins");
+  const chart = engine.init(null, undefined, { renderer: "svg", ssr: true, width: 800, height: 500 });
+  try {
+    const axis = (dimension: "xAxis" | "yAxis", index = 0) => (chart as any).getModel().getComponent(dimension, index).axis;
+    const labels = () => [...chart.renderToSVGString().matchAll(/<text[^>]*fill="#b12345"[^>]*>X-value-([^<]+)-long<\/text>/g)]
+      .map(match => Number(match[1])).sort((a, b) => a - b);
+    const native = (index = 0) => axis("xAxis", index).scale.getTicks().map((tick: any) => tick.value);
+    const isolated = () => {
+      expect(axis("xAxis", 1).getViewLabels().map((label: any) => label.tickValue)).toEqual([0, 2, 4, 6, 8, 10]);
+      expect((chart.getOption().xAxis as any[])[1].axisLabel.customValues).toBeUndefined();
+      expect((chart.getOption().yAxis as any[])[0].axisLabel.customValues).toBeUndefined();
+      expect(axis("yAxis").getViewLabels().map((label: any) => label.tickValue))
+        .toEqual(axis("yAxis").scale.getTicks().map((tick: any) => tick.value));
+      expect(JSON.stringify((chart.getOption().series as any[]).map(series => series.data))).toBe(data);
+    };
+    chart.setOption(options);
+    expect(labels()).toEqual([2, 4, 6, 8]);
+    expect(native()).toEqual([0, 2, 4, 6, 8, 10]);
+    isolated();
+    chart.dispatchAction({ type: "dataZoom", start: 20, end: 80 });
+    expect(native()).toEqual([2, 4, 6, 8]);
+    expect(labels()).toEqual([2, 4, 6]);
+    isolated();
+    chart.dispatchAction({ type: "dataZoom", start: 0, end: 100 });
+    expect(labels()).toEqual([2, 4, 6, 8]);
+    chart.resize({ width: 640, height: 400 });
+    expect(labels()).toEqual([2, 4, 6, 8]);
+    isolated();
+    const main = (options.xAxis as any[])[0];
+    chart.setOption({ xAxis: [{ openbbHistogramLabels: { ...main.openbbHistogramLabels, paddingRight: 100 } }] });
+    expect(labels()).toEqual(native());
+    expect((chart.getOption().xAxis as any[])[0].axisLabel.customValues).toBeUndefined();
+    expect(calculate).not.toHaveBeenCalled();
+    expect(chart.renderToSVGString()).not.toMatch(/NaN|Infinity/);
+  } finally { chart.dispose(); }
+});

@@ -274,3 +274,52 @@ it("uses rounded native ticks and rectangle endpoints for the reference-sized re
     });
   });
 });
+
+it.each(["bottom", "top"])("suppresses overflowing %s endpoint labels while retaining native ticks, grids and bars", position => {
+  const input = histogramInput();
+  input.context.display.numericAxis = value => `X-value-${value}-long`;
+  input.style.axes.x.appearance.fields.position = position;
+  input.style.axes.x.appearance.labels.rotation = 90;
+  input.style.axes.x.appearance.ticks.enabled = true;
+  input.style.axes.x.appearance.ticks.color = "#c12345";
+  input.style.axes.x.appearance.grid.enabled = true;
+  input.style.axes.x.appearance.gridStyles = [{ stroke: "#a12345", lineDash: [] }];
+  Object.assign(input.style.axes.x, { min: 0, max: 10 });
+  input.style.application.padding.right = 20;
+  render(input, (chart, rects, svg) => {
+    const axis = (chart as any).getModel().getComponent("xAxis").axis;
+    expect(axis.scale.getTicks().map((tick: any) => tick.value)).toEqual([0, 2, 4, 6, 8, 10]);
+    expect(axis.getViewLabels().map((label: any) => label.tickValue)).toEqual([0, 2, 4, 6, 8, 10]);
+    expect(svg.match(/>X-value-0-long<\/text>/g)).toHaveLength(1);
+    expect(svg).not.toContain(">X-value-10-long</text>");
+    expect(svg.match(/stroke="#c12345"/g)).toHaveLength(6);
+    expect(svg.match(/stroke="#a12345"/g)).toHaveLength(6);
+    expect(rects).toHaveLength(3);
+    expect(rects[0].shape.x).toBeCloseTo(pixel(chart, 0, 0)[0]);
+    expect(rects[2].shape.x + rects[2].shape.width).toBeCloseTo(pixel(chart, 10, 0)[0]);
+    expect(rects.map(rect => rect.getTextContent()?.style.text)).toEqual(["label:2", "label:1", "label:3"]);
+  }, options => { (options.xAxis as any).interval = 2; });
+});
+
+it.each([
+  { text: (value: number) => `X${value}`, padding: 20, interval: 2 },
+  { text: (value: number) => `X-value-${value}-long`, padding: 100, interval: 2 },
+  { text: (value: number) => `X-value-${value}-long`, padding: 0, interval: 10 },
+  { text: (value: number) => `X-value-${value}-long`, padding: 0, interval: 2, unflagged: true },
+])("retains endpoints for short labels, sufficient padding, two ticks or unrelated axes: $padding/$interval/$unflagged", ({ text, padding, interval, unflagged }) => {
+  const input = histogramInput();
+  input.context.display.numericAxis = text;
+  input.style.application.padding.right = padding;
+  Object.assign(input.style.axes.x, { min: 0, max: 10 });
+  render(input, (chart, _rects, svg) => {
+    const axis = (chart as any).getModel().getComponent("xAxis").axis;
+    expect(axis.getViewLabels().map((label: any) => label.tickValue))
+      .toEqual(axis.scale.getTicks().map((tick: any) => tick.value));
+    expect(svg).toContain(`>${text(0)}</text>`);
+    expect(svg).toContain(`>${text(10)}</text>`);
+    expect((chart.getOption().xAxis as any[])[0].axisLabel.customValues).toBeUndefined();
+  }, options => {
+    (options.xAxis as any).interval = interval;
+    if (unflagged) delete (options.xAxis as any).openbbHistogramLabels;
+  });
+});

@@ -27,6 +27,11 @@ it("keeps original controls, exact bin naming, fractional input and stamped disp
   expect(screen.queryByText("Paired Mode")).toBeNull();
   view.rerender(<ApplicationChartEditor {...props} activeTab="customize" />);
   fireEvent.click(screen.getByRole("button", { name: "Series" }));
+  const tooltips = screen.getByRole("group", { name: "Tooltips" });
+  const bins = screen.getByRole("spinbutton", { name: "Bin count value" });
+  const stroke = screen.getByRole("spinbutton", { name: "Stroke Width value" });
+  expect(tooltips.compareDocumentPosition(bins) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(bins.compareDocumentPosition(stroke) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   const count = screen.getByRole("spinbutton", { name: "Bin count value" }) as HTMLInputElement;
   expect(screen.getByText("Bin count")).toBeTruthy();
   expect([count.value, count.min, count.max, count.step]).toEqual(["2", "0", "20", "any"]);

@@ -1,7 +1,9 @@
-import type { XAXisComponentOption, YAXisComponentOption } from "echarts";
+import type { YAXisComponentOption } from "echarts";
 import { fontStyle } from "./cartesianDisplay";
 import { alternatingGrid } from "./cartesianGrid";
 import { histogramNiceExtent } from "./histogramNiceExtent";
+import "./histogramAxisLabels";
+import type { HistogramLabelAxisOption } from "./histogramAxisLabels";
 import type { ResolvedXyAxis } from "./xyTypes";
 import type { HistogramDomain, HistogramMappingInput, HistogramProjection } from "./histogramTypes";
 
@@ -31,7 +33,7 @@ export function histogramDomain(projection: HistogramProjection): HistogramDomai
     emptyAxes,
   };
 }
-function axis(input: HistogramMappingInput, id: "x" | "y", domain: HistogramDomain, pixels: number): XAXisComponentOption {
+function axis(input: HistogramMappingInput, id: "x" | "y", domain: HistogramDomain, pixels: number): HistogramLabelAxisOption {
   const a = input.style.axes[id].appearance;
   const [low, high] = domain[id];
   const extent = domain.emptyAxes.includes(id) ? { min: low, max: high }
@@ -39,13 +41,16 @@ function axis(input: HistogramMappingInput, id: "x" | "y", domain: HistogramDoma
   // Check callback projections while diagnostics can still reject the option atomically.
   input.context.display.numericAxis(extent.min);
   input.context.display.numericAxis(extent.max);
+  const formatter = (value: number) => String(input.context.display.numericAxis(value));
   return {
     type: "value", show: !domain.emptyAxes.includes(id), scale: true, ...extent,
+    ...(id === "x" ? { openbbHistogramLabels: { formatter, font: a.labels,
+      paddingRight: input.style.application.padding.right } } : {}),
     position: a.fields.position as "bottom" | "top",
     name: a.title.enabled ? a.title.text : "", nameLocation: "middle",
     nameGap: a.title.spacing + a.labels.size + a.labels.padding, nameTextStyle: fontStyle(a.title),
     axisLabel: { ...fontStyle(a.labels), margin: a.labels.padding, rotate: a.labels.rotation ?? 0,
-      formatter: value => String(input.context.display.numericAxis(value)) },
+      formatter },
     axisLine: { show: a.lineEnabled, lineStyle: { color: a.fields.color, width: a.fields.thickness } },
     axisTick: { show: a.ticks.enabled, length: a.ticks.length,
       lineStyle: { color: a.ticks.color, width: a.ticks.width } },
