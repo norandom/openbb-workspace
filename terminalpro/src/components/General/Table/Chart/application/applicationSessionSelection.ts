@@ -73,7 +73,7 @@ export function sessionSetup<F extends ApplicationChartFamily>(
     categoryId,
     seriesIds: range.columnIds.filter((id) => !categories.includes(id)),
     ...(aggFunc === undefined ? {} : { aggFunc: aggFunc as SetupSelection["aggFunc"] }),
-    switchCategorySeries: !isXyChartFamily(context.inputs.family) && model.switchCategorySeries === true,
+    switchCategorySeries: context.inputs.family !== "histogram" && !isXyChartFamily(context.inputs.family) && model.switchCategorySeries === true,
   };
 }
 export function sessionBindings(

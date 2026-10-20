@@ -42,7 +42,7 @@ export interface ResolvedRange {
   readonly originalRange: SnapshotJson;
 }
 export interface GridCaptureInput {
-  readonly snapshotPolicy?: "xy-coordinates";
+  readonly snapshotPolicy?: import("../compatibility/snapshotTypes").SnapshotPolicy;
   readonly api: GridApi<Record<string, unknown>>;
   readonly stamp: SessionStamp;
   readonly range: ResolvedRange;

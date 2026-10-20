@@ -1,3 +1,5 @@
+import { selectHistogramSession } from "./histogramSessionSelection";
+import { observationSnapshotPolicy } from "./histogramCapture";
 import { isXyChartFamily } from "./xySessionTypes";
 import { selectXySession } from "./xySessionSelection";
 import {
@@ -44,7 +46,7 @@ export function applyApplicationSetupTransaction(
   try {
     const combo = isComboChartFamily(context.inputs.family);
     const xy = isXyChartFamily(context.inputs.family);
-    if ((combo || xy) && edit.kind === "switch-category-series")
+    if ((combo || observationSnapshotPolicy(context.inputs.family)) && edit.kind === "switch-category-series")
       return invalidSession(
         "Combination charts cannot switch category and series",
       );
@@ -55,7 +57,7 @@ export function applyApplicationSetupTransaction(
     const selected =
       selection?.status === "ready"
         ? selection.value
-        : xy ? selectXySession(storage, context as ApplicationSessionContext<import("../compatibility/xyAssignments").XyChartType>) : selectApplicationSession(
+        : context.inputs.family === "histogram" ? selectHistogramSession(storage, context as ApplicationSessionContext<"histogram">) : xy ? selectXySession(storage, context as ApplicationSessionContext<import("../compatibility/xyAssignments").XyChartType>) : selectApplicationSession(
             storage,
             context as ApplicationSessionContext,
           );
@@ -77,7 +79,7 @@ export function applyApplicationSetupTransaction(
     const changed = transitionOrdinarySetup(
       {
         capture: context.capture,
-        snapshotPolicy: xy ? "xy-coordinates" : undefined,
+        snapshotPolicy: observationSnapshotPolicy(context.inputs.family),
         selection: selected.setup,
         categoryIds: context.inputs.columns
           .filter((column) => column.role === "category")
@@ -99,7 +101,7 @@ export function applyApplicationSetupTransaction(
       const projection = projectOrdinarySetup(
         capture,
         transition.selection,
-        xy ? "xy-coordinates" : combo ? "combo-per-axis" : "single-axis",
+        observationSnapshotPolicy(context.inputs.family) ?? (combo ? "combo-per-axis" : "single-axis"),
       );
       if (projection.status !== "ready") return projection;
     }
@@ -202,7 +204,7 @@ function setupCapture(
       return invalidSession("Series recapture omits required numeric columns");
     const retained = retainOrdinarySetupCapture(
       recapture.value,
-      isXyChartFamily(context.inputs.family) ? "xy-coordinates" : undefined,
+      observationSnapshotPolicy(context.inputs.family),
     );
     if (retained.status !== "ready") return retained;
     return {

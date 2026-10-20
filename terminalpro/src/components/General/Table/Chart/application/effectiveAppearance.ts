@@ -90,7 +90,7 @@ function resolveLegend(
 }
 
 export function resolveCommonAppearance(
-  input: Omit<AppearanceInput, "family"> & { family: AppearanceInput["family"] | import("../compatibility/xyAssignments").XyChartType },
+  input: Omit<AppearanceInput, "family"> & { family: AppearanceInput["family"] | import("../compatibility/xyAssignments").XyChartType | "histogram" },
   sourceLayers: RuntimeOptions[],
 ): ResolvedApplicationAppearance {
   const effective = merge({}, ...sourceLayers);

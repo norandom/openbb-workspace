@@ -52,7 +52,7 @@ export function useCallerDock(
       groups,
       selectedType: chartType,
       onSelect: (type: string) => {
-        if (onSelect && (isCartesianFamily(type) || isComboChartFamily(type) || isXyChartFamily(type)))
+        if (onSelect && (isCartesianFamily(type) || isComboChartFamily(type) || isXyChartFamily(type) || type === "histogram"))
           onSelect(type);
         else
           updateWidget?.((previous) => changeCallerChartType(previous, type));

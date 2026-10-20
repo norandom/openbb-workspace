@@ -3,6 +3,7 @@ import type { ComboGeometry } from "../../echarts/comboTypes";
 import type { ComboAssignmentCommand } from "../../application/comboSessionTypes";
 export type ApplicationEditorMode =
   | { kind: "ordinary" }
+  | ({ kind: "histogram"; onEdit: (edit: import("../../application/histogramSessionTypes").HistogramEditIntent["edit"]) => void } & import("../../application/histogramSessionTypes").HistogramEditorProjection)
   | ({ kind: "xy"; onEdit: (edit: import("../../application/xySessionTypes").XyEditIntent["edit"]) => void } & import("../../application/xySessionTypes").XyEditorProjection)
   | {
       kind: "combo";

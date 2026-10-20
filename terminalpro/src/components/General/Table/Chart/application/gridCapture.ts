@@ -1,3 +1,4 @@
+import { normalizeHistogramObservation } from "./histogramCapture";
 import type { GridApi } from "ag-grid-community";
 import { validateSnapshot } from "../compatibility/snapshot";
 import type {
@@ -149,11 +150,12 @@ function readRows(
       fail("unresolved", [...path, "category"], "Unsupported category value");
     const values: Record<string, number | null> = Object.create(null);
     for (const id of numeric) {
-      const value: unknown = input.api.getCellValue({
+      const raw: unknown = input.api.getCellValue({
         rowNode: node,
         colKey: id,
         useFormatter: false,
       });
+      const value = input.snapshotPolicy === "histogram-observations" ? normalizeHistogramObservation(raw) : raw;
       if (value !== null && !(typeof value === "number" && Number.isFinite(value)))
         fail("unresolved", [...path, "values", id], "Unsupported numeric value");
       values[id] = value as number | null;

@@ -119,13 +119,13 @@ function eventPatch(event: ApplicationEditorEvent): RuntimeOptions {
 }
 export const mapApplicationEditorEvent: MapApplicationEditorEvent = (event, family) => {
   try {
-    if (!isCartesianFamily(family) && !isAreaFamily(family) && !isXyChartFamily(family))
+    if (!isCartesianFamily(family) && !isAreaFamily(family) && !isXyChartFamily(family) && family !== "histogram")
       throw new Error("Unsupported chart family");
     validateEvent(event);
     return {
       valid: true,
       value: {
-        [isXyChartFamily(family) ? family : isAreaFamily(family) ? "area" : family === "line" ? "line" : "bar"]:
+        [isXyChartFamily(family) || family === "histogram" ? family : isAreaFamily(family) ? "area" : family === "line" ? "line" : "bar"]:
           eventPatch(event),
       },
     };

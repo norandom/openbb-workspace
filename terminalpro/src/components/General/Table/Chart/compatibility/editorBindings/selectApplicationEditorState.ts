@@ -77,7 +77,7 @@ function seriesControls(input: EditorSelectionInput) {
 }
 export const selectApplicationEditorState: SelectApplicationEditorState = (input) => {
   try {
-    if (!isCartesianFamily(input.family) && !isAreaFamily(input.family) && !isXyChartFamily(input.family))
+    if (!isCartesianFamily(input.family) && !isAreaFamily(input.family) && !isXyChartFamily(input.family) && input.family !== "histogram")
       throw new Error("Unsupported editor family");
     const appearance = input.style.application;
     const horizontal = horizontalAxisId(input.metadata.axes);

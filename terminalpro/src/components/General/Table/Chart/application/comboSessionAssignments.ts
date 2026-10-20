@@ -236,7 +236,7 @@ function commit(
 ): SessionResult<ApplicationSessionCommit> {
   const model = { ...baseline.model, chartType } as ChartModel;
   if (gallery) {
-    model.switchCategorySeries = false;
+    if (chartType !== "histogram") model.switchCategorySeries = false;
     delete model.categoryAxisType;
     if (baseline.chartType !== chartType) delete model.qopenbbAxisSettings;
   }

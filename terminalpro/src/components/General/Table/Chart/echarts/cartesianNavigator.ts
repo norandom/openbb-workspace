@@ -36,7 +36,7 @@ export function retainNavigatorExtent(
     : [options.dataZoom!];
   return {
     ...options,
-    dataZoom: dataZoom.map((zoom) => (zoom.id === ID || zoom.id === "openbb-xy-inside" ? { ...zoom, start, end } : zoom)),
+    dataZoom: dataZoom.map((zoom) => (zoom.id === ID || zoom.id === "openbb-xy-inside" || zoom.id === "openbb-histogram-inside" ? { ...zoom, start, end } : zoom)),
     ...(options.graphic
       ? { graphic: rangedNavigatorMask(options.graphic, start, end) }
       : {}),

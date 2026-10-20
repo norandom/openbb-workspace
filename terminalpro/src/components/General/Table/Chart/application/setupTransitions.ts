@@ -15,7 +15,7 @@ import {
 
 export interface SetupTransitionInput {
   readonly capture: ChartSnapshot;
-  readonly snapshotPolicy?: "xy-coordinates";
+  readonly snapshotPolicy?: import("../compatibility/snapshotTypes").SnapshotPolicy;
   readonly selection: SetupSelection;
   readonly categoryIds: readonly string[];
   readonly numericIds?: readonly string[];

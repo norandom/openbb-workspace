@@ -10,6 +10,7 @@ import type {
 } from "./comboSessionTypes";
 import type { SessionStamp } from "./types";
 export type ApplicationChartReady =
+  | (ApplicationSessionReady & { readonly kind: "histogram"; readonly histogram: import("./histogramSessionTypes").HistogramEditorProjection })
   | (ApplicationSessionReady & { readonly kind: "xy"; readonly xy: import("./xySessionTypes").XyEditorProjection })
   | (ApplicationSessionReady & { readonly kind: "cartesian" })
   | (ApplicationSessionReady & {
@@ -27,6 +28,7 @@ export interface ApplicationChartCommand {
   readonly intent:
     | ApplicationSessionCommand["intent"]
     | import("./xySessionTypes").XyEditIntent
+    | import("./histogramSessionTypes").HistogramEditIntent
     | ComboAssignmentCommand["intent"]
     | { readonly panel: "family"; readonly chartType: ApplicationChartFamily }
     | { readonly panel: "geometry"; readonly geometry: ComboGeometry };

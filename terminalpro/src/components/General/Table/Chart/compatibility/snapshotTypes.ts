@@ -46,4 +46,5 @@ export type ChartSnapshot = ResolvedSnapshotInput;
 export type SnapshotValidationResult =
   | { readonly valid: true; readonly snapshot: ChartSnapshot }
   | { readonly valid: false; readonly diagnostics: readonly SnapshotDiagnostic[] };
-export type ValidateSnapshot = (input: unknown, policy?: "xy-coordinates") => SnapshotValidationResult;
+export type SnapshotPolicy = "xy-coordinates" | "histogram-observations";
+export type ValidateSnapshot = (input: unknown, policy?: SnapshotPolicy) => SnapshotValidationResult;

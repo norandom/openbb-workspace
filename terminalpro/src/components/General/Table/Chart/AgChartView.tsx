@@ -73,7 +73,7 @@ export function ChartViewElement() {
         {inputs.valid &&
         !inputs.value.pendingReason &&
         (isCartesianFamily(inputs.value.family) ||
-          isComboChartFamily(inputs.value.family) || isXyChartFamily(inputs.value.family)) ? (
+          isComboChartFamily(inputs.value.family) || isXyChartFamily(inputs.value.family) || inputs.value.family === "histogram") ? (
           <LiveCallerChart inputs={inputs.value} />
         ) : (
           <PendingCallerChart
@@ -234,7 +234,7 @@ function LiveCallerChart({
       );
   }, [isReady, inputs.family, session.seriesCount, updateAgGrid]);
   useEffect(() => {
-    if (session.seriesCount !== 0 || isXyChartFamily(inputs.family)) return;
+    if (session.seriesCount !== 0 || isXyChartFamily(inputs.family) || inputs.family === "histogram") return;
     updateWidget?.((previous) => ({
       ...previous,
       storage: {
@@ -252,7 +252,7 @@ function LiveCallerChart({
           {...session.hostProps}
           className="h-full w-full"
         />
-        {ready?.kind === "xy" && !(Array.isArray(ready.options.series) ? ready.options.series : [ready.options.series]).some((series: any) => series?.data?.length) && (
+        {(ready?.kind === "xy" || ready?.kind === "histogram") && !(Array.isArray(ready.options.series) ? ready.options.series : [ready.options.series]).some((series: any) => series?.data?.length) && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm">No data available to be charted.</div>
         )}
         {["invalid", "unresolved"].includes(session.projection.status) && (
@@ -273,7 +273,7 @@ function LiveCallerChart({
           themeResetKey={inputs.theme.name}
           state={ready.editor}
           mode={
-            ready.kind === "xy" ? { kind: "xy", ...ready.xy, onEdit: session.onXy } : ready.kind === "combo"
+            ready.kind === "histogram" ? { kind: "histogram", ...ready.histogram, onEdit: session.onHistogram } : ready.kind === "xy" ? { kind: "xy", ...ready.xy, onEdit: session.onXy } : ready.kind === "combo"
               ? {
                   kind: "combo",
                   ...ready.combo,

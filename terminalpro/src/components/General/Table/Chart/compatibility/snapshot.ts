@@ -101,7 +101,7 @@ function validate(input: unknown, allowEmpty: boolean): ChartSnapshot {
 
 export const validateSnapshot: ValidateSnapshot = (input, policy) => {
   try {
-    return { valid: true, snapshot: validate(input, policy === "xy-coordinates") };
+    return { valid: true, snapshot: validate(input, policy === "xy-coordinates" || policy === "histogram-observations") };
   } catch (error) {
     const diagnostic = (typeof error === "object" && error !== null ? failures.get(error) : undefined)
       ?? { code: "invalid-snapshot", path: [], message: "Snapshot could not be inspected safely" };

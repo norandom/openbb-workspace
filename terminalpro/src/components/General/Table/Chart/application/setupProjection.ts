@@ -27,7 +27,7 @@ function freeze<T>(value: T): T {
 }
 export function retainOrdinarySetupCapture(
   input: unknown,
-  policy?: "xy-coordinates",
+  policy?: import("../compatibility/snapshotTypes").SnapshotPolicy,
 ): SetupResult<ChartSnapshot> {
   const checked = validateSnapshot(input, policy);
   if (!checked.valid)
@@ -189,16 +189,16 @@ function inverted(
 export function projectOrdinarySetup(
   input: ChartSnapshot,
   selection: SetupSelection,
-  axisPolicy: "single-axis" | "combo-per-axis" | "xy-coordinates" = "single-axis",
+  axisPolicy: "single-axis" | "combo-per-axis" | "xy-coordinates" | "histogram-observations" = "single-axis",
 ): SetupResult<SetupProjection> {
-  if (!["single-axis", "combo-per-axis", "xy-coordinates"].includes(axisPolicy))
+  if (!["single-axis", "combo-per-axis", "xy-coordinates", "histogram-observations"].includes(axisPolicy))
     return invalidSetup("Invalid setup axis policy");
   if (axisPolicy !== "single-axis" && selection.switchCategorySeries)
     return invalidSetup("Combination charts cannot switch category and series");
-  const retained = retainOrdinarySetupCapture(input, axisPolicy === "xy-coordinates" ? axisPolicy : undefined);
+  const retained = retainOrdinarySetupCapture(input, axisPolicy === "xy-coordinates" || axisPolicy === "histogram-observations" ? axisPolicy : undefined);
   if (retained.status !== "ready") return retained;
   const source = retained.value;
-  const columns = selectedColumns(source, selection, axisPolicy === "xy-coordinates");
+  const columns = selectedColumns(source, selection, axisPolicy === "xy-coordinates" || axisPolicy === "histogram-observations");
   if (!columns)
     return invalidSetup(
       "Selection requires captured category and unique captured numerical series",
@@ -232,7 +232,7 @@ export function projectOrdinarySetup(
     categoryColumnId: output.categoryColumnId,
     selectedColumnIds: output.columns.map((c) => c.id),
     sourceMode,
-  }, axisPolicy === "xy-coordinates" ? axisPolicy : undefined);
+  }, axisPolicy === "xy-coordinates" || axisPolicy === "histogram-observations" ? axisPolicy : undefined);
   if (!checked.valid)
     return { status: "invalid", diagnostics: checked.diagnostics };
   const setupProjection = selection.switchCategorySeries

@@ -1,3 +1,4 @@
+import { HistogramBinControls } from "./histogram/HistogramBinControls";
 import { XyPointControls } from "./xy/XyPointControls";
 import type { ApplicationCustomizeEditorProps } from "./ApplicationCustomizeEditor";
 import { ComboGeometryControl } from "./combo/ComboGeometryControl";
@@ -17,6 +18,7 @@ export function ApplicationSeriesEditor({
   return (
     <ApplicationEditorGroup label="Series">
       {mode?.kind === "combo" && <ComboGeometryControl mode={mode} />}
+      {mode?.kind === "histogram" && <HistogramBinControls mode={mode} />}
       <ChartTooltipsPanel
         {...state.tooltips}
         onEdit={(edit) => onIntent({ panel: "tooltips", edit })}

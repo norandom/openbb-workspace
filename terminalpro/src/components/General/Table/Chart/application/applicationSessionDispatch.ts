@@ -1,3 +1,4 @@
+import { applyHistogramEditorTransaction } from "./histogramEditorTransaction";
 import { isXyChartFamily } from "./xySessionTypes";
 import { applyXyEditorTransaction } from "./xyEditorTransaction";
 import type { WidgetT } from "../../../../types";
@@ -52,6 +53,9 @@ function transaction(
       intent.edit,
       recapture,
     );
+  if (context.inputs.family === "histogram")
+    return applyHistogramEditorTransaction(storage, context as ApplicationSessionContext<"histogram">, command);
+  if (intent.panel === "histogram") return { status: "stale" as const };
   if (isXyChartFamily(context.inputs.family))
     return applyXyEditorTransaction(storage, context as ApplicationSessionContext<import("../compatibility/xyAssignments").XyChartType>, command);
   if (intent.panel === "xy") return { status: "stale" as const };

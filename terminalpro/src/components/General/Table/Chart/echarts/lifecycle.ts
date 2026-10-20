@@ -1,3 +1,5 @@
+import { histogramNavigationWindow } from "./histogramNavigationWindow";
+import { isHistogramOptions } from "./histogramNavigator";
 import { xyNavigationWindow } from "./xyNavigationWindow";
 import { navigatorAxes } from "./cartesianNavigatorOverview";
 import { isXyNavigator } from "./xyNavigator";
@@ -58,7 +60,7 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   let applying = false;
   let generation = 0;
   const resetXy = () => {
-    if (!disposed && instance && pending && isXyNavigator(pending.options))
+    if (!disposed && instance && pending && (isXyNavigator(pending.options) || isHistogramOptions(pending.options)))
       instance.dispatchAction({ type: "dataZoom", start: 0, end: 100 });
   };
   container.addEventListener("dblclick", resetXy);
@@ -87,7 +89,9 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
 
   function refreshNavigatorMask(): void {
     if (disposed || applying || !instance || !pending || !hasNavigator(pending.options)) return;
-    const window = xyNavigationWindow(legendOptions(pending), instance.getOption() as EChartsOption);
+    const window = isHistogramOptions(pending.options)
+      ? histogramNavigationWindow(pending.options, instance.getOption() as EChartsOption)
+      : xyNavigationWindow(legendOptions(pending), instance.getOption() as EChartsOption);
     if (window) {
       applying = true;
       try {
@@ -125,6 +129,8 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
     if (appliedRevision !== undefined && pending && sameScope &&
       hasNavigator(pending.options) && hasNavigator(options))
       options = retainNavigatorExtent(options, instance.getOption());
+    const histogramWindow = histogramNavigationWindow(options, options);
+    if (histogramWindow) options = { ...options, yAxis: [histogramWindow.yAxis, ...navigatorAxes(options.yAxis).slice(1)] };
     applying = true;
     try {
       instance.setOption(options, { notMerge: true });
