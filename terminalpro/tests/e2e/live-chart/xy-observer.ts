@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import type { Locator, Page, TestInfo } from "@playwright/test";
-import { expect } from "./fixtures";
+import { expect, test } from "./fixtures";
 import { exportChart } from "./actions";
 
 export type Point = { x: number; y: number; diameter: number };
@@ -66,16 +66,36 @@ export async function observeXy(page: Page) {
 export async function currentCircles(page: Page) {
   const viewport = page.viewportSize();
   if (!viewport) throw new Error("Isolated viewport required");
-  await page.evaluate(() => { (window as unknown as Drawing).xyCircles = []; });
-  await page.setViewportSize({ ...viewport, width: viewport.width + 1 });
+  await page.mouse.move(0, 0);
+  const before = await page.evaluate(() => ({
+    circles: (window as unknown as Drawing).xyCircles.length,
+    canvases: [...document.querySelectorAll('[class*="widget-file-"] canvas')].map(canvas => ({ width: (canvas as HTMLCanvasElement).width, height: (canvas as HTMLCanvasElement).height })),
+  }));
+  const canvas = page.locator('[class*="widget-file-"] canvas').first();
+  await page.setViewportSize({ ...viewport, width: viewport.width + 64 });
+  await expect.poll(() => canvas.evaluate(element => (element as HTMLCanvasElement).width)).not.toBe(before.canvases[0].width);
+  await page.evaluate(() => {
+    const drawing = window as unknown as Drawing;
+    drawing.xyCircles = []; drawing.xyTicks = []; drawing.xySegments = [];
+  });
+  await page.setViewportSize(viewport);
+  await expect.poll(() => canvas.evaluate(element => (element as HTMLCanvasElement).width)).toBe(before.canvases[0].width);
   let previous = "";
-  await expect.poll(async () => {
+  try { await expect.poll(async () => {
     const circles = await page.evaluate(() => (window as unknown as Drawing).xyCircles);
     const state = JSON.stringify(circles.map(p => [p.x, p.y, p.diameter].map(v => Math.round(v * 100) / 100)));
     const stable = circles.length > 0 && state === previous;
     previous = state;
     return stable;
-  }).toBe(true);
+  }).toBe(true); } catch (error) {
+    await test.info().attach("xy-public-canvas-failure", { body: await page.locator('[class*="widget-file-"] canvas').first().screenshot(), contentType: "image/png" });
+    await test.info().attach("xy-public-drawing-diagnostic", { body: JSON.stringify({ before, after: await page.evaluate(() => {
+      const drawing = window as unknown as Drawing;
+      return { circles: drawing.xyCircles, ticks: drawing.xyTicks, segments: drawing.xySegments,
+        canvases: [...document.querySelectorAll('[class*="widget-file-"] canvas')].map(canvas => ({ width: (canvas as HTMLCanvasElement).width, height: (canvas as HTMLCanvasElement).height, bounds: canvas.getBoundingClientRect().toJSON() })) };
+    }) }), contentType: "application/json" });
+    throw error;
+  }
   const { circles, ticks, segments } = await page.evaluate(() => {
     const drawing = window as unknown as Drawing;
     return { circles: drawing.xyCircles, ticks: drawing.xyTicks, segments: drawing.xySegments };

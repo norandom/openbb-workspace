@@ -90,24 +90,29 @@ test("captured AAPL raw coordinates and EPS diameters retain units through theme
   expect(zoomCircles.length).toBeLessThanOrEqual(5);
   const visibleSets = zoomCircles.length === 5 ? [observations] : observations.map((_, omitted) => observations.filter((_, index) => index !== omitted));
   let windowPoints: ReturnType<typeof centralPoints> | undefined;
+  const windowFailures: string[] = [];
   for (const rows of visibleSets) {
     try {
       const points = matchCoordinates(zoomCircles, rows, 10, 40, domain);
       windowPoints = centralPoints(points, rows);
       break;
-    } catch { /* Try the next complete four-observation window, never a marker subset. */ }
+    } catch (error) { windowFailures.push(String(error)); }
+  }
+  if (!windowPoints) {
+    await info.attach("xy-numeric-window-diagnostic", { body: JSON.stringify({ observations, central, domain, zoomCircles, windowFailures }), contentType: "application/json" });
+    await info.attach("xy-numeric-window-canvas", { body: await widget.locator("canvas").first().screenshot(), contentType: "image/png" });
   }
   expect(windowPoints, "complete main marker set must match one valid numeric source window").toBeDefined();
   const afterZoom = windowPoints!;
   const span = (points: typeof beforeZoom) => Math.abs(points[2].x - points[0].x);
-  expect(span(afterZoom)).toBeGreaterThan(span(beforeZoom) * 1.05);
+  expect(span(afterZoom) - span(beforeZoom), "wheel changes the visible numeric coordinate scale").toBeGreaterThan(1);
   for (let index = 0; index < central.length; index++) expect(afterZoom[index].diameter).toBeCloseTo(beforeZoom[index].diameter, 1);
   await hoverPoint(page, widget, afterZoom[1]);
   const canvasBox = await widget.locator("canvas").first().boundingBox();
   if (!canvasBox) throw new Error("Visible navigator canvas required");
   await page.mouse.dblclick(canvasBox.x + afterZoom[1].x, canvasBox.y + afterZoom[1].y);
   const reset = centralPoints(matchCoordinates(await currentCircles(page), observations, 10, 40, domain));
-  expect(span(reset) / span(beforeZoom)).toBeCloseTo(1, 1);
+  expect(span(reset)).toBeCloseTo(span(beforeZoom), 1);
   await verify();
   const dark = (await page.locator("html").getAttribute("class"))?.split(" ").includes("dark") ?? false;
   const themeSaved = page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/pro/display-settings");

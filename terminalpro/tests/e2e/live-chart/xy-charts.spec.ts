@@ -18,11 +18,11 @@ test("XY roles, incomplete groups and raw signed-size geometry survive family ch
   await selectFamily(editor, "Bubble");
   await editor.getByRole("tab", { name: "Set Up", exact: true }).click();
   await editor.getByRole("combobox", { name: "Labels", exact: true }).selectOption({ label: "Label" });
-  await expect(editor.getByText("X Y Values", { exact: true })).toBeVisible();
+  await expect(editor.getByRole("button", { name: "X Y Values", exact: true })).toBeVisible();
   const paired = editor.getByRole("switch", { name: "Paired Mode", exact: true });
   await expect(paired).toBeChecked();
   for (const [field, role] of [["X", "X"], ["Y", "Y"], ["Size", "SIZE"]]) {
-    await expect(editor.locator(".chart-setup-chip").filter({ has: editor.getByRole("button", { name: `Remove ${field}`, exact: true }) })).toContainText(`(${role})`);
+    await expect(editor.getByRole("button", { name: `Remove ${field}`, exact: true }).locator("..")).toContainText(`(${role})`);
   }
   await expect(editor.getByRole("switch", { name: "Switch Category / Series" })).toHaveCount(0);
   await editor.getByRole("button", { name: "Remove Size", exact: true }).click();
@@ -31,7 +31,10 @@ test("XY roles, incomplete groups and raw signed-size geometry survive family ch
   await editor.getByRole("button", { name: "Remove X", exact: true }).click();
   await expect(widget.getByText("No data available to be charted.", { exact: true })).toBeVisible();
   const add = editor.getByRole("combobox", { name: "Add a series", exact: true });
-  for (const field of ["X", "Y", "Size"]) await add.selectOption({ label: field });
+  for (const field of ["X", "Y", "Size"]) {
+    await add.selectOption({ label: field });
+    await expect(editor.getByRole("button", { name: `Remove ${field}`, exact: true })).toBeVisible();
+  }
   const grip = editor.getByRole("button", { name: "Reorder Y", exact: true });
   await grip.focus();
   await grip.press("ArrowUp");
@@ -41,7 +44,7 @@ test("XY roles, incomplete groups and raw signed-size geometry survive family ch
   await selectFamily(editor, "Scatter");
   await editor.getByRole("tab", { name: "Set Up", exact: true }).click();
   await expect(editor.getByRole("switch", { name: "Paired Mode", exact: true })).toBeChecked();
-  const sizeChip = editor.locator(".chart-setup-chip").filter({ has: editor.getByRole("button", { name: "Remove Size", exact: true }) });
+  const sizeChip = editor.getByRole("button", { name: "Remove Size", exact: true }).locator("..");
   await expect(sizeChip).toContainText("(X)");
   await editor.getByRole("switch", { name: "Paired Mode", exact: true }).click();
   await expect(sizeChip).toContainText("(Y)");
