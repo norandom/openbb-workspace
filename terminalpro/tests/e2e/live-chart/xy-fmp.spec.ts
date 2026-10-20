@@ -150,7 +150,11 @@ test("captured AAPL raw coordinates and EPS diameters retain units through theme
     await assertXyExport(restored.page, restored.widget, info, [...points, ...miniature]);
     await assertXyAutomaticBounds(restored.page, true);
     const viewport = restored.page.viewportSize()!;
-    await restored.page.setViewportSize({ ...viewport, width: viewport.width + 520 });
+    const canvas = restored.widget.locator("canvas").first();
+    const previousWidth = await canvas.evaluate(element => (element as HTMLCanvasElement).width);
+    await restored.page.setViewportSize({ ...viewport, width: viewport.width + 624 });
+    await expect.poll(() => canvas.evaluate(element => (element as HTMLCanvasElement).width)).not.toBe(previousWidth);
+    await expect.poll(() => canvas.evaluate(element => (element as HTMLCanvasElement).width)).toBe(619);
     await verify(restored.page, restored.widget);
     await assertXyAutomaticBounds(restored.page, true);
     await restored.widget.locator("canvas").first().screenshot({ path: info.outputPath("bubble-wide.png") });
