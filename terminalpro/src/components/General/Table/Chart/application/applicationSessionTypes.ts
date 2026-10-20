@@ -12,6 +12,8 @@ import type {
 import type { OptionBaseline } from "../compatibility/optionStateTypes";
 import type { ChartSnapshot, SnapshotColumn } from "../compatibility/snapshotTypes";
 import type { CartesianFamily } from "../echarts/cartesianTypes";
+import type { ComboSeriesAssignment } from "../compatibility/comboAssignments";
+import type { ApplicationChartFamily } from "./comboSessionTypes";
 import type {
   ChartSetupEdit,
   ChartSetupPanelProps,
@@ -30,11 +32,11 @@ import type {
   SessionStamp,
 } from "./types";
 
-export interface ApplicationSessionInputs {
+export interface ApplicationSessionInputs<F extends ApplicationChartFamily = CartesianFamily> {
   readonly address: SessionAddress;
   readonly api: GridApi<Record<string, unknown>> | undefined;
   readonly dataRevision: number;
-  readonly family: CartesianFamily;
+  readonly family: F;
   readonly range: ResolvedRange;
   readonly categoryColumnId: string;
   readonly columns: readonly SnapshotColumn[];
@@ -59,9 +61,10 @@ export interface ApplicationSessionLocal {
   readonly legendEnabled?: boolean;
   /** Identifies a live accepted Set Up range, never a serialized preference. */
   readonly rangeFrameKey?: string;
+  readonly savedCustomSeriesChartTypes?: readonly ComboSeriesAssignment[];
 }
-export interface ApplicationSessionContext {
-  readonly inputs: ApplicationSessionInputs;
+export interface ApplicationSessionContext<F extends ApplicationChartFamily = CartesianFamily> {
+  readonly inputs: ApplicationSessionInputs<F>;
   readonly local: ApplicationSessionLocal;
   readonly capture: ChartSnapshot;
 }

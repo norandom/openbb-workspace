@@ -1,3 +1,4 @@
+import { isComboChartFamily, type ApplicationChartFamily } from "./comboSessionTypes";
 import { selectOptionBaseline } from "../compatibility/optionState";
 import type {
   ChartModel,
@@ -23,9 +24,9 @@ import { SETUP_AGGREGATIONS, type SetupSelection } from "./setupTypes";
 import type { ResolvedRange } from "./types";
 import { resolveSessionRange } from "./applicationSessionRange";
 
-export function sessionBaseline(
+export function sessionBaseline<F extends ApplicationChartFamily>(
   storage: ChartStorageOutput,
-  context: ApplicationSessionContext,
+  context: ApplicationSessionContext<F>,
 ) {
   const { local, inputs } = context;
   const partition = storage[inputs.address.stateKey] as RuntimeOptions | undefined;
@@ -36,20 +37,22 @@ export function sessionBaseline(
     partitionModel: partition?.chartModel,
   });
   if (!result.valid) throw new Error(result.error);
-  if (result.value.chartType !== inputs.family)
+  const acceptedCustom = isComboChartFamily(inputs.family) &&
+    local.baseline.chartType === "customCombo" && result.value.chartType === "customCombo";
+  if (result.value.chartType !== inputs.family && !acceptedCustom)
     throw new Error("Selected chart family changed");
   return result.value;
 }
-export function sessionRange(
+export function sessionRange<F extends ApplicationChartFamily>(
   storage: ChartStorageOutput,
-  context: ApplicationSessionContext,
+  context: ApplicationSessionContext<F>,
 ): ResolvedRange {
   return resolveSessionRange(storage, context);
 }
-export function sessionSetup(
+export function sessionSetup<F extends ApplicationChartFamily>(
   model: ChartModel,
   range: ResolvedRange,
-  context: ApplicationSessionContext,
+  context: ApplicationSessionContext<F>,
 ): SetupSelection {
   const categories = context.inputs.columns
     .filter((column) => column.role === "category")

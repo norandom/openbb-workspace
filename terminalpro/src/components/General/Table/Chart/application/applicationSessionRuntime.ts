@@ -7,6 +7,7 @@ import type { ChartSnapshot } from "../compatibility/snapshotTypes";
 import type {
   ApplicationSessionContext,
   ApplicationSessionInputs,
+  ApplicationSessionLocal,
   ApplicationSessionState,
 } from "./applicationSessionTypes";
 import {
@@ -15,8 +16,10 @@ import {
   sessionSetup,
 } from "./applicationSessionSelection";
 import { advanceSessionStamp } from "./sessionState";
+import { initializeComboSession } from "./comboSessionAssignments";
+import { isComboChartFamily, type ApplicationChartFamily, type ComboSessionContext } from "./comboSessionTypes";
 
-export const sessionDataKey = (input: ApplicationSessionInputs) =>
+export const sessionDataKey = <F extends ApplicationChartFamily>(input: ApplicationSessionInputs<F>) =>
   JSON.stringify([
     input.dataRevision,
     input.range,
@@ -24,7 +27,7 @@ export const sessionDataKey = (input: ApplicationSessionInputs) =>
     input.columns,
     input.rangePolicy,
   ]);
-export const sessionAppearanceKey = (input: ApplicationSessionInputs) =>
+export const sessionAppearanceKey = <F extends ApplicationChartFamily>(input: ApplicationSessionInputs<F>) =>
   JSON.stringify([input.theme, input.generated, input.precision]);
 export const sessionActionKey = (storage: ChartStorageOutput) =>
   JSON.stringify([
@@ -40,9 +43,9 @@ export function nextSessionStamp(
   if (result.status !== "ready") throw new Error("Invalid session revision");
   return result.stamp;
 }
-export function initialApplicationSession(
+export function initialApplicationSession<F extends ApplicationChartFamily>(
   storage: ChartStorageOutput,
-  inputs: ApplicationSessionInputs,
+  inputs: ApplicationSessionInputs<F>,
   generation: number,
 ): ApplicationSessionState {
   const partition = storage[inputs.address.stateKey] as RuntimeOptions | undefined;
@@ -77,8 +80,14 @@ export function initialApplicationSession(
   } catch (failure) {
     error = failure instanceof Error ? failure.message : "Invalid chart range";
   }
+  let hydrated: ApplicationSessionLocal = { ...local, range };
+  if (isComboChartFamily(inputs.family) && error === undefined) {
+    const initialized = initializeComboSession({ ...context, local: hydrated } as ComboSessionContext);
+    if (initialized.status === "ready") hydrated = initialized.value;
+    else if (initialized.status === "invalid") error = initialized.diagnostics[0].message;
+  }
   return {
-    local: { ...local, range },
+    local: hydrated,
     ...(error === undefined ? {} : { error }),
     dataKey: sessionDataKey(inputs),
     appearanceKey: sessionAppearanceKey(inputs),

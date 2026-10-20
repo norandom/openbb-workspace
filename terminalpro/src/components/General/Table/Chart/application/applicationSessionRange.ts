@@ -1,3 +1,4 @@
+import type { ApplicationChartFamily } from "./comboSessionTypes";
 import type { WidgetT } from "../../../../types";
 import type { ChartStorageOutput, RuntimeOptions } from "../compatibility/legacyTypes";
 import { resolveChartRange } from "./chartRange";
@@ -9,10 +10,10 @@ import type {
 import type { ResolvedRange } from "./types";
 
 /** Grid availability belongs to the current frame; configuration belongs to the latest Widget. */
-export function latestWidgetRangeInputs(
-  inputs: ApplicationSessionInputs,
+export function latestWidgetRangeInputs<F extends ApplicationChartFamily>(
+  inputs: ApplicationSessionInputs<F>,
   widget: WidgetT,
-): ApplicationSessionInputs {
+): ApplicationSessionInputs<F> {
   if (!inputs.rangePolicy) return inputs;
   return {
     ...inputs,
@@ -24,8 +25,8 @@ export function latestWidgetRangeInputs(
     },
   };
 }
-export function sessionRangeFrameKey(
-  inputs: ApplicationSessionInputs,
+export function sessionRangeFrameKey<F extends ApplicationChartFamily>(
+  inputs: ApplicationSessionInputs<F>,
   storage: ChartStorageOutput,
 ) {
   return inputs.rangePolicy
@@ -53,9 +54,9 @@ function readRange(value: unknown, ignored = false): ResolvedRange | undefined {
       : { rowEndIndex: saved.rowEndIndex as number }),
   };
 }
-export function resolveSessionRange(
+export function resolveSessionRange<F extends ApplicationChartFamily>(
   storage: ChartStorageOutput,
-  context: ApplicationSessionContext,
+  context: ApplicationSessionContext<F>,
 ): ResolvedRange {
   const { inputs } = context;
   const partition = storage[inputs.address.stateKey] as RuntimeOptions | undefined;
