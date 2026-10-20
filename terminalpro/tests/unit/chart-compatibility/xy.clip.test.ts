@@ -8,7 +8,7 @@ function options(optIn = true): EChartsOption {
     grid: { left: 20, right: 20, top: 10, bottom: 10 },
     xAxis: { show: false, min: 0, max: 10 }, yAxis: { show: false, min: 0, max: 10 },
     series: [{ id: "openbb-mini-xy:test", type: "scatter", symbolSize: 60,
-      data: [[0, 0], [10, 10]], openbbXyMiniClip: optIn } as any],
+      data: [[0, 0], [10, 10]], openbbXyClip: optIn } as any],
   };
 }
 
@@ -27,7 +27,7 @@ it("clips miniature bubble pixels to the coordinate rectangle through resize and
   } finally { chart.dispose(); }
 });
 
-it("clips only the opted-in miniature when main and miniature share a chart", () => {
+it("clips both opted-in main and miniature without changing coordinates or diameters", () => {
   const chart = init(null, undefined, { renderer: "svg", ssr: true, width: 300, height: 100 });
   try {
     const option = options();
@@ -36,19 +36,22 @@ it("clips only the opted-in miniature when main and miniature share a chart", ()
     const document = new DOMParser().parseFromString(chart.renderToSVGString(), "image/svg+xml");
     const main = document.querySelector('[ecmeta_series_index="0"]');
     const miniature = document.querySelector('[ecmeta_series_index="1"]');
-    expect(main?.closest('[clip-path]')).toBeNull();
+    expect(main?.closest('[clip-path]')).not.toBeNull();
     expect(miniature?.closest('[clip-path]')).not.toBeNull();
-    expect(document.querySelectorAll("clipPath")).toHaveLength(1);
+    expect(document.querySelectorAll("clipPath")).toHaveLength(2);
+    const mainModel = (chart as any).getModel().getSeries()[0];
+    expect(mainModel.getData().getItemLayout(0)).toEqual([20, 90]);
+    expect(main?.getAttribute("transform")).toBe("matrix(30,0,0,30,20,90)");
   } finally { chart.dispose(); }
 });
 
-it("leaves main XY and unrelated scatter series without the extension clip", () => {
+it("leaves unmarked XY and unrelated scatter series without the extension clip", () => {
   const chart = init(null, undefined, { renderer: "svg", ssr: true, width: 300, height: 100 });
   try {
     const option = options();
     const series = (option.series as any[])[0];
-    chart.setOption({ ...option, series: [{ ...series, id: "xy:main" },
-      { ...series, id: "openbb-mini-unrelated", openbbXyMiniClip: false }] });
+    chart.setOption({ ...option, series: [{ ...series, id: "xy:main", openbbXyClip: undefined },
+      { ...series, id: "openbb-mini-unrelated", openbbXyClip: false }] });
     expect(chart.renderToSVGString()).not.toMatch(/clip-path="url\(#/);
   } finally { chart.dispose(); }
 });

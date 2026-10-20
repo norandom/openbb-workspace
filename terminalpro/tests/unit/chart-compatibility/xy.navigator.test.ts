@@ -2,12 +2,18 @@ import { init } from "echarts";
 import { beforeEach, expect, it, vi } from "vitest";
 import { xyNavigator } from "../../../src/components/General/Table/Chart/echarts/xyNavigator";
 import { xyNavigationWindow } from "../../../src/components/General/Table/Chart/echarts/xyNavigationWindow";
+import { translateXy } from "../../../src/components/General/Table/Chart/echarts/xy";
+import { resolveXyAppearance, xyAxesRuntime } from "../../../src/components/General/Table/Chart/application/xyAppearance";
+import { projectCallerTheme } from "../../../src/components/General/Table/Chart/caller/themeInputs";
+import { sessionFixture } from "../chart-application/applicationSessionFixture";
+import { xyInput } from "./xy.fixtures";
 
 const theme: any = { colors: { textColor: "#111", foregroundColor: "#fff", backgroundColor: "#fff", chartBackgroundColor: "#fff" } };
 const observations = [[365817e6,94680e6],[394328e6,99803e6],[383285e6,96995e6],[391035e6,93736e6],[416161e6,112010e6]];
 function source(points = observations): any {
   return { grid: { left: 60, right: 10, top: 20, bottom: 40 },
-    xAxis: { type: "value", scale: true }, yAxis: { type: "value", scale: true },
+    xAxis: { type: "value", scale: true, axisLabel: { formatter: (v: number) => `${(v / 1e9).toFixed(2)} B` } },
+    yAxis: { type: "value", scale: true, axisLabel: { formatter: (v: number) => `${(v / 1e9).toFixed(2)} B` } },
     series: [{ id: "observations", type: "scatter", data: points.map(value => ({ value, diameter: 40 })), symbolSize: 40 }] };
 }
 const viewport = { width: 381, height: 284 };
@@ -23,10 +29,24 @@ it("renders original full ranges in the actual ECharts coordinate system", () =>
     const series = (chart as any).getModel().getSeries()[0];
     expect(series.coordinateSystem.getAxis("x").scale.getExtent()).toEqual([360e9,420e9]);
     expect(series.coordinateSystem.getAxis("y").scale.getExtent()).toEqual([90e9,120e9]);
+    expect(series.coordinateSystem.getAxis("x").scale.getTicks().map((tick: any) => tick.value))
+      .toEqual([360e9,380e9,400e9,420e9]);
+    expect(series.coordinateSystem.getAxis("y").scale.getTicks().map((tick: any) => tick.value))
+      .toEqual([90e9,100e9,110e9,120e9]);
+    expect(series.coordinateSystem.getAxis("x").getViewLabels().map((label: any) => label.formattedLabel))
+      .toContain("380.00 B");
     expect(series.getData().count()).toBe(5);
     const miniature = (chart as any).getModel().getSeries()[1];
     expect(miniature.coordinateSystem.getArea().height).toBe(18);
     expect(miniature.getData().count()).toBe(5);
+    expect(miniature.coordinateSystem.getAxis("x").getViewLabels().map((label: any) => label.formattedLabel))
+      .toContain("380000000000");
+    const renderedText = [...new DOMParser().parseFromString(chart.renderToSVGString(), "image/svg+xml")
+      .querySelectorAll("text")].map(node => node.textContent);
+    expect(renderedText).toContain("380.00 B");
+    expect(renderedText).toContain("400000000000");
+    expect(renderedText).not.toContain("420.00 B");
+    expect(renderedText).not.toContain("360000000000");
     expect(series.coordinateSystem.getArea().height).toBeGreaterThan(100);
     const mainArea = { ...series.coordinateSystem.getArea() };
     const comparison = init(null, undefined, { renderer: "svg", ssr: true, ...viewport });
@@ -46,13 +66,14 @@ it.each([false, true])("matches original rounded FMP axes with mini=%s", mini =>
   const y = Array.isArray(out.yAxis) ? out.yAxis[0] : out.yAxis;
   expect(x).toMatchObject({ min: 360e9, max: 420e9 });
   expect(y).toMatchObject({ min: 90e9, max: 120e9 });
+  expect(y.interval).toBe(10e9);
   expect(input.xAxis.min).toBeUndefined();
   expect(out.series[0].data).toEqual(input.series[0].data);
   if (mini) {
     expect(out.grid[1].height).toBe(18);
     expect(out.dataZoom[0].minValueSpan).toBe(28511e6);
     const reset = xyNavigationWindow(out, { dataZoom: [{ id: "openbb-navigator", start: 0, end: 100 }] });
-    expect(reset?.yAxis).toMatchObject({ min: 90e9, max: 120e9 });
+    expect(reset?.yAxis).toMatchObject({ min: 90e9, max: 120e9, interval: 10e9 });
   }
 });
 it("keeps explicit endpoints through zoom and reset while rounding the free endpoint", () => {
@@ -86,5 +107,44 @@ it("keeps equal-value domains finite", () => {
     expect(Number.isFinite(axis.min)).toBe(true);
     expect(Number.isFinite(axis.max)).toBe(true);
     expect(axis.max).toBeGreaterThan(axis.min);
+  }
+});
+it.each([359, 619])("matches original labels with production appearance/layout at %spx", width => {
+  const context = sessionFixture();
+  const theme = projectCallerTheme("light", ["openbb-light"], { "openbb-light": {
+    baseTheme: "ag-default", overrides: { common: { legend: { position: "top", spacing: 20,
+      item: { paddingX: 32, paddingY: 8, marker: { size: 11, padding: 5 }, label: { fontSize: 11 } } } } },
+  } });
+  const { style } = resolveXyAppearance({ ...context.inputs, family: "bubble", theme,
+    seriesIds: ["y"], axisRuntime: xyAxesRuntime,
+    baseline: { ...context.local.baseline, options: { bubble: { legend: { enabled: true } } } } });
+  const input = xyInput();
+  const result = translateXy({ ...input, style, snapshot: { ...input.snapshot,
+    rows: observations.map(([x, y], index) => ({ id: String(index), category: String(index), values: { x, y, s: index } })) },
+    context: { ...input.context, viewport: { width, height: 284 }, display: { ...input.context.display,
+      numericAxis: value => `${(Number(value) / 1e9).toFixed(2)} B`, legend: value => value } } });
+  if (result.status !== "supported") throw Error(JSON.stringify(result));
+  for (const mini of [false, true]) {
+    const options: any = xyNavigator(result.options, result.options, mini, mini, theme, { width, height: 284 });
+    const chart = init(null, undefined, { renderer: "svg", ssr: true, width, height: 284 });
+    try {
+      chart.setOption(options);
+      const main = (chart as any).getModel().getSeries()[0];
+      expect(main.coordinateSystem.getAxis("x").scale.getExtent()).toEqual([360e9, 420e9]);
+      expect(main.coordinateSystem.getAxis("y").scale.getTicks().map((tick: any) => tick.value))
+        .toEqual(mini ? [80e9,100e9,120e9] : [90e9,100e9,110e9,120e9]);
+      expect(main.coordinateSystem.getAxis("x").scale.getInterval()).toBe(width === 359 ? 20e9 : 10e9);
+      const text = [...new DOMParser().parseFromString(chart.renderToSVGString(), "image/svg+xml")
+        .querySelectorAll("text")].map(node => node.textContent);
+      expect(text).toContain("380.00 B"); expect(text).toContain("400.00 B");
+      expect(text).not.toContain("420.00 B");
+      if (mini) {
+        expect(text).toContain("380000000000"); expect(text).toContain("400000000000");
+        const miniX = options.xAxis[1];
+        expect(miniX.min).toBeUndefined(); expect(miniX.max).toBeUndefined();
+        const reset = xyNavigationWindow(options, { dataZoom: [{ id: "openbb-navigator", start: 0, end: 100 }] });
+        expect(reset?.yAxis).toMatchObject({ min: 80e9, max: 120e9, interval: 20e9 });
+      }
+    } finally { chart.dispose(); }
   }
 });

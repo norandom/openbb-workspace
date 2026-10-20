@@ -118,11 +118,14 @@ test("captured AAPL raw coordinates and EPS diameters retain units through theme
   await assertXyAutomaticBounds(page, true);
   await verify();
   const dark = (await page.locator("html").getAttribute("class"))?.split(" ").includes("dark") ?? false;
+  await widget.locator("canvas").first().screenshot({ path: info.outputPath(`bubble-${dark ? "dark" : "light"}-small.png`) });
   const themeSaved = page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/pro/display-settings");
   await page.keyboard.press("Control+m");
   expect((await themeSaved).ok()).toBe(true);
   await expect.poll(async () => (await page.locator("html").getAttribute("class"))?.split(" ").includes("dark") ?? false).toBe(!dark);
   await verify();
+  await assertXyAutomaticBounds(page, true);
+  await widget.locator("canvas").first().screenshot({ path: info.outputPath(`bubble-${dark ? "light" : "dark"}-small.png`) });
   const bounds = await widget.boundingBox();
   if (!bounds) throw new Error("Visible File widget required");
   await page.mouse.click(bounds.x + 12, bounds.y + bounds.height + 24, { button: "right" });
@@ -146,6 +149,11 @@ test("captured AAPL raw coordinates and EPS diameters retain units through theme
     const miniature = await assertXyAutomaticBounds(restored.page, true);
     await assertXyExport(restored.page, restored.widget, info, [...points, ...miniature]);
     await assertXyAutomaticBounds(restored.page, true);
+    const viewport = restored.page.viewportSize()!;
+    await restored.page.setViewportSize({ ...viewport, width: viewport.width + 520 });
+    await verify(restored.page, restored.widget);
+    await assertXyAutomaticBounds(restored.page, true);
+    await restored.widget.locator("canvas").first().screenshot({ path: info.outputPath("bubble-wide.png") });
     expectApplicationDiagnostics(restored.diagnostics);
     await info.attach("captured-xy-provenance", { body: JSON.stringify({ raw_sha256: source.hash, observations: 15, coordinateUnits: "USD", sizeUnit: "USD/share", source: "captured response; no provider request" }), contentType: "application/json" });
   } finally { await restored.context.close(); }

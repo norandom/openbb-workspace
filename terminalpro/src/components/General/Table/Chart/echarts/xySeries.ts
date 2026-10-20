@@ -30,7 +30,7 @@ export function xySeries(input: XyMappingInput): ScatterSeriesOption[] {
         id: `xy:${JSON.stringify([input.chartType, a.xColId, a.yColId, a.sizeColId ?? null])}`,
         name: a.yColId,
         type: "scatter",
-        openbbXyMiniClip: true,
+        openbbXyClip: true,
         data,
         symbol: markerSymbol(shape),
         symbolSize: (_value, params) =>

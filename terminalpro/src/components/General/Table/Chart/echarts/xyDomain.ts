@@ -14,5 +14,7 @@ export function xyNumericExtent(values: readonly number[], axis: XAXisComponentO
   const automatic = min === max || !Number.isFinite(nice.min) || !Number.isFinite(nice.max)
     ? helper.createScale([min, max], { ...axis, min: undefined, max: undefined }).getExtent()
     : [nice.min, nice.max];
-  return { min: axis.min ?? automatic[0], max: axis.max ?? automatic[1] };
+  const interval = min !== max && Number.isFinite(nice.interval) && nice.interval! > 0
+    ? nice.interval : undefined;
+  return { min: axis.min ?? automatic[0], max: axis.max ?? automatic[1], interval };
 }

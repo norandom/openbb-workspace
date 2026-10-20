@@ -1,7 +1,8 @@
-import type { EChartsOption } from "echarts";
+import type { EChartsOption, YAXisComponentOption } from "echarts";
 import { navigatorAxes } from "./cartesianNavigatorOverview";
 import { isXyNavigator } from "./xyNavigator";
 import { xyNumericExtent, type XyNavigationOptions } from "./xyDomain";
+import { xyTickAxis } from "./xyTicks";
 
 function observations(options: EChartsOption): number[][] {
   return navigatorAxes(options.series).filter((s) => !String(s.id).startsWith("openbb-mini-"))
@@ -31,13 +32,14 @@ export function xyNavigationWindow(options: XyNavigationOptions, current: EChart
   const low = x.min + span * start / 100, high = x.min + span * end / 100;
   const [minimum, maximum] = expandedWindow(points, low, high);
   const selected = points.filter(([v]) => v >= minimum && v <= maximum).map(([, y]) => y);
-  const y = navigatorAxes(options.yAxis)[0];
+  const y = navigatorAxes(options.yAxis)[0] as Extract<YAXisComponentOption, { type?: "value" }>;
   const sourceY = options.openbbXy
     ? { ...y, min: options.openbbXy.yMin, max: options.openbbXy.yMax } : y;
   return {
     start: Math.max(0, (minimum - x.min) / span * 100),
     end: Math.min(100, (maximum - x.min) / span * 100),
     changed: minimum < low || maximum > high,
-    yAxis: { ...y, ...xyNumericExtent(selected, sourceY, options.openbbXy?.yPixels ?? 500) },
+    yAxis: xyTickAxis({ ...y, ...xyNumericExtent(selected, sourceY, options.openbbXy?.yPixels ?? 500) },
+      options.openbbXy?.yPixels ?? 500, false),
   };
 }

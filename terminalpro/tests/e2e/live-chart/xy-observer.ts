@@ -5,7 +5,7 @@ import { exportChart } from "./actions";
 
 type Clip = { x: number; y: number; width: number; height: number };
 export type Point = { x: number; y: number; diameter: number; clip?: Clip };
-type Anchor = { x: number; y: number; text: string };
+type Anchor = { x: number; y: number; text: string; left: number; right: number };
 type Segment = { x1: number; y1: number; x2: number; y2: number };
 type Drawing = Window & { xyCircles: Point[]; xyTicks: Anchor[]; xySegments: Segment[] };
 
@@ -51,7 +51,13 @@ export async function observeXy(page: Page) {
     };
     const text = prototype.fillText;
     prototype.fillText = function (...args) {
-      if (owned(this) && /^[-−+]?[\d,.]+(?:\s?[KMBTkmbt])?$/.test(String(args[0]))) target.xyTicks.push({ ...position(this, args[1], args[2]), text: String(args[0]) });
+      if (owned(this) && /^[-−+]?[\d,.]+(?:\s?[KMBTkmbt])?$/.test(String(args[0]))) {
+        const metrics = this.measureText(String(args[0]));
+        const corners = [-metrics.actualBoundingBoxLeft, metrics.actualBoundingBoxRight].flatMap(x =>
+          [-metrics.actualBoundingBoxAscent, metrics.actualBoundingBoxDescent].map(y => position(this, args[1] + x, args[2] + y)));
+        target.xyTicks.push({ ...position(this, args[1], args[2]), text: String(args[0]),
+          left: Math.min(...corners.map(p => p.x)), right: Math.max(...corners.map(p => p.x)) });
+      }
       return Reflect.apply(text, this, args);
     };
     const moves = new WeakMap<CanvasRenderingContext2D, { x: number; y: number }>();
@@ -117,15 +123,31 @@ export async function assertXyAutomaticBounds(page: Page, miniature = false) {
     const factor = /B$/i.test(text) ? 1e9 : /M$/i.test(text) ? 1e6 : /K$/i.test(text) ? 1e3 : 1;
     return Number.parseFloat(text) * factor;
   });
-  expect([Math.min(...numeric(x)), Math.max(...numeric(x))]).toEqual([360e9, 420e9]);
-  expect([Math.min(...numeric(y)), Math.max(...numeric(y))]).toEqual([90e9, 120e9]);
+  expect([...new Set(numeric(y))].sort((a, b) => a - b)).toEqual(miniature
+    ? [80e9, 100e9, 120e9] : [90e9, 100e9, 110e9, 120e9]);
   const lines = drawing.segments.filter(line => line.y1 >= Math.min(...y.map(tick => tick.y)) - 2 && line.y1 < x[0].y);
   expect(lines.length, "main grid endpoints establish the displayed coordinate rectangle").toBeGreaterThan(0);
   const close = (actual: number, expected: number) => expect(Math.abs(actual - expected)).toBeLessThan(1);
-  close(Math.min(...x.map(tick => tick.x)), Math.min(...lines.map(line => line.x1)));
-  close(Math.max(...x.map(tick => tick.x)), Math.max(...lines.map(line => line.x2)));
+  // Endpoint labels may be suppressed; infer the numeric domain from interior tick spacing.
+  const horizontal = [...new Map(x.map(tick => [tick.x, tick])).values()].sort((a, b) => a.x - b.x);
+  const values = numeric(horizontal), first = horizontal[0], last = horizontal.at(-1)!;
+  const span = values.at(-1)! - values[0];
+  const pixel = (value: number) => first.x + (value - values[0]) / span * (last.x - first.x);
+  close(pixel(360e9), Math.min(...lines.map(line => line.x1)));
+  close(pixel(420e9), Math.max(...lines.map(line => line.x2)));
   close(Math.min(...y.map(tick => tick.y)), Math.min(...lines.map(line => line.y1)));
   close(Math.max(...y.map(tick => tick.y)), Math.max(...lines.map(line => line.y1)));
+  const canvasWidth = await page.locator('[class*="widget-file-"] canvas').first().evaluate(canvas => canvas.getBoundingClientRect().width);
+  if (canvasWidth < 400)
+    expect(values, "small main chart matches the original sparse labels").toEqual([380e9, 400e9]);
+  for (const tick of horizontal) {
+    expect(tick.left, "main numeric label remains inside the exported canvas").toBeGreaterThanOrEqual(-1);
+    expect(tick.right).toBeLessThanOrEqual(canvasWidth + 1);
+  }
+  for (let index = 1; index < horizontal.length; index++)
+    expect(horizontal[index].left - horizontal[index - 1].right, "numeric labels do not overlap").toBeGreaterThanOrEqual(0);
+  const main = drawing.circles.filter(point => point.y < x[0].y && point.clip && point.clip.height > 40);
+  expect(main.length, "main bubbles draw under the actual plot clip").toBeGreaterThanOrEqual(5);
   if (!miniature) return [];
   const mini = drawing.circles.filter(point => point.y > x[0].y && point.clip && Math.abs(point.clip.height - 18) < 0.2);
   if (mini.length < 5) {
@@ -140,6 +162,13 @@ export async function assertXyAutomaticBounds(page: Page, miniature = false) {
   }
   expect(mini.some(point => point.y - point.diameter / 2 < point.clip!.y ||
     point.y + point.diameter / 2 > point.clip!.y + point.clip!.height), "a bubble crosses the clip so center-culling alone cannot satisfy this check").toBe(true);
+  const miniatureLabels = drawing.ticks.filter(tick => tick.y > Math.max(...mini.map(point => point.clip!.y + point.clip!.height)));
+  expect(miniatureLabels.length, "miniature retains visible raw numeric labels").toBeGreaterThan(0);
+  for (const tick of miniatureLabels) {
+    expect(tick.text).toMatch(/^\d{12}$/);
+    expect(tick.left).toBeGreaterThanOrEqual(-1);
+    expect(tick.right).toBeLessThanOrEqual(canvasWidth + 1);
+  }
   return mini;
 }
 
@@ -186,7 +215,7 @@ export async function currentCircles(page: Page) {
     return [...groups.values()];
   };
   // Numeric X labels identify the upper/main axis; the overview's numeric labels sit below it.
-  const horizontal = grouped("y").filter(group => new Set(group.map(tick => tick.x)).size >= 2 && Math.max(...group.map(tick => tick.x)) - Math.min(...group.map(tick => tick.x)) > 100)
+  const horizontal = grouped("y").filter(group => new Set(group.map(tick => tick.x)).size >= 2 && Math.max(...group.map(tick => tick.x)) - Math.min(...group.map(tick => tick.x)) > 40)
     .sort((a, b) => a[0].y - b[0].y)[0];
   expect(horizontal, "main numeric X tick row must be observable").toBeDefined();
   const vertical = grouped("x").filter(group => group.length >= 2 && Math.max(...group.map(tick => tick.y)) < horizontal[0].y + 4 &&
