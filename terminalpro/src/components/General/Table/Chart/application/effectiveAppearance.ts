@@ -1,17 +1,18 @@
-import { isAreaFamily } from "../echarts/cartesianAreaTypes";
 import merge from "lodash.merge";
-import { isCartesianFamily } from "../echarts/cartesianTypes";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
-import { selectOptionBaseline } from "../compatibility/optionState";
-import { composeAppearanceOptions } from "./appearanceComposition";
+import { isAreaFamily } from "../echarts/cartesianAreaTypes";
+import { isCartesianFamily } from "../echarts/cartesianTypes";
 import type {
   AppearanceInput,
   ResolveApplicationAppearance,
   ResolvedApplicationAppearance,
 } from "./appearanceModel";
-import { appearanceDefaults } from "./effectiveAppearanceDefaults";
 import { resolveAppearanceAxis } from "./effectiveAppearanceAxes";
-import { paletteSeries, resolveAppearanceSeries } from "./effectiveAppearanceSeries";
+import { appearanceLayers } from "./effectiveAppearanceLayers";
+import {
+  paletteSeries,
+  resolveAppearanceSeries,
+} from "./effectiveAppearanceSeries";
 import {
   at,
   bool,
@@ -38,7 +39,10 @@ function validateInput(input: AppearanceInput): void {
     throw new Error("Invalid stable series IDs");
   if (!input.theme.name || !["light", "dark"].includes(input.theme.mode))
     throw new Error("Missing selected application theme");
-  for (const palette of [input.theme.palette.fills, input.theme.palette.strokes]) {
+  for (const palette of [
+    input.theme.palette.fills,
+    input.theme.palette.strokes,
+  ]) {
     if (
       !Array.isArray(palette) ||
       !palette.length ||
@@ -61,54 +65,17 @@ function validateInput(input: AppearanceInput): void {
     )
       throw new Error("Invalid concrete axis identity/type");
     if (
-      !(axis.direction === "x" ? ["top", "bottom"] : ["left", "right"]).includes(
-        axis.position,
-      )
+      !(
+        axis.direction === "x" ? ["top", "bottom"] : ["left", "right"]
+      ).includes(axis.position)
     )
       throw new Error("Invalid concrete axis position");
   }
 }
 
-function layers(input: AppearanceInput): RuntimeOptions[] {
-  const composed = composeAppearanceOptions(input);
-  if (!composed.valid) throw new Error(composed.error);
-  const selected = selectOptionBaseline({
-    kind: "synchronize",
-    stateAddress: "appearance",
-    previous: {
-      stateAddress: "appearance",
-      chartType: input.family,
-      model: {},
-      options: input.theme.overrides,
-    },
-  });
-  if (!selected.valid) throw new Error(selected.error);
-  const family = isAreaFamily(input.family)
-    ? "area"
-    : input.family === "line" ? "line" : "bar";
-  const overrides = [
-    object(selected.value.options.common),
-    object(selected.value.options[family]),
-    object(composed.value.common),
-    object(composed.value[family]),
-  ];
-  const supplied = merge({}, ...overrides);
-  const defaults = appearanceDefaults(input);
-  const series = object(defaults.series);
-  if (input.family !== "line" && at(supplied, "series.stroke") !== undefined)
-    series.strokeWidth = 2;
-  if (at(supplied, "series.marker.stroke") !== undefined)
-    object(series.marker).strokeWidth = 1;
-  if (
-    ["outside-start", "outside-end"].includes(
-      String(at(supplied, "series.label.placement")),
-    )
-  )
-    object(series.label).color = input.theme.colors.textColor;
-  return [defaults, ...overrides];
-}
-
-function resolveLegend(read: ReadAppearance): ResolvedApplicationAppearance["legend"] {
+function resolveLegend(
+  read: ReadAppearance,
+): ResolvedApplicationAppearance["legend"] {
   return {
     ...font(child(read, "item.label")),
     enabled: bool(read("enabled")),
@@ -132,24 +99,34 @@ function application(
   const subtitle = caption(child(read, "subtitle"));
   if (
     subtitle.enabled &&
-    sourceLayers.slice(1).every((layer) => at(layer, "title.spacing") === undefined)
+    sourceLayers
+      .slice(1)
+      .every((layer) => at(layer, "title.spacing") === undefined)
   )
     title = { ...title, spacing: 10 };
-  const category = input.axisRuntime.axes.find((axis) => axis.id === "category");
+  const category = input.axisRuntime.axes.find(
+    (axis) => axis.id === "category",
+  );
   const numeric = input.axisRuntime.axes.find((axis) => axis.id === "number");
-  if (!category || !numeric) throw new Error("Missing concrete category/number axis");
+  if (!category || !numeric)
+    throw new Error("Missing concrete category/number axis");
   const series = resolveAppearanceSeries(child(read, "series"));
   const legend = resolveLegend(child(read, "legend"));
-  const explicitLegendStroke = sourceLayers.slice(1).some(
-    (layer) => at(layer, "legend.item.marker.strokeWidth") !== undefined,
-  );
+  const explicitLegendStroke = sourceLayers
+    .slice(1)
+    .some((layer) => at(layer, "legend.item.marker.strokeWidth") !== undefined);
   return {
     title,
     subtitle,
     legend,
     legendMarkerStrokeWidth: explicitLegendStroke
       ? legend.markerStroke
-      : Math.min(2, input.family === "line" ? series.markers.strokeWidth : series.strokeWidth),
+      : Math.min(
+          2,
+          input.family === "line"
+            ? series.markers.strokeWidth
+            : series.strokeWidth,
+        ),
     padding: {
       top: number(read("padding.top")),
       right: number(read("padding.right")),
@@ -176,10 +153,12 @@ function application(
   };
 }
 
-export const resolveApplicationAppearance: ResolveApplicationAppearance = (input) => {
+export const resolveApplicationAppearance: ResolveApplicationAppearance = (
+  input,
+) => {
   try {
     validateInput(input);
-    const sourceLayers = layers(input);
+    const sourceLayers = appearanceLayers(input);
     const resolved = application(input, sourceLayers);
     const seriesOptions = merge(
       {},

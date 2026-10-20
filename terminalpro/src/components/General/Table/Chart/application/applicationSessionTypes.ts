@@ -1,5 +1,5 @@
 import type { GridApi } from "ag-grid-community";
-import type { ChartRenderRequest } from "../echarts/lifecycle";
+import type { ComboSeriesAssignment } from "../compatibility/comboAssignments";
 import type {
   ApplicationEditorCommand,
   ApplicationEditorState,
@@ -10,20 +10,25 @@ import type {
   RuntimeOptions,
 } from "../compatibility/legacyTypes";
 import type { OptionBaseline } from "../compatibility/optionStateTypes";
-import type { ChartSnapshot, SnapshotColumn } from "../compatibility/snapshotTypes";
+import type {
+  ChartSnapshot,
+  SnapshotColumn,
+} from "../compatibility/snapshotTypes";
 import type { CartesianFamily } from "../echarts/cartesianTypes";
-import type { ComboSeriesAssignment } from "../compatibility/comboAssignments";
-import type { ApplicationChartFamily } from "./comboSessionTypes";
+import type { ComboGeometry } from "../echarts/comboTypes";
+import type { ChartRenderRequest } from "../echarts/lifecycle";
 import type {
   ChartSetupEdit,
   ChartSetupPanelProps,
 } from "../editor/setup/ChartSetupPanel";
-import type { ApplicationAxisRuntime } from "./axisStructureTypes";
 import type {
   ApplicationAxisId,
   ApplicationResolvedStyle,
   ApplicationThemeInput,
 } from "./appearanceModel";
+import type { ApplicationAxisRuntime } from "./axisStructureTypes";
+import type { ComboConcreteAxis } from "./comboAppearance";
+import type { ApplicationChartFamily } from "./comboSessionTypes";
 import type { SetupProjection, SetupSelection } from "./setupTypes";
 import type {
   ChartDisplayPolicy,
@@ -32,7 +37,9 @@ import type {
   SessionStamp,
 } from "./types";
 
-export interface ApplicationSessionInputs<F extends ApplicationChartFamily = CartesianFamily> {
+export interface ApplicationSessionInputs<
+  F extends ApplicationChartFamily = CartesianFamily,
+> {
   readonly address: SessionAddress;
   readonly api: GridApi<Record<string, unknown>> | undefined;
   readonly dataRevision: number;
@@ -57,13 +64,19 @@ export interface ApplicationSessionLocal {
   readonly baseline: OptionBaseline;
   readonly range: ResolvedRange;
   readonly axes: ApplicationAxisRuntime;
-  readonly manualRotations: Readonly<Record<ApplicationAxisId, number | undefined>>;
+  readonly manualRotations: Readonly<
+    Record<ApplicationAxisId, number | undefined>
+  >;
   readonly legendEnabled?: boolean;
   /** Identifies a live accepted Set Up range, never a serialized preference. */
   readonly rangeFrameKey?: string;
+  readonly comboGeometry?: ComboGeometry;
+  readonly comboAxes?: readonly ComboConcreteAxis[];
   readonly savedCustomSeriesChartTypes?: readonly ComboSeriesAssignment[];
 }
-export interface ApplicationSessionContext<F extends ApplicationChartFamily = CartesianFamily> {
+export interface ApplicationSessionContext<
+  F extends ApplicationChartFamily = CartesianFamily,
+> {
   readonly inputs: ApplicationSessionInputs<F>;
   readonly local: ApplicationSessionLocal;
   readonly capture: ChartSnapshot;
@@ -100,7 +113,10 @@ export type ApplicationSessionCommand =
   | {
       readonly stamp: SessionStamp;
       readonly family: CartesianFamily;
-      readonly intent: { readonly panel: "setup"; readonly edit: ChartSetupEdit };
+      readonly intent: {
+        readonly panel: "setup";
+        readonly edit: ChartSetupEdit;
+      };
     };
 export interface ApplicationSessionReady extends ChartRenderRequest {
   readonly stamp: SessionStamp;

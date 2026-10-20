@@ -1,5 +1,8 @@
 import type { ChartModel } from "../compatibility/legacyTypes";
-import type { ChartSnapshot, SnapshotDiagnostic } from "../compatibility/snapshotTypes";
+import type {
+  ChartSnapshot,
+  SnapshotDiagnostic,
+} from "../compatibility/snapshotTypes";
 import type {
   OrdinarySetupProjection,
   SetupAggregation,
@@ -38,11 +41,14 @@ export interface SetupProjection {
   readonly valueOrigins: SetupValueOrigins;
   /** Session supplies neutral number callbacks for count projections. */
   readonly observationKind: "raw-observations" | "count";
-  readonly axisUnits: "unknown" | "consistent";
+  readonly axisUnits: "unknown" | "consistent" | "deferred";
 }
 export type SetupResult<T> =
   | { readonly status: "ready"; readonly value: T }
-  | { readonly status: "invalid"; readonly diagnostics: readonly SnapshotDiagnostic[] };
+  | {
+      readonly status: "invalid";
+      readonly diagnostics: readonly SnapshotDiagnostic[];
+    };
 export interface SetupTransition {
   readonly selection: SetupSelection;
   readonly range: ResolvedRange;
