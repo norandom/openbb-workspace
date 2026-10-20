@@ -1,8 +1,6 @@
+import { navigatorAxes, navigatorOverview } from "./cartesianNavigatorOverview";
 import type {
   EChartsOption,
-  SeriesOption,
-  XAXisComponentOption,
-  YAXisComponentOption,
 } from "echarts";
 import type { ApplicationThemeInput } from "../application/appearanceModel";
 import {
@@ -44,72 +42,6 @@ export function retainNavigatorExtent(
       : {}),
   };
 }
-function miniatureAxis<Axis extends XAXisComponentOption | YAXisComponentOption>(
-  axis: Axis,
-  horizontal: boolean,
-  theme: ApplicationThemeInput,
-): Axis {
-  const font = theme.navigatorFont ?? {
-    fontFamily: "Verdana, sans-serif",
-    fontSize: 10,
-    fontWeight: 400,
-  };
-  return {
-    ...axis,
-    gridIndex: 1,
-    name: "",
-    show: horizontal,
-    axisPointer: { show: false },
-    axisLabel: {
-      formatter: axis.axisLabel?.formatter,
-      show: horizontal,
-      color: theme.colors.textColor,
-      ...font,
-      rotate: 0,
-      margin: 5,
-      hideOverlap: true,
-    },
-    axisLine: { show: false },
-    axisTick: { show: false },
-    splitLine: { show: false },
-  } as Axis;
-}
-function miniatureSeries(series: readonly SeriesOption[]): SeriesOption[] {
-  return series.map((source) => {
-    const item = source as SeriesOption & { stack?: string; openbbAreaGeometry?: boolean };
-    return {
-      ...item,
-      id: `openbb-mini-${source.id}`,
-      name: `openbb-mini-${source.id}`,
-      xAxisIndex: 1,
-      yAxisIndex: 1,
-      ...(item.stack ? { stack: `openbb-mini-${item.stack}` } : {}),
-      silent: true,
-      label: { show: false },
-      tooltip: { show: false },
-      animation: false,
-      ...(item.type === "line"
-        ? {
-            showSymbol: false,
-            lineStyle: {
-              ...(item as { lineStyle?: Record<string, unknown> }).lineStyle,
-              width: item.openbbAreaGeometry === true
-                ? (item as { lineStyle?: { width?: number } }).lineStyle?.width : 2,
-              type: "solid",
-            },
-            itemStyle: {
-              ...(item as { itemStyle?: Record<string, unknown> }).itemStyle,
-              shadowBlur: 0,
-              shadowOffsetX: 0,
-              shadowOffsetY: 0,
-            },
-          }
-        : {}),
-      emphasis: { disabled: true },
-      select: { disabled: true },
-    } as SeriesOption;
-  });
-}
 /** The original miniature retains every series. Slider data shadows only retain one. */
 export function cartesianNavigator(
   options: EChartsOption,
@@ -133,9 +65,8 @@ export function cartesianNavigator(
   const bottom = grid.bottom + labelSpace;
   const foreground = theme.colors.foregroundColor;
   const border = navigatorBorder(theme);
-  const series = options.series as SeriesOption[];
-  const x = options.xAxis as XAXisComponentOption;
-  const y = options.yAxis as YAXisComponentOption;
+  const xs = navigatorAxes(options.xAxis);
+  const ys = navigatorAxes(options.yAxis);
   return {
     ...options,
     graphic: navigatorMask(
@@ -163,10 +94,10 @@ export function cartesianNavigator(
       {
         id: ID,
         type: "slider",
-        xAxisIndex: [0],
+        xAxisIndex: xs.map((_, index) => index),
         orient: "horizontal",
         // Numeric range selection crops geometry without dropping category rows.
-        filterMode: x.type === "value" && y.inverse ? "none" : "filter",
+        filterMode: xs[0]?.type === "value" && ys[0]?.inverse ? "none" : "filter",
         left: grid.left,
         right: grid.right,
         bottom,
@@ -199,21 +130,6 @@ export function cartesianNavigator(
         },
       },
     ],
-    ...(mini
-      ? {
-          xAxis: [
-            x,
-            miniatureAxis(overviewOptions.xAxis as XAXisComponentOption, true, theme),
-          ],
-          yAxis: [
-            y,
-            miniatureAxis(overviewOptions.yAxis as YAXisComponentOption, false, theme),
-          ],
-          series: [
-            ...series,
-            ...miniatureSeries(overviewOptions.series as SeriesOption[]),
-          ],
-        }
-      : {}),
+    ...(mini ? navigatorOverview(options, overviewOptions, theme) : {}),
   };
 }
