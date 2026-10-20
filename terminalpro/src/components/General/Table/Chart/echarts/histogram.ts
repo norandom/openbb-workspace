@@ -25,7 +25,7 @@ export const translateHistogram: TranslateHistogram = input => {
       tooltip: histogramTooltip(validated),
     };
     finiteGeometry(options);
-    return { status: "supported", options };
+    return { status: "supported", options, projection: admitted, domain };
   } catch {
     return histogramFailure("Histogram input could not be safely inspected or projected into finite geometry.");
   }

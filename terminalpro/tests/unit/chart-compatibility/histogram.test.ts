@@ -2,12 +2,40 @@ import type { CustomSeriesOption } from "echarts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { translateHistogram } from "../../../src/components/General/Table/Chart/echarts/histogram";
 import { histogramTooltip } from "../../../src/components/General/Table/Chart/echarts/histogramTooltip";
+import * as histogramBins from "../../../src/components/General/Table/Chart/compatibility/histogramBins";
+import type { CartesianTranslationResult } from "../../../src/components/General/Table/Chart/echarts/cartesianTypes";
 import { histogramData, histogramInput, histogramOptions } from "./histogram.fixtures";
 
 beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
     measureText: (s: string) => ({ width: s.length * 6 }),
   } as unknown as CanvasRenderingContext2D);
+});
+
+it("exposes full calculated intervals and validated projection separately from resolved axis bounds with one H1 calculation", () => {
+  const input = histogramInput([3, 4]);
+  Object.assign(input.style.axes.x, { min: -2, max: 12 });
+  input.style.axes.y.max = 8;
+  const calculate = vi.spyOn(histogramBins, "calculateHistogramBins");
+  try {
+    const result = translateHistogram(input);
+    const compatible: CartesianTranslationResult = result;
+    expect(compatible.status).toBe("supported");
+    if (result.status !== "supported") throw Error("Expected histogram projection metadata");
+    expect(result.projection.calculation).toEqual({
+      status: "resolved", bins: [[0, 2], [2, 5], [5, 10]],
+      groups: [{ intervalIndex: 1, frequency: 2, observationIndices: [0, 1] }],
+      skippedIndices: [], repair: "none",
+    });
+    expect(result.domain).toEqual({ x: [-2, 12], y: [0, 8], emptyAxes: [] });
+    expect(result.projection.input.snapshot).toEqual(input.snapshot);
+    expect(result.projection.input.snapshot).not.toBe(input.snapshot);
+    expect(result.projection.field).toBe(result.projection.input.snapshot.columns[2]);
+    expect(result.projection.field).not.toBe(input.snapshot.columns[2]);
+    input.snapshot.rows[0].values.amount = 100;
+    expect(result.projection.input.snapshot.rows[0].values.amount).toBe(3);
+    expect(calculate).toHaveBeenCalledTimes(1);
+  } finally { calculate.mockRestore(); }
 });
 
 it("counts the first selected numeric field in raw units and retains independent metadata", () => {

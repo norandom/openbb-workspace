@@ -24,7 +24,14 @@ export interface HistogramMappingInput {
     readonly legendSelection?: Readonly<Record<string, boolean>>;
   };
 }
-export type TranslateHistogram = (input: HistogramMappingInput) => CartesianTranslationResult;
+export type HistogramTranslationFailure = Exclude<CartesianTranslationResult, { status: "supported" }>;
+export type HistogramTranslationResult =
+  | (Extract<CartesianTranslationResult, { status: "supported" }> & {
+      readonly projection: HistogramProjection;
+      readonly domain: HistogramDomain;
+    })
+  | HistogramTranslationFailure;
+export type TranslateHistogram = (input: HistogramMappingInput) => HistogramTranslationResult;
 export type HistogramCalculation = Extract<HistogramBinResult, { status: "resolved" }>;
 export interface HistogramProjection {
   readonly status: "admitted";

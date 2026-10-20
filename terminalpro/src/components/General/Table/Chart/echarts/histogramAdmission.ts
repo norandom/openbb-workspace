@@ -1,13 +1,12 @@
 import { calculateHistogramBins } from "../compatibility/histogramBins";
 import { validateSnapshot } from "../compatibility/snapshot";
-import type { CartesianTranslationResult } from "./cartesianTypes";
 import { histogramContextValid, histogramRecord, histogramStyleValid } from "./histogramStyleValidation";
-import type { HistogramMappingInput, HistogramProjection } from "./histogramTypes";
+import type { HistogramMappingInput, HistogramProjection, HistogramTranslationFailure } from "./histogramTypes";
 
-export function histogramFailure(message: string, status: "invalid" | "unsupported" = "invalid"): CartesianTranslationResult {
+export function histogramFailure(message: string, status: "invalid" | "unsupported" = "invalid"): HistogramTranslationFailure {
   return { status, diagnostics: [{ code: `${status}-histogram`, path: [], message }] };
 }
-export function admitHistogram(input: HistogramMappingInput): HistogramProjection | CartesianTranslationResult {
+export function admitHistogram(input: HistogramMappingInput): HistogramProjection | HistogramTranslationFailure {
   if (!histogramRecord(input)) return histogramFailure("Expected a histogram input.");
   const snapshot = validateSnapshot(input.snapshot, "xy-coordinates");
   if (!snapshot.valid) return { status: "invalid", diagnostics: snapshot.diagnostics };
