@@ -28,6 +28,7 @@ export function projectPieSession(storage: ChartStorageOutput, inputs: Applicati
     const choice = (column: ApplicationSessionInputs["columns"][number]) => ({ value: column.id, label: column.label });
     return { status: "ready", stamp: state.local.stamp, value: {
       kind: "pie", stamp: state.local.stamp, revision: state.local.stamp.renderRevision, options: result.options,
+      ...(result.legendPagination ? { legendPagination: result.legendPagination } : {}),
       editor: selected.editor, model: selected.baseline.model, snapshot: selected.projection.snapshot,
       legendScope: JSON.stringify([inputs.address.stateAddress, state.local.stamp.generation, inputs.family]), projectLegendSelection,
       setupProps: { value: { categoryId: selected.setup.categoryId, aggregate: selected.setup.aggFunc !== undefined,

@@ -10,7 +10,8 @@ import type {
 } from "./comboSessionTypes";
 import type { SessionStamp } from "./types";
 export type ApplicationChartReady =
-  | (Omit<ApplicationSessionReady, "editor"> & { readonly kind: "pie"; readonly editor: import("./pieSessionTypes").PieEditorState })
+  | (Omit<ApplicationSessionReady, "editor"> & { readonly kind: "pie"; readonly editor: import("./pieSessionTypes").PieEditorState;
+      readonly legendPagination?: import("../echarts/pieLegendTypes").PieLegendPagination })
   | (ApplicationSessionReady & { readonly kind: "histogram"; readonly histogram: import("./histogramSessionTypes").HistogramEditorProjection })
   | (ApplicationSessionReady & { readonly kind: "xy"; readonly xy: import("./xySessionTypes").XyEditorProjection })
   | (ApplicationSessionReady & { readonly kind: "cartesian" })

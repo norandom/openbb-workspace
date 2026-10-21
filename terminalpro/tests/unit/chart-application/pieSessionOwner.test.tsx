@@ -76,12 +76,21 @@ it("keeps native legend reprojection revision and ignores forged cross-family an
     act(() => result.current.onIntent(intent as any));
   expect(JSON.stringify(test.owner().widget.storage)).toBe(before);
   const readyChart = ready(result.current);
+  const plan = result.current.hostProps.legendPagination;
+  expect(plan).toBeDefined();
+  expect(plan).toBe(readyChart.legendPagination);
+  expect(plan!.pages.flatMap(page => page.items.map(item => item.key))).toEqual(
+    (readyChart.options.series as any[]).filter(series => series.silent !== true)
+      .flatMap(series => series.data.map((item: any) => item.name)),
+  );
+  expect(JSON.stringify(test.owner().widget.storage)).not.toContain("legendPagination");
   const key = (readyChart.options.series as any[])[0].data[0].name;
   expect((readyChart.projectLegendSelection!({ [key]: false }) as any).series[0].data[0].value).toBe(0);
   act(() => result.current.hostProps.onResize({ width: 850, height: 500 }));
   expect(ready(result.current).revision).toBeGreaterThan(readyChart.revision);
   act(() => result.current.onChartType("scatter"));
   rerender({ ...test.inputs, family: "scatter" });
+  expect(result.current.hostProps.legendPagination).toBeUndefined();
   const xy = JSON.stringify(test.owner().widget.storage);
   act(() => result.current.onIntent({ panel: "pieLabel", label: "sectorLabel", edit: { field: "size", value: 31 } }));
   expect(JSON.stringify(test.owner().widget.storage)).toBe(xy);

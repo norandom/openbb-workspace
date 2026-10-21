@@ -213,6 +213,10 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
         projection.status === "ready"
           ? projection.value.projectLegendSelection
           : undefined,
+      legendPagination:
+        projection.status === "ready" && projection.value.kind === "pie"
+          ? projection.value.legendPagination
+          : undefined,
       onResize,
       onError,
     },
