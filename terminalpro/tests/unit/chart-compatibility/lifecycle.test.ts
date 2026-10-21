@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createChartLifecycle } from "../../../src/components/General/Table/Chart/echarts/lifecycle";
+import type { PieLegendPagination } from "../../../src/components/General/Table/Chart/echarts/pieLegendTypes";
 
 const mocks = vi.hoisted(() => ({ init: vi.fn() }));
-vi.mock("echarts", () => ({ init: mocks.init }));
+vi.mock("echarts", async (importOriginal) => ({
+  ...await importOriginal<typeof import("echarts")>(), init: mocks.init,
+}));
 const request = (revision: number) => ({
   revision,
   options: { title: { text: String(revision) } },
@@ -302,10 +305,11 @@ it("releases listeners if normalized initialization fails and recovers without r
   const projectLegendSelection = vi.fn(() => ({ legend: { data: ["a"] } }));
   const owner = createChartLifecycle(container);
   expect(() => owner.mount({ revision: 1, options: { legend: { data: ["a"] } }, legendScope: "one", projectLegendSelection })).toThrow("initial normalized");
-  expect(chart.off).toHaveBeenCalledWith("legendselectchanged", callbacks[0]);
+  const legendCallback = callbacks[1];
+  expect(chart.off).toHaveBeenCalledWith("legendselectchanged", legendCallback);
   expect(chart.dispose).toHaveBeenCalledTimes(1);
   owner.resize(); const calls = projectLegendSelection.mock.calls.length;
-  callbacks[0](); expect(projectLegendSelection).toHaveBeenCalledTimes(calls);
+  legendCallback(); expect(projectLegendSelection).toHaveBeenCalledTimes(calls);
 });
 
 it("resets native selection and zoom across accepted deferred A to B to A scopes", () => {
@@ -332,4 +336,88 @@ it("resets native selection and zoom across accepted deferred A to B to A scopes
   owner.resize();
   expect(projectLegendSelection).toHaveBeenLastCalledWith({ a: true });
   expect(chart.setOption.mock.lastCall?.[0].dataZoom).toMatchObject([{ start: 0, end: 100 }]);
+});
+
+function pagingFixture() {
+  let width = 400;
+  let native: any = {};
+  const listeners = new Map<string, (event?: unknown) => void>();
+  const bounds = { x: 0, y: 0, width: 40, height: 20 };
+  const legendPagination: PieLegendPagination = {
+    canonicalLegendId: "canonical", pages: ["a", "b"].map((key) => ({
+      anchorKey: key, items: [{ key, label: key, legendId: key, bounds }],
+    })), pager: { previousId: "prev", nextId: "next", counterId: "counter", previousBounds: bounds, nextBounds: bounds },
+  };
+  const options = { legend: [{ id: "canonical", show: false, data: ["a", "b"] }, ...["a", "b"].map((id) => ({ id, data: [id] }))],
+    graphic: ["prev", "next", "counter"].map((id) => ({ id, type: "text" as const, style: { text: "" } })) };
+  const chart = {
+    setOption: vi.fn((value) => { native = structuredClone(value); }), getOption: vi.fn(() => native),
+    on: vi.fn((event, callback) => listeners.set(event, callback)), off: vi.fn(),
+    resize: vi.fn(), dispose: vi.fn(), getDataURL: vi.fn(() => JSON.stringify(native)),
+    dispatchAction: vi.fn(({ name }) => {
+      native.legend[0].selected[name] = !native.legend[0].selected[name];
+      listeners.get("legendselectchanged")?.();
+    }),
+  };
+  mocks.init.mockReturnValue(chart);
+  const container = document.createElement("div"); document.body.append(container);
+  Object.defineProperties(container, { clientWidth: { get: () => width }, clientHeight: { value: 200 } });
+  const projectLegendSelection = vi.fn(() => options);
+  const onError = vi.fn();
+  const scoped = (revision: number, legendScope = "one") => ({ revision, legendScope, options, legendPagination, projectLegendSelection, onError });
+  const owner = createChartLifecycle(container);
+  const event = () => ({ componentType: "graphic", info: native.graphic.find((value: any) => value.id === "next").info });
+  return { owner, chart, container, scoped, event, listeners, onError, projectLegendSelection, native: () => native, width: (value: number) => { width = value; } };
+}
+
+it("repaints pages at the accepted revision, exports current canvas options, and retains native selection", () => {
+  const f = pagingFixture(); f.owner.mount(f.scoped(1));
+  const firstEvent = f.event(); f.listeners.get("click")?.(firstEvent);
+  expect(f.chart.setOption).toHaveBeenCalledTimes(2);
+  expect(f.native().legend.map((value: any) => value.show)).toEqual([false, false, true]);
+  expect(f.owner.exportImage(undefined, 1)).toContain('"text":"2 / 2"');
+  expect(f.owner.update(f.scoped(1))).toBe("stale");
+  f.listeners.get("click")?.(firstEvent); expect(f.chart.setOption).toHaveBeenCalledTimes(2);
+  const item = f.container.querySelector<HTMLButtonElement>('[aria-label="b"]')!;
+  item.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+  expect(f.chart.dispatchAction).toHaveBeenCalledExactlyOnceWith({ type: "legendToggleSelect", name: "b" });
+  expect(f.projectLegendSelection).toHaveBeenLastCalledWith({ a: true, b: false });
+  expect(f.native().legend.every((value: any) => value.selected.b === false)).toBe(true);
+  expect(f.container.querySelector('[aria-label="b"]')?.getAttribute("aria-checked")).toBe("false");
+  f.owner.update(f.scoped(2)); f.owner.resize();
+  expect(f.native().legend[2].show).toBe(true);
+  f.owner.update(f.scoped(3, "two")); expect(f.native().legend[1].show).toBe(true);
+  expect(f.projectLegendSelection).toHaveBeenLastCalledWith({ a: true, b: true });
+  f.owner.dispose(); f.container.remove();
+});
+
+it("rejects applying/unsized/stale generation page events and resets accepted deferred scopes", () => {
+  const f = pagingFixture(); f.owner.mount(f.scoped(1));
+  const callback = f.listeners.get("click")!; const stale = f.event();
+  f.width(0); callback(stale); expect(f.chart.setOption).toHaveBeenCalledTimes(1);
+  f.owner.update(f.scoped(2, "two")); f.owner.update(f.scoped(3));
+  expect(f.container.children).toHaveLength(0);
+  f.width(400); f.owner.resize(); callback(stale);
+  expect(f.native().legend[1].show).toBe(true);
+  const activeEvent = f.event();
+  f.chart.setOption.mockImplementationOnce((value) => { callback(activeEvent); Object.assign(f.native(), value); });
+  f.owner.resize(); expect(f.native().legend[1].show).toBe(true);
+  f.owner.dispose(); const calls = f.chart.setOption.mock.calls.length;
+  callback(activeEvent); expect(f.chart.setOption).toHaveBeenCalledTimes(calls);
+  expect(f.chart.off).toHaveBeenCalledWith("click", callback);
+  expect(f.container.children).toHaveLength(0); f.container.remove();
+});
+
+it.each(["paint", "accessibility"])("invalidates export and releases page controls after %s failure", (failure) => {
+  const f = pagingFixture(); f.owner.mount(f.scoped(1)); const late = f.listeners.get("click")!; const stale = f.event();
+  if (failure === "paint") f.chart.setOption.mockImplementationOnce(() => { throw new Error("paint"); });
+  else f.chart.getOption.mockImplementationOnce(() => f.native()).mockImplementationOnce(() => { throw new Error("accessibility"); });
+  late(stale);
+  expect(f.onError).toHaveBeenCalledWith(expect.objectContaining({ message: failure }));
+  expect(f.chart.dispose).toHaveBeenCalledTimes(1);
+  expect(() => f.owner.exportImage(undefined, 1)).toThrow("unavailable");
+  expect(f.container.children).toHaveLength(0);
+  f.owner.resize(); const calls = f.chart.setOption.mock.calls.length;
+  late(stale); expect(f.chart.setOption).toHaveBeenCalledTimes(calls);
+  f.owner.dispose(); f.container.remove();
 });

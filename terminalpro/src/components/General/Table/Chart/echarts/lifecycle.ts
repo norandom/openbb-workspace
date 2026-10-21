@@ -4,6 +4,8 @@ import { xyNavigationWindow } from "./xyNavigationWindow";
 import { navigatorAxes } from "./cartesianNavigatorOverview";
 import { isXyNavigator } from "./xyNavigator";
 import type { EChartsOption } from "echarts";
+import { createPieLegendBinding, type PieLegendBinding } from "./pieLegendBinding";
+import type { PieLegendPagination } from "./pieLegendTypes";
 
 /** Fully resolved renderer options; no storage or provider contracts depend on ECharts. */
 export interface ChartRenderRequest {
@@ -12,6 +14,7 @@ export interface ChartRenderRequest {
   readonly revision: number;
   /** Paired with projectLegendSelection; stable across render revisions, reset per session/family. */
   readonly legendScope?: string;
+  readonly legendPagination?: PieLegendPagination;
   /** Keys equal main-series names/IDs. The callback closes over immutable current inputs. */
   readonly projectLegendSelection?: (
     selected: Readonly<Record<string, boolean>>,
@@ -57,6 +60,8 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   let legendListening = false;
   let legendListener: (() => void) | undefined;
   let navigatorListener: (() => void) | undefined;
+  let pieLegend: PieLegendBinding | undefined;
+  let clickListener: ((event: unknown) => void) | undefined;
   let applying = false;
   let generation = 0;
   const resetXy = () => {
@@ -78,13 +83,42 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
     navigatorListening = false;
     legendListening = false;
     try {
+      pieLegend?.dispose();
+      pieLegend = undefined;
       previous?.off?.("datazoom", navigatorListener);
       previous?.off?.("legendselectchanged", legendListener);
+      previous?.off?.("click", clickListener);
     } finally {
       legendListener = undefined;
       navigatorListener = undefined;
+      clickListener = undefined;
       previous?.dispose();
     }
+  }
+
+  function interactionFailure(error: unknown): void {
+    const request = pending;
+    try { release(); } catch { /* Preserve the interaction failure. */ }
+    if (request?.onError) request.onError(error);
+    else throw error;
+  }
+
+  function bindPieLegend(): void {
+    if (!instance || pieLegend) return;
+    const current = generation;
+    pieLegend = createPieLegendBinding({
+      container,
+      isActive: () => !disposed && !applying && sized() && !!instance && generation === current && appliedRevision === pending?.revision,
+      readSelected: () => {
+        const legends = (instance?.getOption() as EChartsOption | undefined)?.legend;
+        return (Array.isArray(legends) ? legends[0] : legends)?.selected ?? {};
+      },
+      toggle: (key) => { instance?.dispatchAction({ type: "legendToggleSelect", name: key }); },
+      repaint: () => { if (pending) render(pending, true); },
+      fail: interactionFailure,
+    });
+    clickListener = (event) => { if (generation === current) pieLegend?.handleClick(event); };
+    instance.on?.("click", clickListener);
   }
 
   function refreshNavigatorMask(): void {
@@ -131,9 +165,11 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
       options = retainNavigatorExtent(options, instance.getOption());
     const histogramWindow = histogramNavigationWindow(options, options);
     if (histogramWindow) options = { ...options, yAxis: [histogramWindow.yAxis, ...navigatorAxes(options.yAxis).slice(1)] };
+    options = pieLegend?.project(options, request.legendPagination, request.legendScope) ?? options;
     applying = true;
     try {
       instance.setOption(options, { notMerge: true });
+      pieLegend?.sync();
       appliedRevision = request.revision;
       appliedScope = request.legendScope;
     } finally {
@@ -147,13 +183,7 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
     try {
       render(request, true);
     } catch (error) {
-      try {
-        release();
-      } catch {
-        // Preserve the projection failure after detaching the instance.
-      }
-      if (request.onError) request.onError(error);
-      else throw error;
+      interactionFailure(error);
     }
   }
 
@@ -161,6 +191,7 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
     if (!sized()) return "deferred";
     try {
       instance ??= init(container);
+      bindPieLegend();
       if (hasNavigator(request.options) && !navigatorListening) {
         const current = generation;
         navigatorListener = () => {
@@ -178,7 +209,7 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
         legendListening = true;
       }
       if (resizing) instance.resize();
-      render(request, resizing && !!request.projectLegendSelection);
+      render(request, resizing && (!!request.projectLegendSelection || !!request.legendPagination));
       return "applied";
     } catch (error) {
       try {
@@ -199,6 +230,8 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
       // An accepted session boundary expires native state even before the next draw.
       appliedRevision = undefined;
       appliedScope = undefined;
+      pieLegend?.project({}, undefined, request.legendScope);
+      pieLegend?.sync();
     }
     pending = request;
     return result;
