@@ -7,6 +7,7 @@ import type { PieChartType } from "../compatibility/pieAssignments";
 import type { ApplicationChartCommand } from "./applicationChartSessionTypes";
 import type { ApplicationSessionContext, ApplicationSessionCommit } from "./applicationSessionTypes";
 import type { PieEditIntent } from "./pieSessionTypes";
+import type { ResolvedFontStyle } from "./appearanceModel";
 import type { SessionResult } from "./types";
 import { validateSynchronousEditorStamp } from "./applicationSessionStamp";
 import { invalidSession, reduceSessionOptions } from "./applicationSessionEdit";
@@ -31,13 +32,16 @@ function labelPatch(intent: PieEditIntent, selected: ReturnType<typeof selectPie
   if (!["length", "strokeWidth", "offset"].includes(field)) throw Error("Invalid callout control");
   return { series: field === "offset" ? { calloutLabel: { offset: value } } : { calloutLine: { [field]: value } } };
 }
+function fontContext(font: ResolvedFontStyle) {
+  return { predefined: { fontWeight: font.fontWeight, fontStyle: font.fontStyle } };
+}
 function commonEvent(intent: ApplicationEditorIntent, selected: ReturnType<typeof selectPieSession>): ApplicationEditorEvent {
   const appearance = selected.pie.application;
   if (intent.panel === "titles") {
     if (intent.edit.caption !== "title" && intent.edit.caption !== "subtitle") throw Error("Pie has no axis titles");
-    return { ...intent, font: { predefined: appearance[intent.edit.caption] } };
+    return { ...intent, font: fontContext(appearance[intent.edit.caption]) };
   }
-  if (intent.panel === "legend") return { ...intent, font: { predefined: appearance.legend } };
+  if (intent.panel === "legend") return { ...intent, font: fontContext(appearance.legend) };
   if (["padding", "background", "tooltips", "series", "shadow"].includes(intent.panel)) return intent as ApplicationEditorEvent;
   throw Error("Unsupported pie control");
 }

@@ -8,6 +8,8 @@ import { normalizePieObservation } from "../../../src/components/General/Table/C
 import { initialApplicationSession } from "../../../src/components/General/Table/Chart/application/applicationSessionRuntime";
 import type { PieChartType } from "../../../src/components/General/Table/Chart/compatibility/pieAssignments";
 import { applyApplicationSetupTransaction } from "../../../src/components/General/Table/Chart/application/applicationSessionSetup";
+import type { ApplicationEditorIntent } from "../../../src/components/General/Table/Chart/compatibility/editorBindings/types";
+import type { ChartStorageOutput } from "../../../src/components/General/Table/Chart/compatibility/legacyTypes";
 beforeEach(() => vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ measureText: (s: string) => ({ width: s.length * 7 }) } as any));
 afterEach(() => vi.restoreAllMocks());
 export function pieFixture(family: PieChartType = "donut"): ApplicationSessionContext<PieChartType> {
@@ -21,6 +23,82 @@ function project(context = pieFixture(), storage: any = {}) {
   if (result.status !== "ready" || result.value.kind !== "pie") throw Error(JSON.stringify(result));
   return result.value;
 }
+function editPie(storage: ChartStorageOutput, context: ApplicationSessionContext<PieChartType>, intent: ApplicationEditorIntent) {
+  const changed = applyPieEditorTransaction(storage, context, { family: context.inputs.family, stamp: context.local.stamp, intent });
+  expect(changed.status, JSON.stringify(changed)).toBe("ready");
+  if (changed.status !== "ready") throw Error(JSON.stringify(changed));
+  return { storage: changed.value.storage, context: { ...context, local: changed.value.local } };
+}
+it.each(["pie", "donut", "doughnut"] as const)("commits %s title and subtitle controls through the common mapper", family => {
+  let state = { storage: {} as ChartStorageOutput, context: pieFixture(family) };
+  const optionFamily = family === "pie" ? "pie" : "donut";
+  for (const caption of ["title", "subtitle"] as const) {
+    for (const edit of [
+      { field: "enabled", value: true }, { field: "text", value: `${caption} revenue` },
+      { field: "font", value: `${caption} Custom Face` }, { field: "size", value: 23 },
+      { field: "weight", value: "boldItalic" }, { field: "weight", value: "predefined" },
+    ] as const) state = editPie(state.storage, state.context, { panel: "titles", edit: { caption, ...edit } });
+    expect(state.context.local.baseline.options[optionFamily]).toHaveProperty(caption, {
+      enabled: true, text: `${caption} revenue`, fontFamily: `${caption} Custom Face`, fontSize: 23,
+      fontWeight: "bold", fontStyle: "italic",
+    });
+    expect(selectPieSession(state.storage, state.context).pie.application[caption]).toMatchObject({
+      enabled: true, text: `${caption} revenue`, font: `${caption} Custom Face`, size: 23,
+      fontWeight: "bold", fontStyle: "italic",
+    });
+    expect(project(state.context, state.storage).editor.titles.value[caption]).toMatchObject({
+      enabled: true, text: `${caption} revenue`, font: `${caption} Custom Face`, size: 23, weight: "boldItalic",
+    });
+    expect(project(state.context, state.storage).options.title).toMatchObject({
+      show: true, [caption === "title" ? "text" : "subtext"]: `${caption} revenue`,
+      [caption === "title" ? "textStyle" : "subtextStyle"]: {
+        fontFamily: `${caption} Custom Face`, fontSize: 23, fontWeight: "bold", fontStyle: "italic",
+      },
+    });
+    state = editPie(state.storage, state.context, { panel: "titles", edit: { caption, field: "enabled", value: false } });
+    expect(selectPieSession(state.storage, state.context).pie.application[caption].enabled).toBe(false);
+  }
+  expect(state.context.local.baseline.options).not.toHaveProperty("doughnut");
+});
+it.each(["pie", "donut", "doughnut"] as const)("commits %s legend controls and retains the latest font pair", family => {
+  let state = { storage: {} as ChartStorageOutput, context: pieFixture(family) };
+  for (const edit of [
+    { field: "enabled", value: false }, { field: "position", value: "left" },
+    { field: "font", value: "Legend Custom Face" }, { field: "size", value: 21 },
+    { field: "weight", value: "italic" }, { field: "weight", value: "predefined" },
+  ] as const) state = editPie(state.storage, state.context, { panel: "legend", edit });
+  const legend = { enabled: false, position: "left", item: { label: {
+    fontFamily: "Legend Custom Face", fontSize: 21, fontWeight: "normal", fontStyle: "italic",
+  } } };
+  expect(state.context.local.baseline.options).toEqual({ [family === "pie" ? "pie" : "donut"]: { legend } });
+  expect(project(state.context, state.storage).editor.legend.value).toMatchObject({
+    enabled: false, position: "left", font: "Legend Custom Face", size: 21, weight: "italic",
+  });
+  state = editPie(state.storage, state.context, { panel: "legend", edit: { field: "enabled", value: true } });
+  expect(project(state.context, state.storage).options.legend).toMatchObject({
+    show: true, orient: "vertical", left: selectPieSession(state.storage, state.context).pie.application.padding.left,
+    textStyle: { fontFamily: "Legend Custom Face", fontSize: 21, fontWeight: "normal", fontStyle: "italic" },
+  });
+});
+it.each(["pie", "donut", "doughnut"] as const)("keeps %s common edits subject to stamp, family, range and setup freshness", family => {
+  const context = pieFixture(family);
+  const storage: ChartStorageOutput = {};
+  for (const intent of [
+    { panel: "titles", edit: { caption: "title", field: "enabled", value: true } },
+    { panel: "legend", edit: { field: "position", value: "right" } },
+  ] as const) {
+    const command = { family, stamp: context.local.stamp, intent };
+    for (const stamp of [
+      { ...command.stamp, generation: 2 }, { ...command.stamp, dataRevision: 1 },
+      { ...command.stamp, address: { widgetId: "other", stateKey: "partition", stateAddress: '["other","partition"]' } },
+    ]) expect(applyPieEditorTransaction(storage, context, { ...command, stamp }).status).toBe("stale");
+    expect(applyPieEditorTransaction(storage, context, { ...command, family: family === "pie" ? "donut" : "pie" }).status).toBe("stale");
+    expect(applyPieEditorTransaction({ partition: { [family]: { cellRange: { columns: ["period", "income"] } } } }, context, command).status).toBe("stale");
+    expect(applyPieEditorTransaction({ partition: { chartModel: { chartType: family, aggFunc: "sum" } } }, context, command).status).toBe("stale");
+  }
+  expect(storage).toEqual({});
+  expect(context.local.baseline.options).toEqual({});
+});
 it.each(["pie", "donut", "doughnut"] as const)("projects %s in selected field order with independent positive totals", family => {
   const context = pieFixture(family);
   const selected = selectPieSession({}, context);
