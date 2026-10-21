@@ -3,9 +3,16 @@ import type { JsonValue } from "./legacyTypes";
 /** Reuses the persisted JSON vocabulary without permitting nested mutation. */
 export type DeepReadonly<T> = T extends readonly (infer V)[]
   ? readonly DeepReadonly<V>[]
-  : T extends object ? { readonly [K in keyof T]: DeepReadonly<T[K]> } : T;
+  : T extends object
+    ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+    : T;
 export type SnapshotJson = DeepReadonly<JsonValue>;
-export type SnapshotSourceMode = "flat" | "transformed" | "grouped" | "pivot" | "remote-page";
+export type SnapshotSourceMode =
+  | "flat"
+  | "transformed"
+  | "grouped"
+  | "pivot"
+  | "remote-page";
 export type DiagnosticPath = readonly (string | number)[];
 export interface SnapshotDiagnostic {
   readonly code: string;
@@ -26,6 +33,8 @@ export interface SnapshotColumn {
 export interface SnapshotRow {
   readonly id: string;
   readonly category: string | number;
+  /** Transient raw grouping identity, captured before Box statistical normalization. */
+  readonly boxPlotAggregationKey?: string;
   /** Numeric descriptor IDs only. Absent keys are missing; own undefined is invalid. */
   readonly values: Readonly<Record<string, number | null>>;
 }
@@ -46,5 +55,12 @@ export type ChartSnapshot = ResolvedSnapshotInput;
 export type SnapshotValidationResult =
   | { readonly valid: true; readonly snapshot: ChartSnapshot }
   | { readonly valid: false; readonly diagnostics: readonly SnapshotDiagnostic[] };
-export type SnapshotPolicy = "xy-coordinates" | "histogram-observations" | "pie-observations";
-export type ValidateSnapshot = (input: unknown, policy?: SnapshotPolicy) => SnapshotValidationResult;
+export type SnapshotPolicy =
+  | "xy-coordinates"
+  | "histogram-observations"
+  | "pie-observations"
+  | "box-observations";
+export type ValidateSnapshot = (
+  input: unknown,
+  policy?: SnapshotPolicy,
+) => SnapshotValidationResult;

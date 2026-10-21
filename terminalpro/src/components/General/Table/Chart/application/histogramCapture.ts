@@ -1,10 +1,17 @@
-import { isPieChartFamily } from "./pieSessionTypes";
 import type { SnapshotPolicy } from "../compatibility/snapshotTypes";
+import { isPieChartFamily } from "./pieSessionTypes";
 import { isXyChartFamily } from "./xySessionTypes";
 
 export function observationSnapshotPolicy(family: string): SnapshotPolicy | undefined {
-  return isPieChartFamily(family) ? "pie-observations" : family === "histogram" ? "histogram-observations"
-    : isXyChartFamily(family) ? "xy-coordinates" : undefined;
+  return family === "boxPlot"
+    ? "box-observations"
+    : isPieChartFamily(family)
+      ? "pie-observations"
+      : family === "histogram"
+        ? "histogram-observations"
+        : isXyChartFamily(family)
+          ? "xy-coordinates"
+          : undefined;
 }
 /** Native intrinsic calls avoid invoking a provider object's arbitrary coercion hooks. */
 export function normalizeHistogramObservation(value: unknown): number | null {

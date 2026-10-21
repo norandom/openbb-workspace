@@ -1,12 +1,12 @@
-import { observationSnapshotPolicy } from "./histogramCapture";
-import type { ApplicationChartFamily } from "./comboSessionTypes";
 import type { ChartSnapshot } from "../compatibility/snapshotTypes";
+import { sessionSetup } from "./applicationSessionSelection";
 import type {
   ApplicationSessionInputs,
   ApplicationSessionState,
 } from "./applicationSessionTypes";
+import type { ApplicationChartFamily } from "./comboSessionTypes";
 import { captureDisplayedChart } from "./gridCapture";
-import { sessionSetup } from "./applicationSessionSelection";
+import { observationSnapshotPolicy } from "./histogramCapture";
 import { retainOrdinarySetupCapture } from "./setupProjection";
 import type { SessionResult } from "./types";
 
@@ -23,12 +23,9 @@ function capture(
     local: state.local,
     capture: state.capture as ChartSnapshot,
   };
-  const setup = sessionSetup(
-    state.local.baseline.model,
-    state.local.range,
-    context,
-  );
-  if (!setup.seriesIds.length && !observationSnapshotPolicy(inputs.family)) return { status: "waiting" };
+  const setup = sessionSetup(state.local.baseline.model, state.local.range, context);
+  const snapshotPolicy = observationSnapshotPolicy(inputs.family);
+  if (!setup.seriesIds.length && !snapshotPolicy) return { status: "waiting" };
   const categoryColumnId = categoryId ?? setup.categoryId;
   const numeric =
     state.capture?.selectedColumnIds.filter(
@@ -39,7 +36,7 @@ function capture(
     ...new Set([...numeric, ...setup.seriesIds, ...additionalSeriesIds]),
   ];
   const captured = captureDisplayedChart({
-    snapshotPolicy: observationSnapshotPolicy(inputs.family),
+    snapshotPolicy,
     api: inputs.api,
     stamp: state.local.stamp,
     range: { ...state.local.range, columnIds },
@@ -50,7 +47,7 @@ function capture(
     originalModel: JSON.parse(JSON.stringify(state.local.baseline.model)),
   });
   if (captured.status !== "ready") return captured;
-  const retained = retainOrdinarySetupCapture(captured.value, observationSnapshotPolicy(inputs.family));
+  const retained = retainOrdinarySetupCapture(captured.value, snapshotPolicy);
   return retained.status === "ready"
     ? { ...captured, value: retained.value }
     : retained;
@@ -71,8 +68,7 @@ export function captureApplicationSession(
         {
           code: "application-capture",
           path: [],
-          message:
-            error instanceof Error ? error.message : "Invalid capture inputs",
+          message: error instanceof Error ? error.message : "Invalid capture inputs",
         },
       ],
     };

@@ -1,12 +1,13 @@
-import { normalizePieObservation } from "./pieCapture";
-import { normalizeHistogramObservation } from "./histogramCapture";
-import type { GridApi } from "ag-grid-community";
+import type { GridApi, IRowNode } from "ag-grid-community";
 import { validateSnapshot } from "../compatibility/snapshot";
 import type {
   DiagnosticPath,
   ResolvedSnapshotInput,
   SnapshotRow,
 } from "../compatibility/snapshotTypes";
+import { captureBoxCategory } from "./boxPlotCapture";
+import { normalizeHistogramObservation } from "./histogramCapture";
+import { normalizePieObservation } from "./pieCapture";
 import { validateSessionStamp } from "./sessionState";
 import { DEFAULT_SETUP_CATEGORY } from "./setupTypes";
 import type { CaptureDisplayedChart, GridCaptureInput, SessionResult } from "./types";
@@ -46,17 +47,20 @@ function inspectInput(input: GridCaptureInput): ResolvedSnapshotInput {
     if (typeof input.api[method] !== "function")
       fail("invalid", ["api", method], "Expected public GridApi method");
   }
-  const result = validateSnapshot({
-    stateAddress: stamp.value.address.stateAddress,
-    dataRevision: stamp.value.dataRevision,
-    originalModel: input.originalModel,
-    sourceMode: "flat",
-    selectedColumnIds: input.range.columnIds,
-    categoryColumnId: input.categoryColumnId,
-    columns: input.columns,
-    rows: [],
-    selectedRange: input.range.originalRange,
-  }, input.snapshotPolicy);
+  const result = validateSnapshot(
+    {
+      stateAddress: stamp.value.address.stateAddress,
+      dataRevision: stamp.value.dataRevision,
+      originalModel: input.originalModel,
+      sourceMode: "flat",
+      selectedColumnIds: input.range.columnIds,
+      categoryColumnId: input.categoryColumnId,
+      columns: input.columns,
+      rows: [],
+      selectedRange: input.range.originalRange,
+    },
+    input.snapshotPolicy,
+  );
   if (!result.valid) reject({ status: "invalid", diagnostics: result.diagnostics });
   return result.snapshot;
 }
@@ -116,6 +120,72 @@ function bounds(input: GridCaptureInput, count: number): [number, number] {
     fail("unresolved", ["range"], "Bounds must be inclusive valid displayed indices");
   return [start, end];
 }
+function readCategory(
+  input: GridCaptureInput,
+  snapshot: ResolvedSnapshotInput,
+  node: IRowNode<Record<string, unknown>>,
+  index: number,
+  start: number,
+): Pick<SnapshotRow, "category" | "boxPlotAggregationKey"> {
+  const isDefault = input.categoryColumnId === DEFAULT_SETUP_CATEGORY;
+  const raw: unknown = isDefault
+    ? undefined
+    : input.api.getCellValue({
+        rowNode: node,
+        colKey: snapshot.categoryColumnId,
+        useFormatter: false,
+      });
+  if (input.snapshotPolicy === "box-observations") {
+    const result = captureBoxCategory(raw, isDefault, index - start + 1);
+    if (result.status !== "ready")
+      reject({
+        status: "unresolved",
+        diagnostics: result.diagnostics.map((diagnostic) => ({
+          ...diagnostic,
+          path: ["rows", index, ...diagnostic.path],
+        })),
+      });
+    return {
+      category: result.value.category,
+      boxPlotAggregationKey: result.value.aggregationKey,
+    };
+  }
+  // Original ordinary charts number the selected displayed range from one.
+  const category = isDefault ? index - start + 1 : raw;
+  if (
+    typeof category !== "string" &&
+    !(typeof category === "number" && Number.isFinite(category))
+  )
+    fail("unresolved", ["rows", index, "category"], "Unsupported category value");
+  return { category: category as string | number };
+}
+function readValues(
+  input: GridCaptureInput,
+  node: IRowNode<Record<string, unknown>>,
+  numeric: readonly string[],
+  index: number,
+): Record<string, number | null> {
+  const values: Record<string, number | null> = Object.create(null);
+  for (const id of numeric) {
+    const raw: unknown = input.api.getCellValue({
+      rowNode: node,
+      colKey: id,
+      useFormatter: false,
+    });
+    // Missing Box endpoints stay absent for source-compatible first/last aggregation.
+    if (input.snapshotPolicy === "box-observations" && raw === undefined) continue;
+    const value =
+      input.snapshotPolicy === "pie-observations"
+        ? normalizePieObservation(raw)
+        : input.snapshotPolicy === "histogram-observations"
+          ? normalizeHistogramObservation(raw)
+          : raw;
+    if (value !== null && !(typeof value === "number" && Number.isFinite(value)))
+      fail("unresolved", ["rows", index, "values", id], "Unsupported numeric value");
+    values[id] = value as number | null;
+  }
+  return values;
+}
 function readRows(
   input: GridCaptureInput,
   snapshot: ResolvedSnapshotInput,
@@ -135,33 +205,12 @@ function readRows(
     if (typeof node.id !== "string" || node.id.length === 0 || ids.has(node.id))
       fail("unresolved", [...path, "id"], "Expected a unique stable row ID");
     ids.add(node.id);
-    // Original ChartDatasource numbers the selected displayed range from one.
-    const category: unknown =
-      input.categoryColumnId === DEFAULT_SETUP_CATEGORY
-        ? index - start + 1
-        : input.api.getCellValue({
-            rowNode: node,
-            colKey: snapshot.categoryColumnId,
-            useFormatter: false,
-          });
-    if (
-      typeof category !== "string" &&
-      !(typeof category === "number" && Number.isFinite(category))
-    )
-      fail("unresolved", [...path, "category"], "Unsupported category value");
-    const values: Record<string, number | null> = Object.create(null);
-    for (const id of numeric) {
-      const raw: unknown = input.api.getCellValue({
-        rowNode: node,
-        colKey: id,
-        useFormatter: false,
-      });
-      const value = input.snapshotPolicy === "pie-observations" ? normalizePieObservation(raw) : input.snapshotPolicy === "histogram-observations" ? normalizeHistogramObservation(raw) : raw;
-      if (value !== null && !(typeof value === "number" && Number.isFinite(value)))
-        fail("unresolved", [...path, "values", id], "Unsupported numeric value");
-      values[id] = value as number | null;
-    }
-    rows.push({ id: node.id, category: category as string | number, values });
+    const category = readCategory(input, snapshot, node, index, start);
+    rows.push({
+      id: node.id,
+      ...category,
+      values: readValues(input, node, numeric, index),
+    });
   }
   return rows;
 }
@@ -177,10 +226,13 @@ export const captureDisplayedChart: CaptureDisplayedChart = (input) => {
     if (!Number.isSafeInteger(count) || count < 0)
       fail("unresolved", ["api", "displayedRowCount"], "Invalid displayed row count");
     const [start, end] = bounds(input, count);
-    const result = validateSnapshot({
-      ...template,
-      rows: readRows(input, template, start, end),
-    }, input.snapshotPolicy);
+    const result = validateSnapshot(
+      {
+        ...template,
+        rows: readRows(input, template, start, end),
+      },
+      input.snapshotPolicy,
+    );
     return result.valid
       ? { status: "ready", stamp: input.stamp, value: result.snapshot }
       : { status: "invalid", diagnostics: result.diagnostics };

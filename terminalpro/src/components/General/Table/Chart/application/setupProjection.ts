@@ -4,14 +4,12 @@ import type {
   SnapshotColumn,
   SnapshotRow,
 } from "../compatibility/snapshotTypes";
-import {
-  aggregateSetupRows,
-  type SetupObservationGroup,
-} from "./setupAggregation";
+import { aggregateBoxSetupRows } from "./boxPlotSetupProjection";
+import { aggregateSetupRows, type SetupObservationGroup } from "./setupAggregation";
 import {
   DEFAULT_SETUP_CATEGORY,
-  SETUP_AGGREGATIONS,
   invalidSetup,
+  SETUP_AGGREGATIONS,
   type SetupProjection,
   type SetupResult,
   type SetupSelection,
@@ -30,18 +28,16 @@ export function retainOrdinarySetupCapture(
   policy?: import("../compatibility/snapshotTypes").SnapshotPolicy,
 ): SetupResult<ChartSnapshot> {
   const checked = validateSnapshot(input, policy);
-  if (!checked.valid)
-    return { status: "invalid", diagnostics: checked.diagnostics };
+  if (!checked.valid) return { status: "invalid", diagnostics: checked.diagnostics };
   if (checked.snapshot.sourceMode !== "flat")
-    return invalidSetup(
-      "Set Up requires the complete original ordinary flat capture",
-    );
+    return invalidSetup("Set Up requires the complete original ordinary flat capture");
   return { status: "ready", value: freeze(checked.snapshot) };
 }
 function selectedColumns(
   source: ChartSnapshot,
   selection: SetupSelection,
   allowEmpty = false,
+  allowDefaultAggregate = false,
 ): SnapshotColumn[] | undefined {
   if (
     !selection ||
@@ -56,7 +52,8 @@ function selectedColumns(
     return;
   if (
     selection.categoryId === DEFAULT_SETUP_CATEGORY &&
-    selection.aggFunc !== undefined
+    selection.aggFunc !== undefined &&
+    !allowDefaultAggregate
   )
     return;
   if (
@@ -68,9 +65,7 @@ function selectedColumns(
   const columns = selection.seriesIds.map((id) =>
     source.columns.find(
       (c) =>
-        c.id === id &&
-        c.role === "number" &&
-        source.selectedColumnIds.includes(id),
+        c.id === id && c.role === "number" && source.selectedColumnIds.includes(id),
     ),
   );
   return columns.every((c) => c !== undefined)
@@ -78,9 +73,7 @@ function selectedColumns(
     : undefined;
 }
 function incompatible(columns: readonly SnapshotColumn[]) {
-  const units = new Set(
-    columns.flatMap((c) => (c.unit === undefined ? [] : [c.unit])),
-  );
+  const units = new Set(columns.flatMap((c) => (c.unit === undefined ? [] : [c.unit])));
   const scales = new Set(
     columns.flatMap((c) => (c.scale === undefined ? [] : [c.scale])),
   );
@@ -113,16 +106,14 @@ function ordinary(
   groups: readonly SetupObservationGroup[],
   count: boolean,
 ) {
-  const valueOrigins: Record<
-    string,
-    Record<string, SetupValueOrigin>
-  > = Object.create(null);
+  const valueOrigins: Record<string, Record<string, SetupValueOrigin>> = Object.create(
+    null,
+  );
   const rows = groups.map((group) => {
     const values: Record<string, number | null> = Object.create(null);
     valueOrigins[group.row.id] = Object.create(null);
     for (const c of columns) {
-      if (Object.hasOwn(group.row.values, c.id))
-        values[c.id] = group.row.values[c.id];
+      if (Object.hasOwn(group.row.values, c.id)) values[c.id] = group.row.values[c.id];
       valueOrigins[group.row.id][c.id] = origin(c, group, count);
     }
     return { ...group.row, values };
@@ -130,9 +121,7 @@ function ordinary(
   return {
     rows,
     columns: [
-      source.columns.find(
-        (c) => c.id === source.categoryColumnId,
-      ) as SnapshotColumn,
+      source.columns.find((c) => c.id === source.categoryColumnId) as SnapshotColumn,
       ...aggregateColumns(columns, count),
     ],
     categoryColumnId: source.categoryColumnId,
@@ -161,17 +150,15 @@ function inverted(
       ? { scale: effective[0].scale }
       : {}),
   }));
-  const valueOrigins: Record<
-    string,
-    Record<string, SetupValueOrigin>
-  > = Object.create(null);
+  const valueOrigins: Record<string, Record<string, SetupValueOrigin>> = Object.create(
+    null,
+  );
   const rows: SnapshotRow[] = columns.map((c) => {
     const id = `setup:switch:${JSON.stringify(c.id)}`;
     const values: Record<string, number | null> = Object.create(null);
     valueOrigins[id] = Object.create(null);
     groups.forEach((g, i) => {
-      if (Object.hasOwn(g.row.values, c.id))
-        values[numeric[i].id] = g.row.values[c.id];
+      if (Object.hasOwn(g.row.values, c.id)) values[numeric[i].id] = g.row.values[c.id];
       valueOrigins[id][numeric[i].id] = origin(c, g, count);
     });
     return { id, category: c.label, values };
@@ -190,34 +177,67 @@ function inverted(
 export function projectOrdinarySetup(
   input: ChartSnapshot,
   selection: SetupSelection,
-  axisPolicy: "single-axis" | "combo-per-axis" | "xy-coordinates" | "histogram-observations" | "pie-observations" = "single-axis",
+  axisPolicy:
+    | "single-axis"
+    | "combo-per-axis"
+    | "xy-coordinates"
+    | "histogram-observations"
+    | "pie-observations"
+    | "box-observations" = "single-axis",
 ): SetupResult<SetupProjection> {
-  if (!["single-axis", "combo-per-axis", "xy-coordinates", "histogram-observations", "pie-observations"].includes(axisPolicy))
+  if (
+    ![
+      "single-axis",
+      "combo-per-axis",
+      "xy-coordinates",
+      "histogram-observations",
+      "pie-observations",
+      "box-observations",
+    ].includes(axisPolicy)
+  )
     return invalidSetup("Invalid setup axis policy");
-  if (axisPolicy !== "single-axis" && axisPolicy !== "pie-observations" && selection.switchCategorySeries)
+  if (axisPolicy === "box-observations" && selection.switchCategorySeries)
+    return invalidSetup("Box charts cannot switch category and series");
+  if (
+    axisPolicy !== "single-axis" &&
+    axisPolicy !== "pie-observations" &&
+    selection.switchCategorySeries
+  )
     return invalidSetup("Combination charts cannot switch category and series");
-  const retained = retainOrdinarySetupCapture(input, axisPolicy === "xy-coordinates" || axisPolicy === "histogram-observations" || axisPolicy === "pie-observations" ? axisPolicy : undefined);
+  const policy =
+    axisPolicy === "single-axis" || axisPolicy === "combo-per-axis"
+      ? undefined
+      : axisPolicy;
+  const retained = retainOrdinarySetupCapture(input, policy);
   if (retained.status !== "ready") return retained;
   const source = retained.value;
-  const columns = selectedColumns(source, selection, axisPolicy === "xy-coordinates" || axisPolicy === "histogram-observations" || axisPolicy === "pie-observations");
+  const columns = selectedColumns(
+    source,
+    selection,
+    policy !== undefined,
+    axisPolicy === "box-observations",
+  );
   if (!columns)
     return invalidSetup(
       "Selection requires captured category and unique captured numerical series",
     );
   const count = selection.aggFunc === "count";
   // Check effective units before transpose; counts derive their own comparable unit.
-  if (
-    axisPolicy === "single-axis" &&
-    incompatible(aggregateColumns(columns, count))
-  )
-    return invalidSetup(
-      "Known source units or scales contradict one numerical axis",
-    );
-  const groups = aggregateSetupRows(
-    source.rows,
-    selection.seriesIds,
-    selection.aggFunc,
-  );
+  if (axisPolicy === "single-axis" && incompatible(aggregateColumns(columns, count)))
+    return invalidSetup("Known source units or scales contradict one numerical axis");
+  const grouped =
+    axisPolicy === "box-observations"
+      ? aggregateBoxSetupRows(source.rows, selection.seriesIds, selection.aggFunc)
+      : {
+          status: "ready" as const,
+          value: aggregateSetupRows(
+            source.rows,
+            selection.seriesIds,
+            selection.aggFunc,
+          ),
+        };
+  if (grouped.status !== "ready") return grouped;
+  const groups = grouped.value;
   const output = selection.switchCategorySeries
     ? inverted(source, columns, groups, count)
     : ordinary(source, columns, groups, count);
@@ -226,16 +246,18 @@ export function projectOrdinarySetup(
     : selection.aggFunc
       ? "grouped"
       : "flat";
-  const checked = validateSnapshot({
-    ...source,
-    rows: output.rows,
-    columns: output.columns,
-    categoryColumnId: output.categoryColumnId,
-    selectedColumnIds: output.columns.map((c) => c.id),
-    sourceMode,
-  }, axisPolicy === "xy-coordinates" || axisPolicy === "histogram-observations" || axisPolicy === "pie-observations" ? axisPolicy : undefined);
-  if (!checked.valid)
-    return { status: "invalid", diagnostics: checked.diagnostics };
+  const checked = validateSnapshot(
+    {
+      ...source,
+      rows: output.rows,
+      columns: output.columns,
+      categoryColumnId: output.categoryColumnId,
+      selectedColumnIds: output.columns.map((c) => c.id),
+      sourceMode,
+    },
+    policy,
+  );
+  if (!checked.valid) return { status: "invalid", diagnostics: checked.diagnostics };
   const setupProjection = selection.switchCategorySeries
     ? {
         kind: "ordinary-switch" as const,
