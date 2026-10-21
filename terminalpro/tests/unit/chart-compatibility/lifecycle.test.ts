@@ -20,6 +20,7 @@ describe("bounded ECharts ownership", () => {
     resize: ReturnType<typeof vi.fn>;
     dispose: ReturnType<typeof vi.fn>;
     getDataURL: ReturnType<typeof vi.fn>;
+    dispatchAction: ReturnType<typeof vi.fn>;
   };
   beforeEach(() => {
     vi.resetAllMocks();
@@ -35,6 +36,7 @@ describe("bounded ECharts ownership", () => {
       resize: vi.fn(),
       dispose: vi.fn(),
       getDataURL: vi.fn(() => "data:image/png;base64,chart"),
+      dispatchAction: vi.fn(),
     };
     mocks.init.mockReturnValue(chart);
   });
@@ -215,6 +217,7 @@ describe("bounded ECharts ownership", () => {
       resize: vi.fn(),
       dispose: vi.fn(),
       getDataURL: vi.fn(),
+      dispatchAction: vi.fn(),
     };
     mocks.init.mockReturnValue(chart);
     const replacement = createChartLifecycle(container);
@@ -244,6 +247,22 @@ describe("bounded ECharts ownership", () => {
     expect(() => owner.dispose()).not.toThrow();
     expect(owner.resize()).toBe("disposed");
   });
+  it("expires native hover before every replacement and releases a failed public hide action", () => {
+    const owner = createChartLifecycle(container);
+    owner.mount({ ...request(1), options: { tooltip: { trigger: "item" } } });
+    expect(chart.dispatchAction).toHaveBeenLastCalledWith({ type: "hideTip" });
+    expect(chart.dispatchAction.mock.invocationCallOrder[0]).toBeLessThan(chart.setOption.mock.invocationCallOrder[0]);
+    chart.dispatchAction.mockImplementationOnce(() => { throw new Error("hideTip"); });
+    expect(() => owner.update(request(2))).toThrow("hideTip");
+    expect(chart.dispose).toHaveBeenCalledTimes(1);
+    expect(chart.setOption).toHaveBeenCalledTimes(1);
+    expect(() => owner.exportImage()).toThrow("unavailable");
+    expect(owner.resize()).toBe("applied");
+    owner.update(request(2));
+    expect(chart.dispatchAction).toHaveBeenCalledTimes(4);
+    expect(chart.setOption).toHaveBeenLastCalledWith(request(2).options, { notMerge: true });
+    owner.dispose();
+  });
 });
 
 it("uses latest native legend selection, prunes IDs, retains zoom and resets scope", () => {
@@ -253,6 +272,7 @@ it("uses latest native legend selection, prunes IDs, retains zoom and resets sco
     setOption: vi.fn((options) => { native = options; }), getOption: vi.fn(() => native),
     on: vi.fn((event, cb) => listeners.set(event, cb)), off: vi.fn(),
     resize: vi.fn(), dispose: vi.fn(), getDataURL: vi.fn(() => "data:image/png,current"),
+    dispatchAction: vi.fn(),
   };
   mocks.init.mockReturnValue(chart);
   const container = document.createElement("div");
@@ -298,6 +318,7 @@ it("releases listeners if normalized initialization fails and recovers without r
   const chart = { on: vi.fn((_event, callback) => callbacks.push(callback)), off: vi.fn(),
     setOption: vi.fn().mockImplementationOnce(() => { throw new Error("initial normalized"); }),
     getOption: vi.fn(() => ({})), dispose: vi.fn(), resize: vi.fn(), getDataURL: vi.fn(),
+    dispatchAction: vi.fn(),
   };
   mocks.init.mockReturnValue(chart);
   const container = document.createElement("div");
@@ -320,6 +341,7 @@ it("resets native selection and zoom across accepted deferred A to B to A scopes
   const chart = {
     setOption: vi.fn((value) => { native = value; }), getOption: vi.fn(() => native),
     on: vi.fn(), off: vi.fn(), resize: vi.fn(), dispose: vi.fn(), getDataURL: vi.fn(),
+    dispatchAction: vi.fn(),
   };
   mocks.init.mockReturnValue(chart);
   const container = document.createElement("div");
@@ -354,7 +376,8 @@ function pagingFixture() {
     setOption: vi.fn((value) => { native = structuredClone(value); }), getOption: vi.fn(() => native),
     on: vi.fn((event, callback) => listeners.set(event, callback)), off: vi.fn(),
     resize: vi.fn(), dispose: vi.fn(), getDataURL: vi.fn(() => JSON.stringify(native)),
-    dispatchAction: vi.fn(({ name }) => {
+    dispatchAction: vi.fn(({ type, name }) => {
+      if (type !== "legendToggleSelect") return;
       native.legend[0].selected[name] = !native.legend[0].selected[name];
       listeners.get("legendselectchanged")?.();
     }),
@@ -380,7 +403,7 @@ it("repaints pages at the accepted revision, exports current canvas options, and
   f.listeners.get("click")?.(firstEvent); expect(f.chart.setOption).toHaveBeenCalledTimes(2);
   const item = f.container.querySelector<HTMLButtonElement>('[aria-label="b"]')!;
   item.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
-  expect(f.chart.dispatchAction).toHaveBeenCalledExactlyOnceWith({ type: "legendToggleSelect", name: "b" });
+  expect(f.chart.dispatchAction.mock.calls.filter(([action]) => action.type === "legendToggleSelect")).toEqual([[{ type: "legendToggleSelect", name: "b" }]]);
   expect(f.projectLegendSelection).toHaveBeenLastCalledWith({ a: true, b: false });
   expect(f.native().legend.every((value: any) => value.selected.b === false)).toBe(true);
   expect(f.container.querySelector('[aria-label="b"]')?.getAttribute("aria-checked")).toBe("false");
@@ -408,9 +431,10 @@ it("rejects applying/unsized/stale generation page events and resets accepted de
   expect(f.container.children).toHaveLength(0); f.container.remove();
 });
 
-it.each(["paint", "accessibility"])("invalidates export and releases page controls after %s failure", (failure) => {
+it.each(["paint", "accessibility", "hideTip"])("invalidates export and releases page controls after %s failure", (failure) => {
   const f = pagingFixture(); f.owner.mount(f.scoped(1)); const late = f.listeners.get("click")!; const stale = f.event();
-  if (failure === "paint") f.chart.setOption.mockImplementationOnce(() => { throw new Error("paint"); });
+  if (failure === "hideTip") f.chart.dispatchAction.mockImplementationOnce(() => { throw new Error("hideTip"); });
+  else if (failure === "paint") f.chart.setOption.mockImplementationOnce(() => { throw new Error("paint"); });
   else f.chart.getOption.mockImplementationOnce(() => f.native()).mockImplementationOnce(() => { throw new Error("accessibility"); });
   late(stale);
   expect(f.onError).toHaveBeenCalledWith(expect.objectContaining({ message: failure }));

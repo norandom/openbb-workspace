@@ -168,6 +168,8 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
     options = pieLegend?.project(options, request.legendPagination, request.legendScope) ?? options;
     applying = true;
     try {
+      // ECharts 6 retains a resize hover timer after notMerge disposes its tooltip view.
+      instance.dispatchAction({ type: "hideTip" });
       instance.setOption(options, { notMerge: true });
       pieLegend?.sync();
       appliedRevision = request.revision;
