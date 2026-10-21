@@ -16,6 +16,6 @@ export function selectPieSession(storage: ChartStorageOutput, context: Applicati
   const seriesIds = snapshot.selectedColumnIds.filter(id => snapshot.columns.some(c => c.id === id && c.role === "number"));
   const assignment = resolvePieAssignments({ chartType: context.inputs.family, valueColumns: seriesIds.map(colId => ({ colId, selected: true })) });
   if (assignment.status !== "resolved") throw Error(assignment.diagnostics[0].message);
-  const pie = resolvePieAppearance({ ...context.inputs, baseline, seriesIds });
+  const pie = resolvePieAppearance({ ...context.inputs, baseline, seriesIds, assignmentCount: assignment.assignments.length });
   return { baseline, range, setup, projection: projected.value, assignment, pie, editor: projectPieEditorState(pie.style) };
 }

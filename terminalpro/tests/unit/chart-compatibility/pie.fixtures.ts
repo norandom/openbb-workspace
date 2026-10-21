@@ -53,7 +53,9 @@ export function pieInput(
     style: {
       common: { textColor, fontFamily, fontSize, precision },
       application: shared,
+      legendLayout: { maxHeight: 50, markerShape: "square" },
       series: {
+        title: { ...series.labels, enabled: true, font: "Verdana, sans-serif", size: 14, spacing: 5 },
         paint: {
           strokeWidth: series.strokeWidth,
           strokeOpacity: series.strokeOpacity,

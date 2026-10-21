@@ -75,7 +75,10 @@ function validStyle(s: PieMappingInput["style"]): boolean {
     xyApplicationDiagnostics(s.application).length === 0 &&
     palette(s.application.palette.fills) &&
     palette(s.application.palette.strokes) &&
+    object({ maxHeight: optional(size), maxWidth: optional(size), markerShape: text })(s.legendLayout) &&
     paint(p.paint) &&
+    font(p.title) &&
+    size(p.title.spacing) &&
     finite(p.rotation) &&
     ratio(p.outerRadiusRatio) &&
     optional(ratio)(p.innerRadiusRatio) &&

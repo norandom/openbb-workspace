@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { resolvePieAssignments } from "../../../src/components/General/Table/Chart/compatibility/pieAssignments";
 import { translatePie } from "../../../src/components/General/Table/Chart/echarts/pie";
+import { admitPie } from "../../../src/components/General/Table/Chart/echarts/pieAdmission";
 import { companions, key, mains, pieInput, pieOptions } from "./pie.fixtures";
 
 beforeEach(() =>
@@ -160,6 +161,15 @@ it("accepts empty numeric selection and rejects partial output on malformed or h
   ).toBe("invalid");
 });
 it.each([
+  (i: any) => { delete i.style.legendLayout; },
+  (i: any) => { i.style.legendLayout.maxHeight = -1; },
+  (i: any) => { i.style.legendLayout.maxWidth = Infinity; },
+  (i: any) => { i.style.legendLayout.markerShape = 4; },
+  (i: any) => { delete i.style.series.title; },
+  (i: any) => { i.style.series.title.spacing = -1; },
+  (i: any) => { i.style.series.title.size = NaN; },
+  (i: any) => { i.style.series.title.enabled = "true"; },
+  (i: any) => { i.style.series.title.fontStyle = "bad"; },
   (i: any) => {
     i.style.series.calloutLine.colors = [];
   },
@@ -197,6 +207,19 @@ it.each([
     expect(result).not.toHaveProperty("options");
   },
 );
+it("admits retained title and optional legend limits as detached copies", () => {
+  const input = pieInput();
+  input.style.legendLayout = { maxWidth: 0, markerShape: "diamond" };
+  input.style.series.title.spacing = 0;
+  const admitted = admitPie(input);
+  if ("status" in admitted) throw Error(JSON.stringify(admitted));
+  expect(admitted.style.legendLayout).toEqual({ maxWidth: 0, markerShape: "diamond" });
+  expect(admitted.style.series.title).toEqual(input.style.series.title);
+  input.style.legendLayout.markerShape = "circle";
+  input.style.series.title.color = "mutated";
+  expect(admitted.style.legendLayout.markerShape).toBe("diamond");
+  expect(admitted.style.series.title.color).not.toBe("mutated");
+});
 it("captures display strings and metadata eagerly and survives later caller mutation", () => {
   const input = pieInput("pie");
   const label = vi.fn((v) => `label:${v}`),

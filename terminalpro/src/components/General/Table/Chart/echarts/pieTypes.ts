@@ -25,7 +25,13 @@ export type PieFont = Pick<
   ResolvedApplicationSeries["labels"],
   "enabled" | "font" | "size" | "color" | "weight" | "fontWeight" | "fontStyle"
 >;
+export interface ResolvedPieLegendLayout {
+  readonly maxHeight?: number;
+  readonly maxWidth?: number;
+  readonly markerShape: string;
+}
 export interface ResolvedPieSeries {
+  readonly title: PieFont & { readonly spacing: number };
   readonly paint: Pick<
     ResolvedApplicationSeries,
     "strokeWidth" | "strokeOpacity" | "fillOpacity" | "lineDash" | "shadow"
@@ -63,6 +69,7 @@ export interface PieMappingInput {
       "axes" | "series"
     >;
     readonly series: ResolvedPieSeries;
+    readonly legendLayout: ResolvedPieLegendLayout;
   };
   readonly context: {
     readonly observations: { readonly kind: "raw-observations" };

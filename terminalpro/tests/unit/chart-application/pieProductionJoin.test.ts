@@ -198,15 +198,20 @@ it("switches aggregation off from retained capture and follows reordered fields"
   expect(selected.projection.snapshot.rows.map(r => r.values.revenue)).toEqual([100, 120]);
   expect(selected.baseline.model).not.toHaveProperty("aggFunc");
 });
-it("ignores retained axis preferences, preserves slice legend for one field and immutable reprojection", () => {
+it("ignores retained axis preferences, defaults one-field Pie legend off and retains explicit legend reprojection", () => {
   const context = pieFixture("pie");
   Object.assign(context.local.baseline, { model: { ...context.local.baseline.model, qopenbbAxisSettings: "invalid retained axis state" } });
   const state = initialApplicationSession({ chartModel: context.local.baseline.model } as import("../../../src/components/General/Table/Chart/compatibility/legacyTypes").ChartStorageOutput, context.inputs, 1);
   expect(state.error).toBeUndefined();
-  const ready = project(context);
+  expect(project(context).options.legend).toMatchObject({ show: false });
+  const enabled = editPie({}, context, { panel: "legend", edit: { field: "enabled", value: true } });
+  const ready = project(enabled.context, enabled.storage);
   expect(ready.options.legend).toMatchObject({ show: true });
   const original = (ready.options.series as any[])[0].data[0];
   (ready.snapshot.rows as any)[0].values.revenue = 999;
   const next: any = ready.projectLegendSelection!({});
   expect(next.series[0].data[0].metadata.rawValue).toBe(original.metadata.rawValue);
+  const hidden: any = ready.projectLegendSelection!({ [original.name]: false });
+  expect(hidden.legend).toMatchObject({ show: true, selected: { [original.name]: false } });
+  expect(hidden.series[0].data.map((d: any) => d.value)).toEqual([0, 1]);
 });
