@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import type { Browser } from "@playwright/test";
+import type { Browser, Page } from "@playwright/test";
 import { observeApplication, observeDrawnText } from "./diagnostics";
 import { expect, loginDisposableWorkspace } from "./fixtures";
 
@@ -39,7 +39,7 @@ export function restartDisposableBackend() {
   });
 }
 
-export async function reopenSavedDashboard(browser: Browser, dashboardUrl: string) {
+export async function reopenSavedDashboard(browser: Browser, dashboardUrl: string, initializePage?: (page: Page) => Promise<void>) {
   const context = await browser.newContext({
     baseURL: process.env.WORKSPACE_FRONTEND_ORIGIN,
     serviceWorkers: "block",
@@ -49,6 +49,7 @@ export async function reopenSavedDashboard(browser: Browser, dashboardUrl: strin
   const diagnostics = await observeApplication(page);
   await observeDrawnText(page);
   try {
+    await initializePage?.(page);
     await loginDisposableWorkspace(page);
     const read = page.waitForResponse(
     (response) =>
