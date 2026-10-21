@@ -32,6 +32,30 @@ export const rawHash =
 export const csvHash =
   "120e1dac7d9e0a541293fb9c8d40982959ce3a03fa8b33ef027ea52ceceb32cb";
 
+// Independent finite-fixture oracle for the pinned original formatNumber helper:
+// tests/unit/chart-application/financialFormatting.sources.json, revision 38dffc3.
+// The disposable Workspace defaults to two decimals; display units do not scale data.
+export function expectedBoxTooltipNumber(value: number): string {
+  if (Math.abs(value) <= 1_000_000) {
+    const text = Number.isInteger(value) ? String(value) : value.toFixed(2);
+    const [integer, fraction] = text.split(".");
+    const whole =
+      Math.abs(value) > 1000 ? integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",") : integer;
+    return whole + (fraction ? `.${fraction}` : "");
+  }
+  value = Number(value.toFixed(2));
+  if (Math.abs(value) <= 1_000_000) return value.toLocaleString("en-US");
+  const magnitude = Math.min(4, Math.floor(Math.log10(Math.abs(value)) / 3));
+  const scaled = value / 10 ** (magnitude * 3);
+  const [coefficient, exponent = "0"] = String(scaled).split("e");
+  const shifted = Math.round(Number(`${coefficient}e${Number(exponent) + 2}`));
+  const rounded = Number(`${shifted}e-2`);
+  return `${rounded.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} ${["", "", "M", "B", "T"][magnitude]}`;
+}
+
 // Independently calculate the retained proxy's interpolated quartiles and absolute whiskers.
 export function summary(observations: readonly (number | null)[]): Summary | null {
   const values = observations
@@ -419,9 +443,9 @@ export async function verifyBox(
         ["Max", "max"],
       ] as const)
         await expect(tooltip).toContainText(
-          `${caption}: ${match.summary[key].toLocaleString("en-US")}`,
+          `${caption}: ${expectedBoxTooltipNumber(match.summary[key])}`,
         );
-      await expect(tooltip).not.toContainText(/(?:\d\s?[BMT]|Frequency:|FiscalYear:)/);
+      await expect(tooltip).not.toContainText(/Frequency:|FiscalYear:/);
     }
     await page.mouse.move(0, 0);
   }

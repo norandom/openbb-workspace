@@ -95,6 +95,8 @@ async function styleBox(
     await mainWidth.fill("3");
     await mainWidth.blur();
   });
+  // Give the painted value axis enough width for two independently observed ticks.
+  await collapse(editor);
   let geometry = await verifyBox(page, widget, groups, "horizontal", labels);
   expect(
     geometry.matches.every((item) =>
@@ -102,6 +104,9 @@ async function styleBox(
     ),
     "unspecified whiskers inherit the final main stroke width",
   ).toBe(true);
+  await openEditor(page, widget);
+  await editor.getByRole("tab", { name: "Customize", exact: true }).click();
+  await expand(editor, "Series");
   await expand(series, "Whisker");
   const whiskers = series.getByRole("region", { name: "Whisker", exact: true });
   await changedPaint(page, widget, async () => {
@@ -117,6 +122,7 @@ async function styleBox(
   await expand(series, "Cap");
   const caps = series.getByRole("region", { name: "Cap", exact: true });
   await changedPaint(page, widget, () => numberControl(caps, "Length Ratio", 0.8));
+  await collapse(editor);
   geometry = await verifyBox(page, widget, groups, "horizontal", labels, fields, 0.8);
   expect(
     geometry.matches.every((item) =>
@@ -124,6 +130,8 @@ async function styleBox(
     ),
     "explicit whisker width overrides the main width without changing raw summaries",
   ).toBe(true);
+  await openEditor(page, widget);
+  await editor.getByRole("tab", { name: "Customize", exact: true }).click();
   for (const name of ["Horizontal Axis", "Vertical Axis"]) {
     await expand(editor, name);
     const axis = editor.getByRole("region", { name, exact: true });
@@ -251,7 +259,7 @@ test("retained AAPL Box summaries, controls, navigation and raw USD survive them
   const { widget, dashboardUrl } = await importOrdinaryTable(page, {
     csv: source.csv,
     name: "AAPL historical quarter Box observations",
-    expectedValue: "FY 2017",
+    expectedValue: "2016-09-24",
   });
   await widget.locator("#chart-view-button").click();
   let editor = await openEditor(page, widget);
