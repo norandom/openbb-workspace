@@ -1,16 +1,8 @@
-import {
-  color,
-  type PieSeriesOption,
-  type TooltipComponentOption,
-} from "echarts";
+import { color, type PieSeriesOption, type TooltipComponentOption } from "echarts";
 import { fontStyle } from "./cartesianDisplay";
 import { measureText } from "./cartesianLayout";
-import type {
-  PieDatum,
-  PieGeometry,
-  PieMappingInput,
-  PieRing,
-} from "./pieTypes";
+import { calloutPositions } from "./pieLabels";
+import type { PieDatum, PieGeometry, PieMappingInput, PieRing } from "./pieTypes";
 
 function alpha(value: string, opacity: number): string {
   const parsed = color.parse(value);
@@ -21,10 +13,7 @@ function paint(input: PieMappingInput, datum: PieDatum) {
   const palette = input.style.application.palette;
   const i = datum.metadata.paletteIndex;
   return {
-    color: alpha(
-      p.fill ?? palette.fills[i % palette.fills.length],
-      p.fillOpacity,
-    ),
+    color: alpha(p.fill ?? palette.fills[i % palette.fills.length], p.fillOpacity),
     borderColor: alpha(
       p.stroke ?? palette.strokes[i % palette.strokes.length],
       p.strokeOpacity,
@@ -53,8 +42,7 @@ function fits(
       const py = y + dy;
       const radius = Math.hypot(px, py);
       const angle =
-        (((Math.atan2(py, px) - start) % (2 * Math.PI)) + 2 * Math.PI) %
-        (2 * Math.PI);
+        (((Math.atan2(py, px) - start) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
       return (
         radius >= inner &&
         radius <= outer &&
@@ -77,9 +65,7 @@ function sectorPositions(
     const span = d.value * Math.PI * 2;
     const mid = angle + span / 2;
     const distance =
-      radius.inner +
-      (radius.outer - radius.inner) * s.positionRatio +
-      s.positionOffset;
+      radius.inner + (radius.outer - radius.inner) * s.positionRatio + s.positionOffset;
     const centered = enabledCount === 1 && radius.inner === 0;
     const x = centered ? 0 : Math.cos(mid) * distance;
     const y = centered ? 0 : Math.sin(mid) * distance;
@@ -88,16 +74,7 @@ function sectorPositions(
       s.enabled &&
       radius.drawable &&
       span > 0 &&
-      fits(
-        x,
-        y,
-        box.width,
-        box.height,
-        radius.inner,
-        radius.outer,
-        angle,
-        span,
-      );
+      fits(x, y, box.width, box.height, radius.inner, radius.outer, angle, span);
     angle += span;
     return { x: geometry.center[0] + x, y: geometry.center[1] + y, show };
   });
@@ -138,8 +115,24 @@ function main(
 ): PieSeriesOption {
   const s = input.style.series;
   const radius = geometry.rings[index];
+  const positions = calloutPositions(input, ring, geometry, index);
   return {
     ...base(input, ring, geometry, index),
+    ...(positions.some((p) => p.constrained)
+      ? {
+          avoidLabelOverlap: false,
+          labelLayout: (p) => {
+            const position = positions[p.dataIndex ?? 0];
+            return {
+              x: position.x,
+              y: position.y,
+              align: position.align,
+              verticalAlign: "middle",
+              labelLinePoints: position.linePoints,
+            };
+          },
+        }
+      : {}),
     label: {
       ...fontStyle(s.calloutLabel),
       show: s.calloutLabel.enabled,
@@ -155,16 +148,12 @@ function main(
       lineStyle: { width: s.calloutLine.strokeWidth, opacity: 1 },
     },
     minShowLabelAngle: s.calloutLabel.minAngle,
-    data: ring.data.map((d) => ({
+    data: ring.data.map((d, i) => ({
       ...d,
       value: radius.drawable ? d.value : 0,
       itemStyle: paint(input, d),
       label: {
-        show:
-          s.calloutLabel.enabled &&
-          radius.drawable &&
-          d.value > 0 &&
-          d.value * 360 >= s.calloutLabel.minAngle,
+        show: positions[i].show,
       },
       labelLine: {
         lineStyle: {
@@ -173,8 +162,7 @@ function main(
               d.metadata.paletteIndex % s.calloutLine.colors.length
             ] ??
             input.style.application.palette.strokes[
-              d.metadata.paletteIndex %
-                input.style.application.palette.strokes.length
+              d.metadata.paletteIndex % input.style.application.palette.strokes.length
             ],
         },
       },

@@ -22,9 +22,7 @@ function datum(
   const display = input.context.display;
   const category = String(display.legend(row.category));
   const prefix =
-    assignment.ring?.titleInLegend && descriptor.label
-      ? `${descriptor.label} - `
-      : "";
+    assignment.ring?.titleInLegend && descriptor.label ? `${descriptor.label} - ` : "";
   return {
     id: name,
     name,
@@ -82,6 +80,7 @@ export function pieData(input: PieMappingInput): PieRing[] {
     );
     return {
       id: `pie-ring:${JSON.stringify(assignment.colId)}`,
+      title: input.assignment.seriesType === "donut" ? descriptor.label : "",
       assignment,
       data,
       positive: data.some((d) => d.value > 0),

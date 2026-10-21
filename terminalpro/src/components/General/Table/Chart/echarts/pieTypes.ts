@@ -7,20 +7,15 @@ import type {
   PieAssignmentResult,
   PieSeriesAssignment,
 } from "../compatibility/pieAssignments";
-import type {
-  ChartSnapshot,
-  SnapshotColumn,
-} from "../compatibility/snapshotTypes";
+import type { ChartSnapshot, SnapshotColumn } from "../compatibility/snapshotTypes";
 import type {
   CartesianTranslationResult,
   ResolvedCartesianStyle,
   SetupAggregation,
 } from "./cartesianTypes";
+import type { PieLegendPagination } from "./pieLegendTypes";
 
-export type PieAssignments = Extract<
-  PieAssignmentResult,
-  { status: "resolved" }
->;
+export type PieAssignments = Extract<PieAssignmentResult, { status: "resolved" }>;
 export type PieFont = Pick<
   ResolvedApplicationSeries["labels"],
   "enabled" | "font" | "size" | "color" | "weight" | "fontWeight" | "fontStyle"
@@ -64,10 +59,7 @@ export interface PieMappingInput {
       ResolvedCartesianStyle,
       "textColor" | "fontFamily" | "fontSize" | "precision"
     >;
-    readonly application: Omit<
-      ResolvedApplicationAppearance,
-      "axes" | "series"
-    >;
+    readonly application: Omit<ResolvedApplicationAppearance, "axes" | "series">;
     readonly series: ResolvedPieSeries;
     readonly legendLayout: ResolvedPieLegendLayout;
   };
@@ -79,9 +71,11 @@ export interface PieMappingInput {
     readonly legendSelection?: Readonly<Record<string, boolean>>;
   };
 }
-export type TranslatePie = (
-  input: PieMappingInput,
-) => CartesianTranslationResult;
+export type TranslatePie = (input: PieMappingInput) =>
+  | Exclude<CartesianTranslationResult, { status: "supported" }>
+  | (Extract<CartesianTranslationResult, { status: "supported" }> & {
+      readonly legendPagination?: PieLegendPagination;
+    });
 export interface PieDatum {
   readonly id: string;
   readonly name: string;
@@ -103,6 +97,7 @@ export interface PieDatum {
 }
 export interface PieRing {
   readonly id: string;
+  readonly title: string;
   readonly assignment: PieSeriesAssignment;
   readonly data: readonly PieDatum[];
   readonly positive: boolean;

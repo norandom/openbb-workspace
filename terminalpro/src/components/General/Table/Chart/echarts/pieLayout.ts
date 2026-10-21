@@ -1,37 +1,10 @@
-import type { EChartsOption, LegendComponentOption } from "echarts";
+import type { EChartsOption } from "echarts";
 import { fontStyle } from "./cartesianDisplay";
 import { measureText } from "./cartesianLayout";
+import { pieLegendLayout } from "./pieLegendLayout";
+import { pieTitles } from "./pieLabels";
 import type { PieGeometry, PieMappingInput, PieRing } from "./pieTypes";
 
-function legendSpace(
-  input: PieMappingInput,
-  rings: readonly PieRing[],
-  width: number,
-): number {
-  const l = input.style.application.legend;
-  const sizes = rings.flatMap((r) =>
-    r.data.map((d) => measureText(d.legendText, l)),
-  );
-  if (l.position === "left" || l.position === "right")
-    return (
-      Math.max(0, ...sizes.map((s) => s.width)) +
-      (sizes.length ? l.markerSize + l.itemSpacing : 0)
-    );
-  let rows = sizes.length ? 1 : 0;
-  let used = 0;
-  for (const s of sizes) {
-    const item = s.width + l.markerSize + l.itemSpacing;
-    if (used && used + item > width) {
-      rows++;
-      used = 0;
-    }
-    used += item + l.horizontalSpacing;
-  }
-  return (
-    rows * Math.max(l.markerSize, ...sizes.map((s) => s.height), 0) +
-    Math.max(rows - 1, 0) * l.verticalSpacing
-  );
-}
 function calloutSpace(
   input: PieMappingInput,
   rings: readonly PieRing[],
@@ -69,47 +42,11 @@ function ringGeometry(
     return { inner, outer, drawable: inner < outer && outer > 0 && radius > 0 };
   });
 }
-function legend(
-  input: PieMappingInput,
-  rings: readonly PieRing[],
-  captionSpace: number,
-): LegendComponentOption {
-  const a = input.style.application;
-  const l = a.legend;
-  const data = rings.flatMap((r) => r.data);
-  const labels = new Map(data.map((d) => [d.name, d.legendText]));
-  const vertical = l.position === "left" || l.position === "right";
-  const rowPadding =
-    (l.verticalSpacing +
-      Math.max(0, l.markerSize - measureText("M", l).height)) /
-    2;
-  return {
-    show: l.enabled,
-    data: data.map((d) => ({ name: d.name, icon: "circle" })),
-    selected: Object.fromEntries(data.map((d) => [d.name, d.enabled])),
-    formatter: (name) => labels.get(name) ?? name,
-    orient: vertical ? "vertical" : "horizontal",
-    [l.position]:
-      a.padding[l.position as keyof typeof a.padding] +
-      (l.position === "top" ? captionSpace : 0),
-    ...(vertical ? { top: "middle" } : { left: "center" }),
-    padding: 0,
-    itemWidth: l.markerSize,
-    itemHeight: l.markerSize,
-    itemGap: 0,
-    textStyle: {
-      ...fontStyle(l),
-      backgroundColor: "transparent",
-      padding: [rowPadding, l.horizontalSpacing, rowPadding, l.itemSpacing - 5],
-    },
-    itemStyle: { borderWidth: a.legendMarkerStrokeWidth },
-  };
-}
 function outlines(
   input: PieMappingInput,
   rings: readonly PieRing[],
   geometry: PieGeometry,
-): EChartsOption["graphic"] {
+) {
   return rings.flatMap((r, i) => {
     if (r.positive) return [];
     const radii = [geometry.rings[i].outer];
@@ -133,21 +70,18 @@ function outlines(
 export function pieLayout(input: PieMappingInput, rings: readonly PieRing[]) {
   const a = input.style.application;
   const viewport = input.context.viewport;
-  const captions = [a.title, a.subtitle].filter(
-    (c) => c.enabled && c.text !== "",
-  );
+  const captions = [a.title, a.subtitle].filter((c) => c.enabled && c.text !== "");
   const captionSpace = captions.reduce(
     (sum, c) => sum + measureText(c.text, c).height + c.spacing,
     0,
   );
   const padding = { ...a.padding, top: a.padding.top + captionSpace };
-  if (a.legend.enabled)
+  const legend = pieLegendLayout(input, rings, captionSpace);
+  if (a.legend.enabled && legend.legendPagination)
     padding[a.legend.position as keyof typeof padding] +=
-      legendSpace(
-        input,
-        rings,
-        Math.max(0, viewport.width - a.padding.left - a.padding.right),
-      ) + a.legend.spacing;
+      (a.legend.position === "left" || a.legend.position === "right"
+        ? legend.width
+        : legend.height) + a.legend.spacing;
   const width = Math.max(0, viewport.width - padding.left - padding.right);
   const height = Math.max(0, viewport.height - padding.top - padding.bottom);
   const room = calloutSpace(input, rings);
@@ -176,8 +110,12 @@ export function pieLayout(input: PieMappingInput, rings: readonly PieRing[]) {
       top: a.padding.top,
       left: "center",
     },
-    legend: legend(input, rings, captionSpace),
-    graphic: outlines(input, rings, geometry),
+    legend: legend.legends,
+    graphic: [
+      ...outlines(input, rings, geometry),
+      ...pieTitles(input, rings, geometry),
+      ...legend.graphic,
+    ],
   };
-  return { geometry, options };
+  return { geometry, options, legendPagination: legend.legendPagination };
 }

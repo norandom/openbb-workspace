@@ -30,7 +30,11 @@ export const translatePie: TranslatePie = (input) => {
       tooltip: pieTooltip(admitted),
     };
     finiteGeometry(options);
-    return { status: "supported", options };
+    return {
+      status: "supported",
+      options,
+      ...(layout.legendPagination ? { legendPagination: layout.legendPagination } : {}),
+    };
   } catch {
     return pieFailure(
       "Pie input could not be safely inspected or projected into finite geometry.",
