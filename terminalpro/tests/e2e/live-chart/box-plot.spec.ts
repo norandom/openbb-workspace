@@ -312,6 +312,31 @@ test("retained AAPL Box summaries, controls, navigation and raw USD survive them
       `box-horizontal-long-labels-${dark ? "dark" : "light"}`,
     );
   }
+  await quickAction(page, widget, "Show mini chart");
+  for (const dark of [false, true]) {
+    await setTheme(page, dark);
+    const defaultMini = await verifyBox(
+      page,
+      widget,
+      source.groups,
+      "horizontal",
+      labels,
+      fields,
+      0.5,
+      !dark,
+    );
+    expect(
+      matchBoxes(defaultMini.drawing, source.groups, "horizontal", fields, 0.5, true),
+    ).toHaveLength(22);
+    await capturePie(
+      page,
+      widget,
+      info,
+      `box-default-horizontal-miniature-${dark ? "dark" : "light"}`,
+    );
+  }
+  await quickAction(page, widget, "Hide mini chart");
+  await setTheme(page, true);
   editor = await openEditor(page, widget);
   await styleBox(page, widget, editor, source.groups, labels);
   await collapse(editor);
