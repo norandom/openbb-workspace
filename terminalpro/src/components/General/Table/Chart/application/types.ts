@@ -170,7 +170,7 @@ export interface FinancialFormattingHelpers {
   readonly isValidDate: (value: string | Date) => boolean;
 }
 export interface FinancialFormattingInput {
-  readonly chartType: import("../echarts/cartesianTypes").CartesianFamily;
+  readonly chartType: import("./comboSessionTypes").ApplicationChartFamily;
   readonly period?: string;
   readonly decimalDigits?: number | null;
   readonly globalDecimalDigits?: number;

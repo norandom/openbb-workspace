@@ -41,6 +41,7 @@ describe("original area editor", () => {
     if (!state.valid) throw new Error(state.error);
     const intents: unknown[] = [];
     render(<ApplicationCustomizeEditor state={state.value} onAxisStructure={() => {}} onIntent={intent => {
+      if (intent.panel === "pieLabel" || intent.panel === "pieCallout" || intent.panel === "pieSector") throw Error("Area controls emitted pie intent");
       intents.push(intent);
       const event = rehydrateApplicationEditorEvent({ selection: selection(family, options), bindings, manualRotations: { category: undefined, number: undefined }, intent });
       if (!event.valid) throw new Error(event.error);

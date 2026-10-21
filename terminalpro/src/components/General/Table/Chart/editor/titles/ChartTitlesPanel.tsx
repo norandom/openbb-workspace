@@ -38,6 +38,7 @@ export interface CaptionOptions extends CaptionTypographyChoices {
 }
 export interface ChartTitlesPanelProps extends CaptionOptions {
   value: Record<ChartCaptionId, ChartCaptionState>;
+  availableCaptions?: readonly ChartCaptionId[];
   optionsByCaption?: Readonly<Record<ChartCaptionId, CaptionOptions>>;
   onEdit: (edit: ChartCaptionEdit) => void;
 }
@@ -48,7 +49,11 @@ const captions: readonly [ChartCaptionId, string][] = [
   ["verticalAxisTitle", "Vertical Axis Title"],
 ];
 
-export function ChartTitlesPanel(props: ChartTitlesPanelProps) {
+export type AvailableChartTitlesProps = Omit<ChartTitlesPanelProps, "value" | "optionsByCaption"> & {
+  value: Partial<Record<ChartCaptionId, ChartCaptionState>>;
+  optionsByCaption?: Readonly<Partial<Record<ChartCaptionId, CaptionOptions>>>;
+};
+export function ChartTitlesPanel(props: AvailableChartTitlesProps) {
   const [expanded, setExpanded] = useState(false);
   return (
     <div className="chart-titles-panel">
@@ -61,23 +66,24 @@ export function ChartTitlesPanel(props: ChartTitlesPanelProps) {
         <span aria-hidden="true">{expanded ? "⌄" : "›"}</span> Titles
       </button>
       {expanded &&
-        captions.map(([caption, label]) => (
+        captions.filter(([caption]) => (!props.availableCaptions || props.availableCaptions.includes(caption)) && props.value[caption]).map(([caption, label]) => (
           <fieldset key={caption} className="chart-caption-section" aria-label={label}>
             <div className="chart-caption-toggle">
               <span>{label}</span>
               <Switch
                 aria-label={label}
-                checked={props.value[caption].enabled}
+                checked={props.value[caption]!.enabled}
                 onCheckedChange={(value) =>
                   props.onEdit({ caption, field: "enabled", value })
                 }
               />
             </div>
-            {props.value[caption].enabled && (
+            {props.value[caption]!.enabled && (
               <CaptionFields
                 {...props}
                 {...props.optionsByCaption?.[caption]}
                 caption={caption}
+                state={props.value[caption]!}
               />
             )}
           </fieldset>

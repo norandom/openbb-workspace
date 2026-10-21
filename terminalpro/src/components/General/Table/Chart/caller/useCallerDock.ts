@@ -1,3 +1,4 @@
+import { isPieChartFamily } from "../application/pieSessionTypes";
 import { isXyChartFamily } from "../application/xySessionTypes";
 import { useRef, useState } from "react";
 import { useWidgetContext } from "~/components/Widget.context";
@@ -52,7 +53,7 @@ export function useCallerDock(
       groups,
       selectedType: chartType,
       onSelect: (type: string) => {
-        if (onSelect && (isCartesianFamily(type) || isComboChartFamily(type) || isXyChartFamily(type) || type === "histogram"))
+        if (onSelect && (isPieChartFamily(type) || isCartesianFamily(type) || isComboChartFamily(type) || isXyChartFamily(type) || type === "histogram"))
           onSelect(type);
         else
           updateWidget?.((previous) => changeCallerChartType(previous, type));

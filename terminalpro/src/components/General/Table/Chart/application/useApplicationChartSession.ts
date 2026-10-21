@@ -1,3 +1,5 @@
+import { isPieChartFamily, type PieEditIntent } from "./pieSessionTypes";
+import { projectPieSession } from "./pieSessionProjection";
 import { projectHistogramSession } from "./histogramSessionProjection";
 import type { HistogramEditIntent } from "./histogramSessionTypes";
 import { isXyChartFamily, type XyEditIntent } from "./xySessionTypes";
@@ -43,8 +45,10 @@ import { validateSessionStamp } from "./sessionState";
 import { useApplicationSessionScope } from "./useApplicationSessionScope";
 import { useApplicationSessionFreshness } from "./useApplicationSessionFreshness";
 
-export function useApplicationChartSession(
-  inputs: ApplicationSessionInputs<ApplicationChartFamily>,
+type ReadyFor<F extends ApplicationChartFamily> = F extends import("../compatibility/pieAssignments").PieChartType
+  ? Extract<ApplicationChartReady, { kind: "pie" }> : Exclude<ApplicationChartReady, { kind: "pie" }>;
+export function useApplicationChartSession<F extends ApplicationChartFamily>(
+  inputs: ApplicationSessionInputs<F>,
 ) {
   const owner = useWidgetTransactionContext();
   const { token, state } = useApplicationSessionScope(owner, inputs);
@@ -56,10 +60,12 @@ export function useApplicationChartSession(
       sessionActionKey(owner.widget.storage as ChartStorageOutput)
       ? state
       : undefined;
-  const projection = useMemo<SessionResult<ApplicationChartReady>>(
+  const projected = useMemo<SessionResult<ApplicationChartReady>>(
     () =>
       current
-        ? inputs.family === "histogram"
+        ? isPieChartFamily(inputs.family)
+          ? projectPieSession(owner.widget.storage as ChartStorageOutput, inputs as ApplicationSessionInputs<import("../compatibility/pieAssignments").PieChartType>, current)
+          : inputs.family === "histogram"
           ? projectHistogramSession(owner.widget.storage as ChartStorageOutput, inputs as ApplicationSessionInputs<"histogram">, current)
           : isXyChartFamily(inputs.family)
           ? projectXySession(owner.widget.storage as ChartStorageOutput, inputs as ApplicationSessionInputs<import("../compatibility/xyAssignments").XyChartType>, current)
@@ -79,6 +85,7 @@ export function useApplicationChartSession(
         : { status: "waiting" as const },
     [owner.widget.storage, current, inputs.display, inputs.family],
   );
+  const projection = projected as SessionResult<ReadyFor<F>>;
   const validateCurrent = useApplicationSessionFreshness(
     projection.status === "ready" ? projection.stamp : undefined,
   );
@@ -219,7 +226,7 @@ export function useApplicationChartSession(
       dispatch({ panel: "family", chartType }),
     onHistogram: (edit: HistogramEditIntent["edit"]) => dispatch({ panel: "histogram", edit }),
     onXy: (edit: XyEditIntent["edit"]) => dispatch({ panel: "xy", edit }),
-    onIntent: (intent: ApplicationEditorIntent) => dispatch(intent),
+    onIntent: (intent: ApplicationEditorIntent | PieEditIntent) => dispatch(intent),
     onAxisStructure: (event: ApplicationAxisStructureEvent) => dispatch(event),
     onSetup: (edit: ChartSetupEdit) => dispatch({ panel: "setup", edit }),
     notifyChartUpdate,

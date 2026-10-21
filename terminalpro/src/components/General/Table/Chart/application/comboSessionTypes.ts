@@ -4,7 +4,7 @@ import type { CartesianFamily } from "../echarts/cartesianTypes";
 import type { ApplicationSessionContext } from "./applicationSessionTypes";
 import type { ResolvedRange, SessionStamp } from "./types";
 
-export type ApplicationChartFamily = CartesianFamily | ComboChartType | import("../compatibility/xyAssignments").XyChartType | "histogram";
+export type ApplicationChartFamily = CartesianFamily | ComboChartType | import("../compatibility/xyAssignments").XyChartType | "histogram" | import("../compatibility/pieAssignments").PieChartType;
 export type ComboSessionContext = ApplicationSessionContext<ComboChartType>;
 export function isComboChartFamily(value: unknown): value is ComboChartType {
   return value === "columnLineCombo" || value === "areaColumnCombo" || value === "customCombo";

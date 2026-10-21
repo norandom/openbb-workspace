@@ -112,7 +112,7 @@ export type EditorSelectionResult = ValidationResult<ApplicationEditorState>;
 export type SelectApplicationEditorState = (input: EditorSelectionInput) => EditorSelectionResult;
 export type MapApplicationEditorEvent = (
   event: ApplicationEditorEvent,
-  family: CartesianFamily | import("../xyAssignments").XyChartType | "histogram",
+  family: CartesianFamily | import("../xyAssignments").XyChartType | "histogram" | import("../pieAssignments").PieChartType,
 ) => ValidationResult<RuntimeOptions>;
 export interface ApplicationEditorCommand {
   readonly stamp: SessionStamp;

@@ -93,14 +93,13 @@ function Spacing({
 
 export function CaptionFields({
   caption,
-  value,
+  state,
   fonts,
   weights,
   sizes,
   spacingBounds,
   onEdit,
-}: ChartTitlesPanelProps & { caption: ChartCaptionId }) {
-  const state = value[caption];
+}: Omit<import("./ChartTitlesPanel").AvailableChartTitlesProps, "value"> & { caption: ChartCaptionId; state: import("./ChartTitlesPanel").ChartCaptionState }) {
   return (
     <div className="chart-caption-fields">
       <label className="chart-caption-row">

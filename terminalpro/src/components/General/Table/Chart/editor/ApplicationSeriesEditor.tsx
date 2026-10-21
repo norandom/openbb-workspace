@@ -1,3 +1,4 @@
+import { PieLabelControls } from "./pie/PieLabelControls";
 import { HistogramBinControls } from "./histogram/HistogramBinControls";
 import { XyPointControls } from "./xy/XyPointControls";
 import type { ApplicationCustomizeEditorProps } from "./ApplicationCustomizeEditor";
@@ -14,6 +15,14 @@ export function ApplicationSeriesEditor({
   onIntent,
   mode,
 }: ApplicationCustomizeEditorProps) {
+  if (!("axes" in state)) return (
+    <ApplicationEditorGroup label="Series">
+      <ChartTooltipsPanel {...state.tooltips} onEdit={edit => onIntent({ panel: "tooltips", edit })} />
+      <ChartSeriesStylePanel {...state.series} onEdit={edit => onIntent({ panel: "series", edit })} />
+      <PieLabelControls {...state} onIntent={onIntent} />
+      <ChartShadowPanel {...state.shadow} onEdit={edit => onIntent({ panel: "shadow", edit })} />
+    </ApplicationEditorGroup>
+  );
   const eligibility = state.eligibility;
   return (
     <ApplicationEditorGroup label="Series">

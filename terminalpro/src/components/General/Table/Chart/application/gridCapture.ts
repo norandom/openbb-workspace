@@ -1,3 +1,4 @@
+import { normalizePieObservation } from "./pieCapture";
 import { normalizeHistogramObservation } from "./histogramCapture";
 import type { GridApi } from "ag-grid-community";
 import { validateSnapshot } from "../compatibility/snapshot";
@@ -155,7 +156,7 @@ function readRows(
         colKey: id,
         useFormatter: false,
       });
-      const value = input.snapshotPolicy === "histogram-observations" ? normalizeHistogramObservation(raw) : raw;
+      const value = input.snapshotPolicy === "pie-observations" ? normalizePieObservation(raw) : input.snapshotPolicy === "histogram-observations" ? normalizeHistogramObservation(raw) : raw;
       if (value !== null && !(typeof value === "number" && Number.isFinite(value)))
         fail("unresolved", [...path, "values", id], "Unsupported numeric value");
       values[id] = value as number | null;

@@ -233,7 +233,7 @@ export function ChartSetupPanel({
             <span aria-hidden="true">+</span>
           </div>
         )}
-        {mode?.kind !== "combo" && mode?.kind !== "xy" && mode?.kind !== "histogram" && (
+        {mode?.kind !== "combo" && mode?.kind !== "xy" && mode?.kind !== "histogram" && (mode?.kind !== "pie" || mode.canSwitchCategorySeries) && (
           <div className="chart-setup-switch chart-setup-transpose">
             <Switch
               label="Switch Category / Series"

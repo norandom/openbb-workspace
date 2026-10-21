@@ -1,3 +1,5 @@
+import { isPieChartFamily } from "./pieSessionTypes";
+import { applyPieEditorTransaction } from "./pieEditorTransaction";
 import { applyHistogramEditorTransaction } from "./histogramEditorTransaction";
 import { isXyChartFamily } from "./xySessionTypes";
 import { applyXyEditorTransaction } from "./xyEditorTransaction";
@@ -22,7 +24,7 @@ import { applyComboEditorTransaction } from "./comboEditorTransaction";
 import { selectComboSession } from "./comboSessionSelection";
 import { applyApplicationEditorTransaction } from "./applicationSessionEdit";
 import { applyApplicationSetupTransaction } from "./applicationSessionSetup";
-import { captureApplicationSession } from "./applicationSessionCapture";
+import type { captureApplicationSession } from "./applicationSessionCapture";
 import {
   contextFor,
   nextSessionStamp,
@@ -53,6 +55,9 @@ function transaction(
       intent.edit,
       recapture,
     );
+  if (isPieChartFamily(context.inputs.family))
+    return applyPieEditorTransaction(storage, context as ApplicationSessionContext<import("../compatibility/pieAssignments").PieChartType>, command);
+  if (intent.panel === "pieLabel" || intent.panel === "pieCallout" || intent.panel === "pieSector") return { status: "stale" as const };
   if (context.inputs.family === "histogram")
     return applyHistogramEditorTransaction(storage, context as ApplicationSessionContext<"histogram">, command);
   if (intent.panel === "histogram") return { status: "stale" as const };

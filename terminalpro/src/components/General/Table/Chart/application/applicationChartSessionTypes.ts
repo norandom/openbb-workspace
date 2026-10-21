@@ -10,6 +10,7 @@ import type {
 } from "./comboSessionTypes";
 import type { SessionStamp } from "./types";
 export type ApplicationChartReady =
+  | (Omit<ApplicationSessionReady, "editor"> & { readonly kind: "pie"; readonly editor: import("./pieSessionTypes").PieEditorState })
   | (ApplicationSessionReady & { readonly kind: "histogram"; readonly histogram: import("./histogramSessionTypes").HistogramEditorProjection })
   | (ApplicationSessionReady & { readonly kind: "xy"; readonly xy: import("./xySessionTypes").XyEditorProjection })
   | (ApplicationSessionReady & { readonly kind: "cartesian" })
@@ -27,6 +28,7 @@ export interface ApplicationChartCommand {
   readonly geometry?: ComboGeometry;
   readonly intent:
     | ApplicationSessionCommand["intent"]
+    | import("./pieSessionTypes").PieEditIntent
     | import("./xySessionTypes").XyEditIntent
     | import("./histogramSessionTypes").HistogramEditIntent
     | ComboAssignmentCommand["intent"]

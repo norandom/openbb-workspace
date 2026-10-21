@@ -19,6 +19,7 @@ export function applyHistogramEditorTransaction(
   if (checked.status !== "ready") return checked;
   if (command.family !== "histogram" || context.inputs.family !== "histogram") return { status: "stale" };
   const intent = command.intent;
+  if (intent.panel === "pieLabel" || intent.panel === "pieCallout" || intent.panel === "pieSector") return { status: "stale" };
   if (intent.panel === "family" || intent.panel === "setup" || intent.panel === "geometry" ||
       intent.panel === "comboAssignment" || intent.panel === "xy" || intent.panel === "markers" ||
       intent.panel === "connectMissingData") return { status: "stale" };

@@ -4,7 +4,7 @@ import type { AppearanceInput } from "./appearanceModel";
 import { applicationColors } from "./effectiveAppearanceColors";
 
 /** Finite AG defaults: ChartTheme, BarSeriesModule, LineSeriesModule and AreaSeriesModule in the owned source. */
-export function appearanceDefaults(input: Omit<AppearanceInput, "family"> & { family: string }): RuntimeOptions {
+export function appearanceDefaults(input: Pick<AppearanceInput, "theme" | "seriesIds"> & { family: string }): RuntimeOptions {
   const colors = applicationColors(input.theme.colors);
   const typography = {
     fontFamily: "Verdana, sans-serif",

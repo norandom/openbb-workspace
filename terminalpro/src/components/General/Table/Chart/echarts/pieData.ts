@@ -33,7 +33,7 @@ function datum(
     legendText: `${prefix}${category}`,
     calloutText: String(display.seriesLabel(row.category)),
     sectorText: String(display.seriesLabel(rawValue)),
-    tooltipText: `${escapeHtml(category)}<br/>${escapeHtml(descriptor.label)}: ${escapeHtml(rawValue.toLocaleString())}`,
+    tooltipText: `${input.style.application.tooltip.mode === "compact" ? "" : `${escapeHtml(category)}<br/>`}${escapeHtml(descriptor.label)}: ${escapeHtml(rawValue.toLocaleString())}`,
     metadata: {
       colId: assignment.colId,
       rowId: row.id,

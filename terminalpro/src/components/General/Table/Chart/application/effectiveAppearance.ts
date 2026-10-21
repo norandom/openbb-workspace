@@ -1,3 +1,4 @@
+import { resolveAppearanceChrome } from "./effectiveAppearanceChrome";
 import merge from "lodash.merge";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import { isAreaFamily } from "../echarts/cartesianAreaTypes";
@@ -15,13 +16,9 @@ import {
 } from "./effectiveAppearanceSeries";
 import {
   at,
-  bool,
-  caption,
   child,
-  font,
   number,
   object,
-  text,
   type ReadAppearance,
 } from "./effectiveAppearanceValues";
 
@@ -73,83 +70,21 @@ function validateInput(input: AppearanceInput): void {
   }
 }
 
-function resolveLegend(
-  read: ReadAppearance,
-): ResolvedApplicationAppearance["legend"] {
-  return {
-    ...font(child(read, "item.label")),
-    enabled: bool(read("enabled")),
-    position: text(read("position")),
-    spacing: number(read("spacing")),
-    markerSize: number(read("item.marker.size")),
-    markerStroke: number(read("item.marker.strokeWidth")),
-    itemSpacing: number(read("item.marker.padding")),
-    horizontalSpacing: number(read("item.paddingX")),
-    verticalSpacing: number(read("item.paddingY")),
-  };
-}
-
 export function resolveCommonAppearance(
   input: Omit<AppearanceInput, "family"> & { family: AppearanceInput["family"] | import("../compatibility/xyAssignments").XyChartType | "histogram" },
   sourceLayers: RuntimeOptions[],
 ): ResolvedApplicationAppearance {
   const effective = merge({}, ...sourceLayers);
   const read: ReadAppearance = (path) => at(effective, path);
-  let title = caption(child(read, "title"));
-  const subtitle = caption(child(read, "subtitle"));
-  if (
-    subtitle.enabled &&
-    sourceLayers
-      .slice(1)
-      .every((layer) => at(layer, "title.spacing") === undefined)
-  )
-    title = { ...title, spacing: 10 };
-  const category = input.axisRuntime.axes.find(
-    (axis) => axis.id === "category",
-  );
-  const numeric = input.axisRuntime.axes.find((axis) => axis.id === "number");
-  if (!category || !numeric)
-    throw new Error("Missing concrete category/number axis");
+  const category = input.axisRuntime.axes.find(axis => axis.id === "category");
+  const numeric = input.axisRuntime.axes.find(axis => axis.id === "number");
+  if (!category || !numeric) throw new Error("Missing concrete category/number axis");
   const series = resolveAppearanceSeries(child(read, "series"));
-  const legend = resolveLegend(child(read, "legend"));
-  const explicitLegendStroke = sourceLayers
-    .slice(1)
-    .some((layer) => at(layer, "legend.item.marker.strokeWidth") !== undefined);
   return {
-    title,
-    subtitle,
-    legend,
-    legendMarkerStrokeWidth: explicitLegendStroke
-      ? legend.markerStroke
-      : Math.min(
-          2,
-          input.family === "line"
-            ? series.markers.strokeWidth
-            : series.strokeWidth,
-        ),
-    padding: {
-      top: number(read("padding.top")),
-      right: number(read("padding.right")),
-      bottom: number(read("padding.bottom")),
-      left: number(read("padding.left")),
-    },
-    background: {
-      visible: bool(read("background.visible")),
-      fill: text(read("background.fill")),
-    },
-    tooltip: {
-      enabled: bool(read("tooltip.enabled")),
-      mode: text(read("tooltip.mode")),
-    },
-    axes: {
-      category: resolveAppearanceAxis(sourceLayers, category),
-      number: resolveAppearanceAxis(sourceLayers, numeric),
-    },
+    ...resolveAppearanceChrome(sourceLayers, input.theme.palette,
+      input.family === "line" ? series.markers.strokeWidth : series.strokeWidth),
+    axes: { category: resolveAppearanceAxis(sourceLayers, category), number: resolveAppearanceAxis(sourceLayers, numeric) },
     series,
-    palette: {
-      fills: [...input.theme.palette.fills],
-      strokes: [...input.theme.palette.strokes],
-    },
   };
 }
 

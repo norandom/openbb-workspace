@@ -26,6 +26,9 @@ export function callerGeneratedOptions(
       axes: { number: { bottom: caption(view.xLabel), left: caption(view.yLabel) } },
       series: { label: { enabled: false }, ...(dataOnlyOptions(series) as RuntimeOptions) },
     }])),
+    ...Object.fromEntries(["pie", "donut"].map(family => [family, { series: {
+      calloutLabel: { enabled: true }, sectorLabel: { enabled: true }, ...(dataOnlyOptions(series) as RuntimeOptions),
+    } }])),
     bar: {
       series: {
         label: { enabled: false, placement: "outside-end" },

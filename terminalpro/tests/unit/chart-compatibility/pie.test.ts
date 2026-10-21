@@ -306,3 +306,15 @@ it("formats fiscal and numeric categories before adding their exact field title 
     "FY2025 Q1<br/>Revenue: 3",
   );
 });
+
+it.each(["single", "shared", "compact"])("freezes hovered-item tooltip contents for %s mode", mode => {
+  const input = pieInput();
+  input.style.application.tooltip.mode = mode;
+  const options = pieOptions(input);
+  const data = mains(options)[0].data[0];
+  expect(data.tooltipText).toContain("Revenue: 3");
+  expect(data.tooltipText.includes("legend:A<br/>")).toBe(mode !== "compact");
+  expect(options.tooltip.trigger).toBe("item");
+  input.style.application.tooltip.mode = mode === "compact" ? "single" : "compact";
+  expect(data.tooltipText.includes("legend:A<br/>")).toBe(mode !== "compact");
+});

@@ -1,13 +1,9 @@
-import { selectHistogramSession } from "./histogramSessionSelection";
+import { canSwitchCategorySeries, selectApplicationSetup } from "./applicationSetupSelection";
 import { observationSnapshotPolicy } from "./histogramCapture";
-import { isXyChartFamily } from "./xySessionTypes";
-import { selectXySession } from "./xySessionSelection";
 import {
   isComboChartFamily,
   type ApplicationChartFamily,
-  type ComboSessionContext,
 } from "./comboSessionTypes";
-import { selectComboSession } from "./comboSessionSelection";
 import { rebuildComboAxes } from "./comboSessionLifecycle";
 import type {
   ChartStorageOutput,
@@ -17,7 +13,6 @@ import type { ChartSnapshot } from "../compatibility/snapshotTypes";
 import type { ChartSetupEdit } from "../editor/setup/ChartSetupPanel";
 import { invalidSession, reduceSessionOptions } from "./applicationSessionEdit";
 import {
-  selectApplicationSession,
   sessionSetup,
 } from "./applicationSessionSelection";
 import { validateSynchronousEditorStamp } from "./applicationSessionStamp";
@@ -45,27 +40,12 @@ export function applyApplicationSetupTransaction(
   if (checked.status !== "ready") return checked;
   try {
     const combo = isComboChartFamily(context.inputs.family);
-    const xy = isXyChartFamily(context.inputs.family);
-    if ((combo || observationSnapshotPolicy(context.inputs.family)) && edit.kind === "switch-category-series")
-      return invalidSession(
-        "Combination charts cannot switch category and series",
-      );
-    const selection = combo
-      ? selectComboSession(storage, context as ComboSessionContext)
-      : undefined;
-    if (selection && selection.status !== "ready") return selection;
-    const selected =
-      selection?.status === "ready"
-        ? selection.value
-        : context.inputs.family === "histogram" ? selectHistogramSession(storage, context as ApplicationSessionContext<"histogram">) : xy ? selectXySession(storage, context as ApplicationSessionContext<import("../compatibility/xyAssignments").XyChartType>) : selectApplicationSession(
-            storage,
-            context as ApplicationSessionContext,
-          );
-    if (selection?.status === "ready")
-      context = {
-        ...context,
-        inputs: { ...context.inputs, family: selection.value.chartType },
-      };
+    if (!canSwitchCategorySeries(context.inputs.family) && edit.kind === "switch-category-series")
+      return invalidSession("This chart family cannot switch category and series");
+    const selection = selectApplicationSetup(storage, context);
+    if (selection.status !== "ready") return selection;
+    const selected = selection.value;
+    if ("chartType" in selected) context = { ...context, inputs: { ...context.inputs, family: selected.chartType } };
     const previous = sessionSetup(
       context.local.baseline.model,
       context.local.range,

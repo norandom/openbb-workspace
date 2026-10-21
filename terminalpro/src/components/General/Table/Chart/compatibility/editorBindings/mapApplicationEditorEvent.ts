@@ -1,3 +1,4 @@
+import { isPieChartFamily } from "../../application/pieSessionTypes";
 import { isXyChartFamily } from "../../application/xySessionTypes";
 import { isAreaFamily } from "../../echarts/cartesianAreaTypes";
 import { isCartesianFamily } from "../../echarts/cartesianTypes";
@@ -119,13 +120,16 @@ function eventPatch(event: ApplicationEditorEvent): RuntimeOptions {
 }
 export const mapApplicationEditorEvent: MapApplicationEditorEvent = (event, family) => {
   try {
-    if (!isCartesianFamily(family) && !isAreaFamily(family) && !isXyChartFamily(family) && family !== "histogram")
+    if (!isCartesianFamily(family) && !isAreaFamily(family) && !isXyChartFamily(family) && family !== "histogram" && !isPieChartFamily(family))
       throw new Error("Unsupported chart family");
     validateEvent(event);
+    if (isPieChartFamily(family) && (!["titles", "legend", "padding", "background", "tooltips", "series", "shadow"].includes(event.panel) ||
+      (event.panel === "titles" && !["title", "subtitle"].includes(event.edit.caption)) ||
+      (event.panel === "series" && event.edit.field === "lineDash"))) throw Error("Unsupported pie control");
     return {
       valid: true,
       value: {
-        [isXyChartFamily(family) || family === "histogram" ? family : isAreaFamily(family) ? "area" : family === "line" ? "line" : "bar"]:
+        [isPieChartFamily(family) ? family === "pie" ? "pie" : "donut" : isXyChartFamily(family) || family === "histogram" ? family : isAreaFamily(family) ? "area" : family === "line" ? "line" : "bar"]:
           eventPatch(event),
       },
     };

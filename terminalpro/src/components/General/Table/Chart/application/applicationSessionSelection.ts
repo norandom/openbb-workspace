@@ -50,6 +50,9 @@ export function sessionRange<F extends ApplicationChartFamily>(
 ): ResolvedRange {
   return resolveSessionRange(storage, context);
 }
+export function canSwitchCategorySeries(family: ApplicationChartFamily): boolean {
+  return !isComboChartFamily(family) && !isXyChartFamily(family) && family !== "histogram" && family !== "pie";
+}
 export function sessionSetup<F extends ApplicationChartFamily>(
   model: ChartModel,
   range: ResolvedRange,
@@ -73,7 +76,7 @@ export function sessionSetup<F extends ApplicationChartFamily>(
     categoryId,
     seriesIds: range.columnIds.filter((id) => !categories.includes(id)),
     ...(aggFunc === undefined ? {} : { aggFunc: aggFunc as SetupSelection["aggFunc"] }),
-    switchCategorySeries: context.inputs.family !== "histogram" && !isXyChartFamily(context.inputs.family) && model.switchCategorySeries === true,
+    switchCategorySeries: canSwitchCategorySeries(context.inputs.family) && model.switchCategorySeries === true,
   };
 }
 export function sessionBindings(

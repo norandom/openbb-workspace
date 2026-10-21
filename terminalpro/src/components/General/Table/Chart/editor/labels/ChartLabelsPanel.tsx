@@ -15,6 +15,7 @@ export type ChartLabelsEdit = {
   [Field in keyof ChartLabelsState]: { field: Field; value: ChartLabelsState[Field] };
 }[keyof ChartLabelsState];
 export interface ChartLabelsPanelProps {
+  label?: string;
   value: ChartLabelsState;
   onEdit: (edit: ChartLabelsEdit) => void;
   fonts: readonly LegendChoice<string>[];
@@ -23,13 +24,13 @@ export interface ChartLabelsPanelProps {
 }
 
 export function ChartLabelsPanel({
-  value, onEdit, fonts, weights, sizes,
+  value, onEdit, fonts, weights, sizes, label = "Labels",
 }: ChartLabelsPanelProps) {
   return (
-    <fieldset className="chart-titles-panel chart-caption-section" aria-label="Labels">
+    <fieldset className="chart-titles-panel chart-caption-section" aria-label={label}>
       <div className="chart-caption-toggle">
-        <span>Labels</span>
-        <Switch aria-label="Labels" checked={value.enabled}
+        <span>{label}</span>
+        <Switch aria-label={label} checked={value.enabled}
           onCheckedChange={(value) => onEdit({ field: "enabled", value })} />
       </div>
       {value.enabled && (

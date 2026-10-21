@@ -35,6 +35,7 @@ export function applyXyEditorTransaction(
   if (checked.status !== "ready") return checked;
   if (command.family !== context.inputs.family) return { status: "stale" };
   const intent = command.intent;
+  if (intent.panel === "pieLabel" || intent.panel === "pieCallout" || intent.panel === "pieSector") return { status: "stale" };
   if (["family", "setup", "geometry", "comboAssignment", "markers", "connectMissingData", "shadow"].includes(intent.panel))
     return { status: "stale" };
   if (intent.panel === "xy" && intent.edit.kind === "maxSize" && command.family !== "bubble")

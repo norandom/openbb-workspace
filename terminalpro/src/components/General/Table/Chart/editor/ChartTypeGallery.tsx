@@ -33,8 +33,8 @@ export function ChartTypeGallery({ groups, selectedType, onSelect, scrollPositio
                 key={item.modelType}
                 type="button"
                 title={item.name}
-                aria-label={`${item.name}${selectedType === item.modelType ? ". Selected" : ""}`}
-                aria-pressed={selectedType === item.modelType}
+                aria-label={`${item.name}${(selectedType === "doughnut" ? "donut" : selectedType) === item.modelType ? ". Selected" : ""}`}
+                aria-pressed={(selectedType === "doughnut" ? "donut" : selectedType) === item.modelType}
                 onClick={() => onSelect(item.modelType)}
               >
                 <ChartTypeThumbnail modelType={item.modelType} />

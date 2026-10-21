@@ -1,3 +1,4 @@
+import { isPieChartFamily } from "./pieSessionTypes";
 import { rebuildComboAxes } from "./comboSessionLifecycle";
 import {
   readAxisSettings,
@@ -110,7 +111,7 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
   let range = local.range;
   let error = selected.valid ? undefined : selected.error;
   try {
-    local.axes = restoreAxisSettings(local.baseline.model, inputs.initialAxes);
+    if (!isPieChartFamily(inputs.family)) local.axes = restoreAxisSettings(local.baseline.model, inputs.initialAxes);
     range = sessionRange(storage, context);
   } catch (failure) {
     error = failure instanceof Error ? failure.message : "Invalid chart range";
@@ -198,8 +199,8 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
       chartType: "customCombo",
       model: { ...baseline.model, chartType: "customCombo" },
     };
-  const preference = readAxisSettings(baseline.model);
-  const previousPreference = readAxisSettings(state.local.baseline.model);
+  const preference = isPieChartFamily(inputs.family) ? undefined : readAxisSettings(baseline.model);
+  const previousPreference = isPieChartFamily(inputs.family) ? undefined : readAxisSettings(state.local.baseline.model);
   const axes = isEqual(preference, previousPreference)
     ? state.local.axes
     : preference

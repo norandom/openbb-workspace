@@ -22,7 +22,7 @@ import {
 } from "../../../src/components/General/Table/hooks/useTableContext";
 import { WidgetTransactionContext } from "../../../src/components/WidgetTransaction.context";
 import { useWidgetUpdates } from "../../../src/components/widgetSync/useWidgetUpdates";
-import { useChartBarFillQuickAction } from "../../../src/components/General/Table/Chart/hooks/useChartOptions";
+import { useChartBarFillQuickAction, useChartQuickActions } from "../../../src/components/General/Table/Chart/hooks/useChartOptions";
 
 const fixture = vi.hoisted(() => ({
   options: {} as any,
@@ -206,8 +206,10 @@ vi.mock("ag-grid-react", () => ({
 function Probe() {
   const { applicationChartRef } = useAgGridContext();
   const bar = useChartBarFillQuickAction();
+  const navigation = useChartQuickActions();
   return (
     <>
+      {navigation.map(action => <button key={action.id} onClick={action.onClick}>{action.label}</button>)}
       {bar && (
         <button disabled={bar.disabled} onClick={bar.onClick}>
           {bar.label}
@@ -648,4 +650,41 @@ describe("ordinary table joins the production session", () => {
     expect(screen.queryByTestId("chart-canvas")).toBeNull();
     expect(screen.getByTestId("retained-table")).toBeTruthy();
   });
+});
+
+it.each([false, true])("routes pie/donut and saved alias through real navbar, dock and empty recovery (file=%s)", async file => {
+  fixture.fileMode = file;
+  render(<Owner file={file} family="doughnut" settingsOpen storageOverride={{ chartNavigatorEnabled: true, chartMiniChartEnabled: true }} />);
+  fireEvent.click(document.querySelector("#chart-view-button")!);
+  await waitFor(() => expect(fixture.options.series?.[0]?.type).toBe("pie"));
+  expect(fixture.options.series[0].data.map((d:any) => d.metadata.rawValue)).toEqual([50, 100]);
+  expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("doughnut");
+  expect(screen.getByRole("button", { name: "Donut. Selected" }).getAttribute("aria-pressed")).toBe("true");
+  expect(screen.queryByRole("button", { name: /Show navigator|Hide navigator|Show mini chart|Hide mini chart/ })).toBeNull();
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "Customize" }), { button: 0, ctrlKey: false });
+  fireEvent.click(screen.getByRole("button", { name: "Series" }));
+  expect(screen.getByRole("switch", { name: "Callout Labels" })).toBeTruthy();
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Length value" }), { target: { value: "27" } });
+  await waitFor(() => expect(fixture.owner.widget.storage.default.chartModel.chartOptions.donut.series.calloutLine.length).toBe(27));
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "Chart" }), { button: 0, ctrlKey: false });
+  fireEvent.click(screen.getByRole("button", { name: "Pie" }));
+  await waitFor(() => expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("pie"));
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "Set Up" }), { button: 0, ctrlKey: false });
+  expect(screen.queryByRole("switch", { name: "Switch Category / Series" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Remove income" }));
+  await waitFor(() => expect(fixture.options.series).toEqual([]));
+  expect(fixture.owner.widget.storage.chartView.enabled).toBe(true);
+  expect(screen.getByTestId("chart-canvas")).toBeTruthy();
+  fireEvent.change(screen.getByRole("combobox", { name: "Add a series" }), { target: { value: "0" } });
+  await waitFor(() => expect(fixture.options.series[0].data).toHaveLength(2));
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "Chart" }), { button: 0, ctrlKey: false });
+  fireEvent.click(screen.getByRole("button", { name: "Donut" }));
+  await waitFor(() => expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("donut"));
+  expect(fixture.exportFns.pngFunction).toBeTypeOf("function");
+  fireEvent.click(screen.getByRole("button", { name: "Line" }));
+  await waitFor(() => expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("line"));
+  expect(screen.getByRole("button", { name: "Hide navigator" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Hide mini chart" })).toBeTruthy();
+  expect(fixture.owner.widget.storage.chartNavigatorEnabled).toBe(true);
+  expect(fixture.owner.widget.storage.chartMiniChartEnabled).toBe(true);
 });

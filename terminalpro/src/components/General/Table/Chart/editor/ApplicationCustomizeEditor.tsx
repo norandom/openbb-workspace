@@ -1,3 +1,4 @@
+import type { PieEditorState, PieEditIntent } from "../application/pieSessionTypes";
 import type { ApplicationEditorMode } from "./combo/comboEditorMode";
 import { ApplicationSeriesEditor } from "./ApplicationSeriesEditor";
 import {
@@ -18,15 +19,16 @@ import { ApplicationAxisEditor } from "./ApplicationAxisEditor";
 
 export interface ApplicationCustomizeEditorProps {
   mode?: ApplicationEditorMode;
-  state: ApplicationEditorState;
-  onIntent: (intent: ApplicationEditorIntent) => void;
+  state: ApplicationEditorState | PieEditorState;
+  onIntent: (intent: ApplicationEditorIntent | PieEditIntent) => void;
   onAxisStructure: (event: ApplicationAxisStructureEvent) => void;
 }
 export function ApplicationCustomizeEditor(
   props: ApplicationCustomizeEditorProps,
 ) {
   const { state, onIntent } = props;
-  const horizontal = horizontalAxisId(state.axes);
+  const axisState = "axes" in state ? state : undefined;
+  const horizontal = axisState ? horizontalAxisId(axisState.axes) : undefined;
   return (
     <>
       <ApplicationEditorGroup label="Chart Style">
@@ -43,15 +45,17 @@ export function ApplicationCustomizeEditor(
         {...state.titles}
         onEdit={(edit) => onIntent({ panel: "titles", edit })}
       />
-      {state.eligibility.legend && (
+      {(!axisState || axisState.eligibility.legend) && (
         <ChartLegendPanel
           {...state.legend}
           onEdit={(edit) => onIntent({ panel: "legend", edit })}
         />
       )}
       <ApplicationSeriesEditor {...props} />
-      <ApplicationAxisEditor {...props} axis={horizontal} />
-      <ApplicationAxisEditor {...props} axis={verticalAxisId(horizontal)} />
+      {axisState && horizontal && <>
+        <ApplicationAxisEditor {...props} state={axisState} axis={horizontal} />
+        <ApplicationAxisEditor {...props} state={axisState} axis={verticalAxisId(horizontal)} />
+      </>}
     </>
   );
 }

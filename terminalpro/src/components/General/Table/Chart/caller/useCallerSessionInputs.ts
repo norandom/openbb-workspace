@@ -9,7 +9,6 @@ import { getWidgetStorage, getStateKey } from "../../communityState";
 import { useAgGridContext } from "../../hooks/useTableContext";
 import { createChartDisplayPolicy } from "../application/financialFormatting";
 import type { IndexColumnDefinition } from "../application/types";
-import type { CartesianFamily } from "../echarts/cartesianTypes";
 import { useAgThemes } from "../themes";
 import { getFiscalPeriodString } from "../utils";
 import { resolveCallerChart } from "./chartInputs";
@@ -46,7 +45,7 @@ export function useCallerSessionInputs() {
   const display = useMemo(
     () =>
       createChartDisplayPolicy({
-        chartType: chartType as CartesianFamily,
+        chartType: chartType as ApplicationChartFamily,
         period: storage?.period ?? storage?.params?.period,
         decimalDigits: precision,
         globalDecimalDigits,

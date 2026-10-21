@@ -93,7 +93,7 @@ function parameterOptions(params: Record<string, any>): RuntimeOptions {
           : { color: params.subtleTextColor }),
       },
       legend: { item: { label: font } },
-      series: { label: retainedFont },
+      series: { label: retainedFont, calloutLabel: font, sectorLabel: retainedFont },
       axes: Object.fromEntries(
         ["category", "number", "time", "grouped-category"].map((type) => [type, axis]),
       ),
@@ -129,7 +129,7 @@ export function projectCallerTheme(
     dataOnlyOptions(selected.overrides),
   ) as RuntimeOptions;
   // Resolve common versus family before merging, so a family parameter cannot mask explicit common input.
-  for (const family of ["bar", "line", "scatter", "bubble", "histogram"]) {
+  for (const family of ["bar", "line", "scatter", "bubble", "histogram", "pie", "donut"]) {
     overrides[family] = merge(
       {},
       parameterOptions(params).common as RuntimeOptions,

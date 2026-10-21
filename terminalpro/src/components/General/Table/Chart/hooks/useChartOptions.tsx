@@ -1,3 +1,4 @@
+import { isPieChartFamily } from "../application/pieSessionTypes";
 import type { AgChartProps } from "ag-charts-react";
 import type { AgChartThemeOverrides } from "ag-charts-community";
 import { useCallback, useContext, useEffect, useMemo } from "react";
@@ -197,7 +198,9 @@ export function useChartBarFillQuickAction(): ExtraAction | undefined {
 export function useChartQuickActions(): ExtraActionT[] {
   const { widget, updateWidget } = useWidgetContext();
   const storage = widget?.storage ?? {};
-  if (!storage.chartView?.enabled) return [];
+  const grid = useContext(AgGridContext);
+  const family = grid?.gridState?.applicationChartSummary?.family ?? grid?.applicationChartRef.current?.family ?? storage.chartType ?? storage.chartModel?.chartType ?? storage.chartView?.chartType;
+  if (!storage.chartView?.enabled || isPieChartFamily(family)) return [];
   return (
     [
       [

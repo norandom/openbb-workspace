@@ -1,3 +1,4 @@
+import { isPieChartFamily } from "../application/pieSessionTypes";
 import { restoreAxisSettings } from "../application/axisPersistence";
 import type { ColDef, ColGroupDef, GridApi } from "ag-grid-community";
 import { getStateKey, getWidgetStorage } from "../../communityState";
@@ -144,7 +145,7 @@ export function resolveCallerChart(
         range: range.range,
         categoryColumnId: category,
         columns,
-        initialAxes: restoreAxisSettings(model, {
+        initialAxes: restoreAxisSettings(isPieChartFamily(chartType) ? {} : model, {
           categoryAxisType: categoryType,
           axes: [
             {
