@@ -1,7 +1,9 @@
 import { beforeEach, expect, it, vi } from "vitest";
+import { init } from "echarts";
 import { translatePie } from "../../../src/components/General/Table/Chart/echarts/pie";
 import { pieData } from "../../../src/components/General/Table/Chart/echarts/pieData";
 import { pieLayout } from "../../../src/components/General/Table/Chart/echarts/pieLayout";
+import { pieLegendLayout } from "../../../src/components/General/Table/Chart/echarts/pieLegendLayout";
 import {
   calloutPositions,
   pieTitles,
@@ -205,4 +207,50 @@ it("hides a legend that cannot fit unless both layout dimensions explicitly auth
   expect(
     forced.legendPagination.pages.every((page: any) => page.items.length === 1),
   ).toBe(true);
+});
+it.each([
+  "left",
+  "right",
+] as const)("preserves both native rings and every key beside a %s legend after a normal tall resize", (position) => {
+  const input = originalInput();
+  input.context.viewport = { width: 619, height: 593 };
+  input.style.application.legend.position = position;
+  Object.assign(input.style.application.title, {
+    enabled: true,
+    text: "AAPL FY2025 quarter distributions, raw USD",
+    size: 12,
+    spacing: 20,
+  });
+  Object.assign(input.style.series.calloutLabel, { size: 14, offset: 8 });
+  input.style.series.calloutLine.length = 18;
+  const result = translated(input);
+  const native = mains(result.options);
+  expect(native.every((series) => series.radius[1] > 0)).toBe(true);
+  const items = result.legendPagination.pages.flatMap((page: any) => page.items);
+  expect(new Set(items.map((item: any) => item.key)).size).toBe(8);
+  expect(result.options.legend[0].data).toHaveLength(8);
+  const chart = init(null, undefined, {
+    renderer: "svg",
+    ssr: true,
+    ...input.context.viewport,
+  });
+  try {
+    chart.setOption(result.options);
+    for (const index of [0, 2]) {
+      const data = (chart as any).getModel().getSeriesByIndex(index).getData();
+      expect(data.count()).toBe(4);
+      for (let i = 0; i < data.count(); i++)
+        expect(data.getItemLayout(i).r).toBeGreaterThan(0);
+    }
+    expect(chart.renderToSVGString()).not.toMatch(/NaN|Infinity/);
+  } finally {
+    chart.dispose();
+  }
+  const caption = 25;
+  const bounded = pieLegendLayout(input, pieData(input), caption);
+  expect(bounded.width).toBeLessThan(200);
+  input.style.legendLayout.maxWidth = 400;
+  expect(pieLegendLayout(input, pieData(input), caption).width).toBeGreaterThan(
+    bounded.width,
+  );
 });

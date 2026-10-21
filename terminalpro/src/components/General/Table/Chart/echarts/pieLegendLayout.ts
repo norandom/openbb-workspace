@@ -238,6 +238,27 @@ function components(
     ) ?? []),
   ];
 }
+function dimensions(input: PieMappingInput, captionSpace: number) {
+  const a = input.style.application;
+  const v = input.context.viewport;
+  const bounds = input.style.legendLayout;
+  const width = Math.max(0, v.width - a.padding.left - a.padding.right);
+  const height = Math.max(
+    0,
+    v.height - a.padding.top - a.padding.bottom - captionSpace,
+  );
+  const horizontal = a.legend.position === "top" || a.legend.position === "bottom";
+  const aspect = width / height;
+  // Original Legend.calculateLegendDimensions reserves a bounded share for side legends.
+  const widthCoefficient = aspect > 1 ? Math.min(0.5, 0.25 * aspect) : 0.25;
+  return {
+    width: Math.min(
+      width,
+      bounds.maxWidth ?? (horizontal ? width : Math.round(width * widthCoefficient)),
+    ),
+    height: Math.min(height, bounds.maxHeight ?? height),
+  };
+}
 export function pieLegendLayout(
   input: PieMappingInput,
   rings: readonly PieRing[],
@@ -249,15 +270,7 @@ export function pieLegendLayout(
   if (!l.enabled || !data.length)
     return { legends: components(input, rings), graphic: [], width: 0, height: 0 };
   const v = input.context.viewport;
-  const bounds = input.style.legendLayout;
-  const width = Math.min(
-    bounds.maxWidth ?? v.width,
-    Math.max(0, v.width - a.padding.left - a.padding.right),
-  );
-  const height = Math.min(
-    bounds.maxHeight ?? v.height,
-    Math.max(0, v.height - a.padding.top - a.padding.bottom - captionSpace),
-  );
+  const { width, height } = dimensions(input, captionSpace);
   const cells = data.map((d) => {
     const box = measureText(d.legendText, l);
     return {
