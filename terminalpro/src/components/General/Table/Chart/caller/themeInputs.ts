@@ -1,6 +1,6 @@
 import merge from "lodash.merge";
-import type { RuntimeOptions, RuntimeOptionValue } from "../compatibility/legacyTypes";
 import type { ApplicationThemeInput } from "../application/appearanceModel";
+import type { RuntimeOptions, RuntimeOptionValue } from "../compatibility/legacyTypes";
 
 const fills = [
   "#5090dc",
@@ -129,7 +129,16 @@ export function projectCallerTheme(
     dataOnlyOptions(selected.overrides),
   ) as RuntimeOptions;
   // Resolve common versus family before merging, so a family parameter cannot mask explicit common input.
-  for (const family of ["bar", "line", "scatter", "bubble", "histogram", "pie", "donut"]) {
+  for (const family of [
+    "bar",
+    "line",
+    "scatter",
+    "bubble",
+    "histogram",
+    "box-plot",
+    "pie",
+    "donut",
+  ]) {
     overrides[family] = merge(
       {},
       parameterOptions(params).common as RuntimeOptions,

@@ -69,6 +69,8 @@ function field(v: unknown): v is ResolvedBoxFieldStyle {
   return (
     record(v) &&
     stroke(v) &&
+    (v.visible === undefined || typeof v.visible === "boolean") &&
+    (v.showInMiniChart === undefined || typeof v.showInMiniChart === "boolean") &&
     text(v.fill) &&
     ratio(v.fillOpacity) &&
     stroke(v.whisker) &&

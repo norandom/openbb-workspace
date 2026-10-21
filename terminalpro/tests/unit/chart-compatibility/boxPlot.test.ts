@@ -247,3 +247,27 @@ it("keeps hidden fields and null groups and supports tooltip modes and all-hidde
     "period:same",
   );
 });
+
+it("honors configured main visibility with transient legend precedence", () => {
+  const i = input();
+  i.style.fields.amount.visible = false;
+  const hidden = supported(i);
+  expect(hidden.projection.fields.map((f) => f.enabled)).toEqual([false, true]);
+  expect(hidden.options.legend).toMatchObject({
+    selected: { amount: false, other: true },
+  });
+  const shown = supported({
+    ...i,
+    context: { ...i.context, legendSelection: { amount: true, other: false } },
+  });
+  expect(shown.projection.fields.map((f) => f.enabled)).toEqual([true, false]);
+  expect(shown.projection.fields[0].data).toEqual(hidden.projection.fields[0].data);
+});
+it.each([
+  "visible",
+  "showInMiniChart",
+] as const)("rejects malformed configured %s before rendering", (field) => {
+  const i = input();
+  (i.style.fields.amount as any)[field] = "false";
+  expect(translateBoxPlot(i).status).toBe("invalid");
+});

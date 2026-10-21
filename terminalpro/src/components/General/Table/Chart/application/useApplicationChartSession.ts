@@ -1,52 +1,57 @@
-import { isPieChartFamily, type PieEditIntent } from "./pieSessionTypes";
-import { projectPieSession } from "./pieSessionProjection";
-import { projectHistogramSession } from "./histogramSessionProjection";
-import type { HistogramEditIntent } from "./histogramSessionTypes";
-import { isXyChartFamily, type XyEditIntent } from "./xySessionTypes";
-import { projectXySession } from "./xySessionProjection";
-import { executeApplicationChartCommand } from "./applicationSessionDispatch";
-import { projectComboSession } from "./comboSessionProjection";
-import {
-  isComboChartFamily,
-  type ApplicationChartFamily,
-  type ComboAssignmentCommand,
-} from "./comboSessionTypes";
-import type {
-  ApplicationChartCommand,
-  ApplicationChartReady,
-} from "./applicationChartSessionTypes";
-import type { ComboChartType } from "../compatibility/comboAssignments";
-import type { ComboGeometry } from "../echarts/comboTypes";
-import type { SessionResult } from "./types";
 import cloneDeep from "lodash/cloneDeep";
 import { useMemo } from "react";
 import { useWidgetTransactionContext } from "../../../../WidgetTransaction.context";
+import type { ComboChartType } from "../compatibility/comboAssignments";
 import type {
   ApplicationAxisStructureEvent,
   ApplicationEditorIntent,
 } from "../compatibility/editorBindings/types";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
+import type { ComboGeometry } from "../echarts/comboTypes";
 import type { ChartSetupEdit } from "../editor/setup/ChartSetupPanel";
+import type {
+  ApplicationChartCommand,
+  ApplicationChartReady,
+} from "./applicationChartSessionTypes";
 import { captureApplicationSession } from "./applicationSessionCapture";
+import { executeApplicationChartCommand } from "./applicationSessionDispatch";
 import { projectApplicationSession } from "./applicationSessionProjection";
 import {
   contextFor,
   nextSessionStamp,
-  sessionAppearanceKey,
   sessionActionKey,
+  sessionAppearanceKey,
   sessionDataKey,
 } from "./applicationSessionRuntime";
 import { sessionSetup } from "./applicationSessionSelection";
+import { validateSynchronousEditorStamp } from "./applicationSessionStamp";
 import type {
   ApplicationSessionInputs,
   ApplicationSessionState,
 } from "./applicationSessionTypes";
+import { projectBoxPlotSession } from "./boxPlotSessionProjection";
+import type { BoxPlotEditIntent } from "./boxPlotSessionTypes";
+import { projectComboSession } from "./comboSessionProjection";
+import {
+  type ApplicationChartFamily,
+  type ComboAssignmentCommand,
+  isComboChartFamily,
+} from "./comboSessionTypes";
+import { projectHistogramSession } from "./histogramSessionProjection";
+import type { HistogramEditIntent } from "./histogramSessionTypes";
+import { projectPieSession } from "./pieSessionProjection";
+import { isPieChartFamily, type PieEditIntent } from "./pieSessionTypes";
 import { validateSessionStamp } from "./sessionState";
-import { useApplicationSessionScope } from "./useApplicationSessionScope";
+import type { SessionResult } from "./types";
 import { useApplicationSessionFreshness } from "./useApplicationSessionFreshness";
+import { useApplicationSessionScope } from "./useApplicationSessionScope";
+import { projectXySession } from "./xySessionProjection";
+import { isXyChartFamily, type XyEditIntent } from "./xySessionTypes";
 
-type ReadyFor<F extends ApplicationChartFamily> = F extends import("../compatibility/pieAssignments").PieChartType
-  ? Extract<ApplicationChartReady, { kind: "pie" }> : Exclude<ApplicationChartReady, { kind: "pie" }>;
+type ReadyFor<F extends ApplicationChartFamily> =
+  F extends import("../compatibility/pieAssignments").PieChartType
+    ? Extract<ApplicationChartReady, { kind: "pie" }>
+    : Exclude<ApplicationChartReady, { kind: "pie" }>;
 export function useApplicationChartSession<F extends ApplicationChartFamily>(
   inputs: ApplicationSessionInputs<F>,
 ) {
@@ -56,32 +61,53 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
     state &&
     state.dataKey === sessionDataKey(inputs) &&
     state.appearanceKey === sessionAppearanceKey(inputs) &&
-    state.actionKey ===
-      sessionActionKey(owner.widget.storage as ChartStorageOutput)
+    state.actionKey === sessionActionKey(owner.widget.storage as ChartStorageOutput)
       ? state
       : undefined;
   const projected = useMemo<SessionResult<ApplicationChartReady>>(
     () =>
       current
-        ? isPieChartFamily(inputs.family)
-          ? projectPieSession(owner.widget.storage as ChartStorageOutput, inputs as ApplicationSessionInputs<import("../compatibility/pieAssignments").PieChartType>, current)
-          : inputs.family === "histogram"
-          ? projectHistogramSession(owner.widget.storage as ChartStorageOutput, inputs as ApplicationSessionInputs<"histogram">, current)
-          : isXyChartFamily(inputs.family)
-          ? projectXySession(owner.widget.storage as ChartStorageOutput, inputs as ApplicationSessionInputs<import("../compatibility/xyAssignments").XyChartType>, current)
-          : isComboChartFamily(inputs.family)
-          ? projectComboSession(
+        ? inputs.family === "boxPlot"
+          ? projectBoxPlotSession(
               owner.widget.storage as ChartStorageOutput,
-              inputs as ApplicationSessionInputs<ComboChartType>,
+              inputs as ApplicationSessionInputs<"boxPlot">,
               current,
             )
-          : withCartesianKind(
-              projectApplicationSession(
+          : isPieChartFamily(inputs.family)
+            ? projectPieSession(
                 owner.widget.storage as ChartStorageOutput,
-                inputs as ApplicationSessionInputs,
+                inputs as ApplicationSessionInputs<
+                  import("../compatibility/pieAssignments").PieChartType
+                >,
                 current,
-              ),
-            )
+              )
+            : inputs.family === "histogram"
+              ? projectHistogramSession(
+                  owner.widget.storage as ChartStorageOutput,
+                  inputs as ApplicationSessionInputs<"histogram">,
+                  current,
+                )
+              : isXyChartFamily(inputs.family)
+                ? projectXySession(
+                    owner.widget.storage as ChartStorageOutput,
+                    inputs as ApplicationSessionInputs<
+                      import("../compatibility/xyAssignments").XyChartType
+                    >,
+                    current,
+                  )
+                : isComboChartFamily(inputs.family)
+                  ? projectComboSession(
+                      owner.widget.storage as ChartStorageOutput,
+                      inputs as ApplicationSessionInputs<ComboChartType>,
+                      current,
+                    )
+                  : withCartesianKind(
+                      projectApplicationSession(
+                        owner.widget.storage as ChartStorageOutput,
+                        inputs as ApplicationSessionInputs,
+                        current,
+                      ),
+                    )
         : { status: "waiting" as const },
     [owner.widget.storage, current, inputs.display, inputs.family],
   );
@@ -116,19 +142,10 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
           ? captureApplicationSession(inputs, current, undefined, [addedId])
           : undefined;
     owner.transact(token, (widget, previous: ApplicationSessionState) =>
-      executeApplicationChartCommand(
-        widget,
-        previous,
-        inputs,
-        command,
-        recapture,
-      ),
+      executeApplicationChartCommand(widget, previous, inputs, command, recapture),
     );
   };
-  const onResize = (viewport: {
-    readonly width: number;
-    readonly height: number;
-  }) => {
+  const onResize = (viewport: { readonly width: number; readonly height: number }) => {
     if (
       !token ||
       !Number.isFinite(viewport.width) ||
@@ -158,8 +175,14 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
     });
   };
   const notifyChartUpdate = (_event: "chartModelUpdate" | "chartApiUpdate") => {
-    if (!token) return;
+    if (!token || !current) return;
     owner.transact(token, (widget, previous: ApplicationSessionState) => {
+      if (
+        previous.local.baseline.chartType !== inputs.family ||
+        validateSynchronousEditorStamp(current.local.stamp, previous.local.stamp)
+          .status !== "ready"
+      )
+        return { widget, value: previous };
       if (!previous.capture) return { widget, value: previous };
       const context = contextFor(inputs, previous);
       const setup = sessionSetup(
@@ -197,21 +220,21 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
     chartType: current?.local.baseline.chartType ?? inputs.family,
     hasCustomCombo: Boolean(current?.local.savedCustomSeriesChartTypes?.length),
     seriesCount: current?.local.range.columnIds.filter((id) =>
-      inputs.columns.some(
-        (column) => column.id === id && column.role === "number",
-      ),
+      inputs.columns.some((column) => column.id === id && column.role === "number"),
     ).length,
     hostKey: state?.local.stamp.generation,
     hostProps: {
       options: projection.status === "ready" ? projection.value.options : {},
       revision: projection.status === "ready" ? projection.value.revision : 0,
       legendScope:
-        projection.status === "ready"
-          ? projection.value.legendScope
-          : undefined,
+        projection.status === "ready" ? projection.value.legendScope : undefined,
       projectLegendSelection:
         projection.status === "ready"
           ? projection.value.projectLegendSelection
+          : undefined,
+      projectNavigationWindow:
+        projection.status === "ready"
+          ? projection.value.projectNavigationWindow
           : undefined,
       legendPagination:
         projection.status === "ready" && projection.value.kind === "pie"
@@ -228,7 +251,17 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
       dispatch({ panel: "geometry", geometry }),
     onChartType: (chartType: ApplicationChartFamily) =>
       dispatch({ panel: "family", chartType }),
-    onHistogram: (edit: HistogramEditIntent["edit"]) => dispatch({ panel: "histogram", edit }),
+    onBoxPlot: (edit: BoxPlotEditIntent["edit"]) => {
+      dispatch({ panel: "boxPlot", edit });
+      if (
+        inputs.family === "boxPlot" &&
+        edit.kind === "direction" &&
+        (edit.value === "vertical" || edit.value === "horizontal")
+      )
+        notifyChartUpdate("chartModelUpdate");
+    },
+    onHistogram: (edit: HistogramEditIntent["edit"]) =>
+      dispatch({ panel: "histogram", edit }),
     onXy: (edit: XyEditIntent["edit"]) => dispatch({ panel: "xy", edit }),
     onIntent: (intent: ApplicationEditorIntent | PieEditIntent) => dispatch(intent),
     onAxisStructure: (event: ApplicationAxisStructureEvent) => dispatch(event),

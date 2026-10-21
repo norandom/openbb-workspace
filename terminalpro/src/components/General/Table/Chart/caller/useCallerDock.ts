@@ -1,16 +1,16 @@
-import { isPieChartFamily } from "../application/pieSessionTypes";
-import { isXyChartFamily } from "../application/xySessionTypes";
 import { useRef, useState } from "react";
 import { useWidgetContext } from "~/components/Widget.context";
 import { getStateKey } from "../../communityState";
-import { chartTypeGalleryGroups } from "../editor/chartTypeGalleryCatalog";
-import type { ChartEditorTab } from "../editor/ChartEditorDock";
-import { changeCallerChartType } from "./chartInputs";
-import { isCartesianFamily } from "../echarts/cartesianTypes";
 import {
-  isComboChartFamily,
   type ApplicationChartFamily,
+  isComboChartFamily,
 } from "../application/comboSessionTypes";
+import { isPieChartFamily } from "../application/pieSessionTypes";
+import { isXyChartFamily } from "../application/xySessionTypes";
+import { isCartesianFamily } from "../echarts/cartesianTypes";
+import type { ChartEditorTab } from "../editor/ChartEditorDock";
+import { chartTypeGalleryGroups } from "../editor/chartTypeGalleryCatalog";
+import { changeCallerChartType } from "./chartInputs";
 export function useCallerDock(
   chartType: string | undefined,
   onSelect?: (type: ApplicationChartFamily) => void,
@@ -26,8 +26,7 @@ export function useCallerDock(
       storage: { ...previous.storage, chartSettingsOpen: open },
     }));
   const model =
-    widget.storage?.[getStateKey(widget)]?.chartModel ??
-    widget.storage?.chartModel;
+    widget.storage?.[getStateKey(widget)]?.chartModel ?? widget.storage?.chartModel;
   const groups =
     hasCustomCombo || model?.seriesChartTypes?.length
       ? chartTypeGalleryGroups.map((group) =>
@@ -53,10 +52,17 @@ export function useCallerDock(
       groups,
       selectedType: chartType,
       onSelect: (type: string) => {
-        if (onSelect && (isPieChartFamily(type) || isCartesianFamily(type) || isComboChartFamily(type) || isXyChartFamily(type) || type === "histogram"))
+        if (
+          onSelect &&
+          (isPieChartFamily(type) ||
+            isCartesianFamily(type) ||
+            isComboChartFamily(type) ||
+            isXyChartFamily(type) ||
+            type === "histogram" ||
+            type === "boxPlot")
+        )
           onSelect(type);
-        else
-          updateWidget?.((previous) => changeCallerChartType(previous, type));
+        else updateWidget?.((previous) => changeCallerChartType(previous, type));
       },
     },
   };

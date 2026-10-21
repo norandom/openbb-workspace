@@ -769,3 +769,96 @@ it.each([
   expect(f.chart.setOption).toHaveBeenCalledTimes(calls);
   f.owner.dispose();
 });
+
+import { translateBoxPlot } from "../../../src/components/General/Table/Chart/echarts/boxPlot";
+import type { BoxPlotMappingInput } from "../../../src/components/General/Table/Chart/echarts/boxPlotTypes";
+import { histogramInput } from "./histogram.fixtures";
+
+it("uses actual Box configured legend defaults, retained native choices and new field defaults", () => {
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+    measureText: (s: string) => ({ width: s.length * 7 }),
+  } as any);
+  let native: any = {};
+  const events = new Map<string, () => void>();
+  mocks.init.mockReturnValue({
+    setOption: vi.fn((options) => {
+      native = options;
+    }),
+    getOption: () => native,
+    on: (event: string, callback: () => void) => events.set(event, callback),
+    off: vi.fn(),
+    resize: vi.fn(),
+    dispose: vi.fn(),
+    dispatchAction: vi.fn(),
+  });
+  const h = histogramInput([100, 120]);
+  const category = {
+    ...h.style.axes.x.appearance,
+    fields: { ...h.style.axes.x.appearance.fields, type: "category" },
+  };
+  const stroke = {
+    stroke: "#112233",
+    strokeWidth: 2,
+    strokeOpacity: 1,
+    lineDash: [0],
+    lineDashOffset: 0,
+  };
+  function project(ids: string[], legendSelection?: Readonly<Record<string, boolean>>) {
+    const mapping: BoxPlotMappingInput = {
+      snapshot: {
+        ...h.snapshot,
+        selectedColumnIds: [h.snapshot.categoryColumnId, ...ids],
+      },
+      style: {
+        common: h.style.common,
+        application: h.style.application,
+        direction: "vertical",
+        axes: { category, number: h.style.axes.y },
+        band: { paddingInner: 0.2, paddingOuter: 0.3, groupPaddingInner: 0.1 },
+        fields: Object.fromEntries(
+          ids.map((id) => [
+            id,
+            {
+              ...stroke,
+              fill: "#abcdef",
+              fillOpacity: 1,
+              whisker: stroke,
+              cap: { lengthRatio: 0.5 },
+              visible: false,
+            },
+          ]),
+        ),
+      },
+      context: { ...h.context, legendSelection },
+    };
+    const result = translateBoxPlot(mapping);
+    if (result.status !== "supported") throw Error(JSON.stringify(result));
+    return result.options;
+  }
+  const element = document.createElement("div");
+  Object.defineProperties(element, {
+    clientWidth: { value: 600 },
+    clientHeight: { value: 400 },
+  });
+  const owner = createChartLifecycle(element);
+  const request = (revision: number, ids: string[]) => ({
+    revision,
+    legendScope: "box",
+    options: project(ids),
+    projectLegendSelection: (selected: Readonly<Record<string, boolean>>) =>
+      project(ids, selected),
+  });
+  owner.mount(request(1, ["amount"]));
+  expect(native.legend[0].selected).toEqual({ amount: false });
+  expect(native.openbbBox.projection.fields[0].enabled).toBe(false);
+  native.legend[0].selected = { ...native.legend[0].selected, amount: true };
+  events.get("legendselectchanged")!();
+  expect(native.openbbBox.projection.fields[0].enabled).toBe(true);
+  owner.update(request(2, ["amount", "other"]));
+  expect(native.legend[0].selected).toEqual({ amount: true, other: false });
+  expect(native.openbbBox.projection.fields.map((f: any) => f.enabled)).toEqual([
+    true,
+    false,
+  ]);
+  owner.dispose();
+});

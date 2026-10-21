@@ -1,20 +1,64 @@
-import type { ChartModel, RuntimeOptions, ValidationResult } from "../legacyTypes";
-import type { ResolvedRange, SessionStamp, SessionResult } from "../../application/types";
-import type { ApplicationAxisId, ApplicationResolvedStyle, ResolvedFontStyle } from "../../application/appearanceModel";
+import type {
+  ApplicationAxisId,
+  ApplicationResolvedStyle,
+  ResolvedFontStyle,
+} from "../../application/appearanceModel";
+import type {
+  ResolvedRange,
+  SessionResult,
+  SessionStamp,
+} from "../../application/types";
 import type { CartesianFamily } from "../../echarts/cartesianTypes";
-import type { ChartTitlesPanelProps, ChartCaptionEdit } from "../../editor/titles/ChartTitlesPanel";
-import type { ChartLegendPanelProps, ChartLegendEdit } from "../../editor/legend/ChartLegendPanel";
-import type { ChartPaddingPanelProps, ChartPaddingEdit } from "../../editor/padding/ChartPaddingPanel";
-import type { ChartBackgroundPanelProps, ChartBackgroundEdit } from "../../editor/background/ChartBackgroundPanel";
-import type { ChartTooltipsPanelProps, ChartTooltipsEdit } from "../../editor/tooltips/ChartTooltipsPanel";
+import type {
+  ChartAxisFieldsEdit,
+  ChartAxisFieldsPanelProps,
+} from "../../editor/axis/ChartAxisFieldsPanel";
+import type {
+  ChartAxisLabelsEdit,
+  ChartAxisLabelsPanelProps,
+} from "../../editor/axis/ChartAxisLabelsPanel";
+import type {
+  ChartGridLinesEdit,
+  ChartGridLinesPanelProps,
+} from "../../editor/axis/ChartGridLinesPanel";
+import type {
+  ChartTicksEdit,
+  ChartTicksPanelProps,
+} from "../../editor/axis/ChartTicksPanel";
+import type {
+  ChartBackgroundEdit,
+  ChartBackgroundPanelProps,
+} from "../../editor/background/ChartBackgroundPanel";
+import type {
+  ChartLabelsEdit,
+  ChartLabelsPanelProps,
+} from "../../editor/labels/ChartLabelsPanel";
+import type {
+  ChartLegendEdit,
+  ChartLegendPanelProps,
+} from "../../editor/legend/ChartLegendPanel";
+import type {
+  ChartMarkersEdit,
+  ChartMarkersPanelProps,
+} from "../../editor/markers/ChartMarkersPanel";
+import type {
+  ChartPaddingEdit,
+  ChartPaddingPanelProps,
+} from "../../editor/padding/ChartPaddingPanel";
 import type { ChartSeriesStylePanelProps } from "../../editor/series/ChartSeriesStylePanel";
-import type { ChartShadowPanelProps, ChartShadowEdit } from "../../editor/shadow/ChartShadowPanel";
-import type { ChartLabelsPanelProps, ChartLabelsEdit } from "../../editor/labels/ChartLabelsPanel";
-import type { ChartMarkersPanelProps, ChartMarkersEdit } from "../../editor/markers/ChartMarkersPanel";
-import type { ChartAxisFieldsPanelProps, ChartAxisFieldsEdit } from "../../editor/axis/ChartAxisFieldsPanel";
-import type { ChartAxisLabelsPanelProps, ChartAxisLabelsEdit } from "../../editor/axis/ChartAxisLabelsPanel";
-import type { ChartGridLinesPanelProps, ChartGridLinesEdit } from "../../editor/axis/ChartGridLinesPanel";
-import type { ChartTicksPanelProps, ChartTicksEdit } from "../../editor/axis/ChartTicksPanel";
+import type {
+  ChartShadowEdit,
+  ChartShadowPanelProps,
+} from "../../editor/shadow/ChartShadowPanel";
+import type {
+  ChartCaptionEdit,
+  ChartTitlesPanelProps,
+} from "../../editor/titles/ChartTitlesPanel";
+import type {
+  ChartTooltipsEdit,
+  ChartTooltipsPanelProps,
+} from "../../editor/tooltips/ChartTooltipsPanel";
+import type { ChartModel, RuntimeOptions, ValidationResult } from "../legacyTypes";
 
 type Values<Props> = Omit<Props, "onEdit">;
 type Metadata<Props> = Omit<Props, "onEdit" | "value">;
@@ -24,9 +68,13 @@ export interface AxisBinding {
   readonly direction: "x" | "y";
 }
 /** Current retained values needed by source operations; never a saved style payload. */
-export interface FontEditContext { readonly predefined: ResolvedFontStyle }
+export interface FontEditContext {
+  readonly predefined: ResolvedFontStyle;
+}
 export type AxisAppearanceEdit = ChartAxisFieldsEdit & { field: "color" | "thickness" };
-export type AxisStructureEdit = ChartAxisFieldsEdit & { field: "type" | "timeFormat" | "position" };
+export type AxisStructureEdit = ChartAxisFieldsEdit & {
+  field: "type" | "timeFormat" | "position";
+};
 /** These edits update concrete axes/model state, not the appearance patch reducer. */
 export interface ApplicationAxisStructureEvent {
   readonly panel: "axisStructure";
@@ -34,20 +82,58 @@ export interface ApplicationAxisStructureEvent {
   readonly edit: AxisStructureEdit;
 }
 export type ApplicationEditorEvent =
-  | { readonly panel: "titles"; readonly edit: ChartCaptionEdit; readonly font: FontEditContext; readonly axisBinding?: AxisBinding }
-  | { readonly panel: "legend"; readonly edit: ChartLegendEdit; readonly font: FontEditContext }
+  | {
+      readonly panel: "titles";
+      readonly edit: ChartCaptionEdit;
+      readonly font: FontEditContext;
+      readonly axisBinding?: AxisBinding;
+    }
+  | {
+      readonly panel: "legend";
+      readonly edit: ChartLegendEdit;
+      readonly font: FontEditContext;
+    }
   | { readonly panel: "padding"; readonly edit: ChartPaddingEdit }
   | { readonly panel: "background"; readonly edit: ChartBackgroundEdit }
   | { readonly panel: "tooltips"; readonly edit: ChartTooltipsEdit }
-  | { readonly panel: "series"; readonly edit: Parameters<ChartSeriesStylePanelProps["onEdit"]>[0] }
+  | {
+      readonly panel: "series";
+      readonly edit: Parameters<ChartSeriesStylePanelProps["onEdit"]>[0];
+    }
   | { readonly panel: "shadow"; readonly edit: ChartShadowEdit }
-  | { readonly panel: "labels"; readonly edit: ChartLabelsEdit; readonly font: FontEditContext }
+  | {
+      readonly panel: "labels";
+      readonly edit: ChartLabelsEdit;
+      readonly font: FontEditContext;
+    }
   | { readonly panel: "markers"; readonly edit: ChartMarkersEdit }
   | { readonly panel: "connectMissingData"; readonly value: boolean }
-  | { readonly panel: "axis"; readonly binding: AxisBinding; readonly edit: AxisAppearanceEdit }
-  | { readonly panel: "axisLabels"; readonly binding: AxisBinding; readonly edit: ChartAxisLabelsEdit; readonly font: FontEditContext; readonly manualRotation: number | undefined }
-  | { readonly panel: "grid"; readonly binding: AxisBinding; readonly edit: ChartGridLinesEdit; readonly firstStyle: { readonly stroke: string; readonly lineDash: readonly number[] } }
-  | { readonly panel: "ticks"; readonly binding: AxisBinding; readonly edit: ChartTicksEdit };
+  | {
+      readonly panel: "axis";
+      readonly binding: AxisBinding;
+      readonly edit: AxisAppearanceEdit;
+    }
+  | {
+      readonly panel: "axisLabels";
+      readonly binding: AxisBinding;
+      readonly edit: ChartAxisLabelsEdit;
+      readonly font: FontEditContext;
+      readonly manualRotation: number | undefined;
+    }
+  | {
+      readonly panel: "grid";
+      readonly binding: AxisBinding;
+      readonly edit: ChartGridLinesEdit;
+      readonly firstStyle: {
+        readonly stroke: string;
+        readonly lineDash: readonly number[];
+      };
+    }
+  | {
+      readonly panel: "ticks";
+      readonly binding: AxisBinding;
+      readonly edit: ChartTicksEdit;
+    };
 
 export interface ApplicationAxisEditorState {
   readonly fields: Values<ChartAxisFieldsPanelProps>;
@@ -75,15 +161,20 @@ export interface EditorEligibility {
   readonly labels: boolean;
   readonly markers: boolean;
   readonly connectMissingData: boolean;
-  readonly axes: Readonly<Record<ApplicationAxisId, {
-    readonly type: boolean;
-    readonly timeFormat: boolean;
-    readonly position: boolean;
-    readonly grid: boolean;
-    readonly ticks: boolean;
-    readonly tickLength: boolean;
-    readonly autoRotate: boolean;
-  }>>;
+  readonly axes: Readonly<
+    Record<
+      ApplicationAxisId,
+      {
+        readonly type: boolean;
+        readonly timeFormat: boolean;
+        readonly position: boolean;
+        readonly grid: boolean;
+        readonly ticks: boolean;
+        readonly tickLength: boolean;
+        readonly autoRotate: boolean;
+      }
+    >
+  >;
 }
 /** Full original menus and numeric bounds, never the shortened preview examples. */
 export interface EditorMetadata {
@@ -93,15 +184,26 @@ export interface EditorMetadata {
   readonly tooltips: Metadata<ChartTooltipsPanelProps>;
   readonly labels: Metadata<ChartLabelsPanelProps>;
   readonly markers: Metadata<ChartMarkersPanelProps>;
-  readonly axes: Readonly<Record<ApplicationAxisId, {
-    readonly fields: Metadata<ChartAxisFieldsPanelProps>;
-    readonly labels: Metadata<ChartAxisLabelsPanelProps>;
-    readonly ticks: Metadata<ChartTicksPanelProps>;
-  }>>;
+  readonly axes: Readonly<
+    Record<
+      ApplicationAxisId,
+      {
+        readonly fields: Metadata<ChartAxisFieldsPanelProps>;
+        readonly labels: Metadata<ChartAxisLabelsPanelProps>;
+        readonly ticks: Metadata<ChartTicksPanelProps>;
+      }
+    >
+  >;
 }
 export interface EditorSelectionInput {
-  readonly style: ApplicationResolvedStyle | Pick<ApplicationResolvedStyle, "application">;
-  readonly family: CartesianFamily | import("../xyAssignments").XyChartType | "histogram";
+  readonly style:
+    | ApplicationResolvedStyle
+    | Pick<ApplicationResolvedStyle, "application">;
+  readonly family:
+    | CartesianFamily
+    | import("../xyAssignments").XyChartType
+    | "histogram"
+    | "boxPlot";
   readonly model: ChartModel;
   readonly range: ResolvedRange;
   readonly metadata: EditorMetadata;
@@ -109,10 +211,17 @@ export interface EditorSelectionInput {
   readonly eligibility: EditorEligibility;
 }
 export type EditorSelectionResult = ValidationResult<ApplicationEditorState>;
-export type SelectApplicationEditorState = (input: EditorSelectionInput) => EditorSelectionResult;
+export type SelectApplicationEditorState = (
+  input: EditorSelectionInput,
+) => EditorSelectionResult;
 export type MapApplicationEditorEvent = (
   event: ApplicationEditorEvent,
-  family: CartesianFamily | import("../xyAssignments").XyChartType | "histogram" | import("../pieAssignments").PieChartType,
+  family:
+    | CartesianFamily
+    | import("../xyAssignments").XyChartType
+    | "histogram"
+    | "boxPlot"
+    | import("../pieAssignments").PieChartType,
 ) => ValidationResult<RuntimeOptions>;
 export interface ApplicationEditorCommand {
   readonly stamp: SessionStamp;
@@ -121,7 +230,9 @@ export interface ApplicationEditorCommand {
 }
 /** Strip every resolved value from UI dispatch; only the requested edit crosses renders. */
 type IntentOf<Event> = Event extends { readonly binding: AxisBinding }
-  ? Omit<Event, "binding" | "font" | "manualRotation" | "firstStyle"> & { readonly axis: ApplicationAxisId }
+  ? Omit<Event, "binding" | "font" | "manualRotation" | "firstStyle"> & {
+      readonly axis: ApplicationAxisId;
+    }
   : Omit<Event, "font" | "axisBinding">;
 export type ApplicationEditorIntent = IntentOf<ApplicationEditorEvent>;
 export interface RehydrateEditorEventInput {

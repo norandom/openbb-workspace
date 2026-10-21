@@ -1,12 +1,17 @@
-import { isXyChartFamily } from "../../application/xySessionTypes";
-import { isAreaFamily } from "../../echarts/cartesianAreaTypes";
-import { isCartesianFamily } from "../../echarts/cartesianTypes";
 import type {
   ApplicationAxisId,
   ResolvedCaption,
 } from "../../application/appearanceModel";
+import { isXyChartFamily } from "../../application/xySessionTypes";
+import { isAreaFamily } from "../../echarts/cartesianAreaTypes";
+import { isCartesianFamily } from "../../echarts/cartesianTypes";
+import {
+  displayFont,
+  fontWeightKey,
+  horizontalAxisId,
+  verticalAxisId,
+} from "./metadata";
 import type { EditorSelectionInput, SelectApplicationEditorState } from "./types";
-import { displayFont, fontWeightKey, horizontalAxisId, verticalAxisId } from "./metadata";
 
 function caption(value: ResolvedCaption) {
   return {
@@ -55,8 +60,10 @@ function seriesControls(input: EditorSelectionInput) {
       ? (["strokeWidth", "lineDash", "strokeOpacity"] as const)
       : (["strokeWidth", "lineDash", "strokeOpacity", "fillOpacity"] as const);
   const labels = {
-    strokeWidth: input.family === "line" || isAreaFamily(input.family)
-      ? "Line Width" : "Stroke Width",
+    strokeWidth:
+      input.family === "line" || isAreaFamily(input.family)
+        ? "Line Width"
+        : "Stroke Width",
     lineDash: "Line Dash",
     strokeOpacity: "Line Opacity",
     fillOpacity: "Fill Opacity",
@@ -77,7 +84,13 @@ function seriesControls(input: EditorSelectionInput) {
 }
 export const selectApplicationEditorState: SelectApplicationEditorState = (input) => {
   try {
-    if (!isCartesianFamily(input.family) && !isAreaFamily(input.family) && !isXyChartFamily(input.family) && input.family !== "histogram")
+    if (
+      !isCartesianFamily(input.family) &&
+      !isAreaFamily(input.family) &&
+      !isXyChartFamily(input.family) &&
+      input.family !== "histogram" &&
+      input.family !== "boxPlot"
+    )
       throw new Error("Unsupported editor family");
     const appearance = input.style.application;
     const horizontal = horizontalAxisId(input.metadata.axes);

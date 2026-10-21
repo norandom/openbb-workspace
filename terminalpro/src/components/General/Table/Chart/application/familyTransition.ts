@@ -1,13 +1,25 @@
 import cloneDeep from "lodash/cloneDeep";
 import type { ComboSeriesAssignment } from "../compatibility/comboAssignments";
 import { reduceIntegratedState } from "../compatibility/integratedState";
-import { validateIntegratedInput, type ChartModel, type ChartStorageOutput } from "../compatibility/legacyTypes";
-import type { ApplicationSessionCommit, ApplicationSessionContext, ApplicationSessionLocal } from "./applicationSessionTypes";
+import {
+  type ChartModel,
+  type ChartStorageOutput,
+  validateIntegratedInput,
+} from "../compatibility/legacyTypes";
+import type {
+  ApplicationSessionCommit,
+  ApplicationSessionContext,
+  ApplicationSessionLocal,
+} from "./applicationSessionTypes";
 import type { ComboConcreteAxis } from "./comboAppearance";
 import type { ApplicationChartFamily } from "./comboSessionTypes";
 import type { ResolvedRange, SessionResult } from "./types";
+
 function invalid(message: string): SessionResult<never> {
-  return { status: "invalid", diagnostics: [{ code: "combo-session", path: [], message }] };
+  return {
+    status: "invalid",
+    diagnostics: [{ code: "combo-session", path: [], message }],
+  };
 }
 function rebuiltLocal(
   context: ApplicationSessionContext<ApplicationChartFamily>,
@@ -16,8 +28,7 @@ function rebuiltLocal(
 ): ApplicationSessionLocal {
   const local = context.local;
   const previousCategory =
-    local.comboAxes?.[0] ??
-    local.axes.axes.find((axis) => axis.id === "category");
+    local.comboAxes?.[0] ?? local.axes.axes.find((axis) => axis.id === "category");
   const category =
     previousCategory && !gallery
       ? {
@@ -38,8 +49,7 @@ function rebuiltLocal(
       assignments?.find((assignment) => assignment.colId === column.colId),
     )
     .filter(
-      (assignment): assignment is ComboSeriesAssignment =>
-        assignment !== undefined,
+      (assignment): assignment is ComboSeriesAssignment => assignment !== undefined,
     );
   const axes: ComboConcreteAxis[] = [{ ...category, key: "category" }];
   if (selected.some((assignment) => !assignment.secondaryAxis))
@@ -94,15 +104,14 @@ export function commitFamilyTransition(
 ): SessionResult<ApplicationSessionCommit> {
   const model = { ...baseline.model, chartType } as ChartModel;
   if (gallery) {
-    if (chartType !== "histogram" && chartType !== "pie") model.switchCategorySeries = false;
+    if (chartType !== "histogram" && chartType !== "boxPlot" && chartType !== "pie")
+      model.switchCategorySeries = false;
     delete model.categoryAxisType;
     if (baseline.chartType !== chartType) delete model.qopenbbAxisSettings;
   }
   delete model.seriesChartTypes;
   if (assignments)
-    model.seriesChartTypes = cloneDeep(
-      assignments,
-    ) as unknown as ChartModel[string];
+    model.seriesChartTypes = cloneDeep(assignments) as unknown as ChartModel[string];
   const key = context.inputs.address.stateKey;
   // Replace the full model first: the shared reducer otherwise retains an omitted assignment list.
   const replaced = {

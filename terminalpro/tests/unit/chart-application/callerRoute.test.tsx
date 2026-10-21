@@ -1,11 +1,4 @@
 import {
-  createContext,
-  forwardRef,
-  useContext,
-  useImperativeHandle,
-  useLayoutEffect,
-} from "react";
-import {
   act,
   cleanup,
   fireEvent,
@@ -13,16 +6,26 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import {
+  createContext,
+  forwardRef,
+  useContext,
+  useImperativeHandle,
+  useLayoutEffect,
+} from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import AgGridTable from "../../../src/components/General/Table/AgGridTable";
 import AgGridFile from "../../../src/components/General/Table/AgGridFile";
+import AgGridTable from "../../../src/components/General/Table/AgGridTable";
+import {
+  useChartBarFillQuickAction,
+  useChartQuickActions,
+} from "../../../src/components/General/Table/Chart/hooks/useChartOptions";
 import {
   Table,
   useAgGridContext,
 } from "../../../src/components/General/Table/hooks/useTableContext";
 import { WidgetTransactionContext } from "../../../src/components/WidgetTransaction.context";
 import { useWidgetUpdates } from "../../../src/components/widgetSync/useWidgetUpdates";
-import { useChartBarFillQuickAction, useChartQuickActions } from "../../../src/components/General/Table/Chart/hooks/useChartOptions";
 
 const fixture = vi.hoisted(() => ({
   options: {} as any,
@@ -209,7 +212,11 @@ function Probe() {
   const navigation = useChartQuickActions();
   return (
     <>
-      {navigation.map(action => <button key={action.id} onClick={action.onClick}>{action.label}</button>)}
+      {navigation.map((action) => (
+        <button key={action.id} onClick={action.onClick}>
+          {action.label}
+        </button>
+      ))}
       {bar && (
         <button disabled={bar.disabled} onClick={bar.onClick}>
           {bar.label}
@@ -301,29 +308,65 @@ afterEach(() => {
   };
 });
 describe("ordinary table joins the production session", () => {
-  it.each([false, true])("joins the actual combo editor and retains custom assignments through ordinary gallery choices (file=%s)", async file => {
+  it.each([
+    false,
+    true,
+  ])("joins the actual combo editor and retains custom assignments through ordinary gallery choices (file=%s)", async (file) => {
     fixture.fileMode = file;
-    fixture.processed.columnDefs.push({ field: "costs", chartDataType: "series", cellDataType: "number" } as any);
-    fixture.processed.rowData.forEach(row => Object.assign(row, { costs: 10 }));
+    fixture.processed.columnDefs.push({
+      field: "costs",
+      chartDataType: "series",
+      cellDataType: "number",
+    } as any);
+    fixture.processed.rowData.forEach((row) => Object.assign(row, { costs: 10 }));
     render(<Owner file={file} family="columnLineCombo" enabled settingsOpen />);
-    await waitFor(() => expect(fixture.options.series?.map((s:any) => s.type)).toEqual(["bar", "line"]));
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "Set Up" }), { button: 0, ctrlKey: false });
-    fireEvent.change(screen.getByRole("combobox", { name: "costs series type" }), { target: { value: "area" } });
-    await waitFor(() => expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("customCombo"));
-    expect(screen.queryByRole("switch", { name: "Switch Category / Series" })).toBeNull();
-    const tab = (name: string) => fireEvent.mouseDown(screen.getByRole("tab", { name, exact: true } as any), {button:0,ctrlKey:false});
+    await waitFor(() =>
+      expect(fixture.options.series?.map((s: any) => s.type)).toEqual(["bar", "line"]),
+    );
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Set Up" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "costs series type" }), {
+      target: { value: "area" },
+    });
+    await waitFor(() =>
+      expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe(
+        "customCombo",
+      ),
+    );
+    expect(
+      screen.queryByRole("switch", { name: "Switch Category / Series" }),
+    ).toBeNull();
+    const tab = (name: string) =>
+      fireEvent.mouseDown(screen.getByRole("tab", { name, exact: true } as any), {
+        button: 0,
+        ctrlKey: false,
+      });
     tab("Chart");
     fireEvent.click(screen.getByRole("button", { name: "Line" }));
-    await waitFor(() => expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("line"));
+    await waitFor(() =>
+      expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("line"),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Custom Combination" }));
-    await waitFor(() => expect(fixture.owner.widget.storage.default.chartModel.seriesChartTypes[1].chartType).toBe("area"));
+    await waitFor(() =>
+      expect(
+        fixture.owner.widget.storage.default.chartModel.seriesChartTypes[1].chartType,
+      ).toBe("area"),
+    );
     tab("Set Up");
-    expect((screen.getByRole("combobox", { name: "costs series type" }) as HTMLSelectElement).value).toBe("area");
+    expect(
+      (screen.getByRole("combobox", { name: "costs series type" }) as HTMLSelectElement)
+        .value,
+    ).toBe("area");
     tab("Customize");
     fireEvent.click(screen.getByRole("button", { name: /Series/ }));
     expect(screen.getByRole("combobox", { name: "Series Type" })).toBeTruthy();
     act(() => fixture.owner.save());
-    expect(fixture.store.mock.calls.at(-1)?.[1].storage.default.chartModel.seriesChartTypes[1].chartType).toBe("area");
+    expect(
+      fixture.store.mock.calls.at(-1)?.[1].storage.default.chartModel
+        .seriesChartTypes[1].chartType,
+    ).toBe("area");
   });
   it("refreshes imported chart color eligibility from the ready session without root derived fields", async () => {
     fixture.fileMode = true;
@@ -630,7 +673,16 @@ describe("ordinary table joins the production session", () => {
   ])("opens %s from original navbar and plots displayed raw values", async (family) => {
     render(<Owner family={family} />);
     fireEvent.click(document.querySelector("#chart-view-button")!);
-    await waitFor(() => expect(fixture.options.series?.[0]?.data).toEqual(family === "line" ? [[0, 50], [1, 100]] : [50, 100]));
+    await waitFor(() =>
+      expect(fixture.options.series?.[0]?.data).toEqual(
+        family === "line"
+          ? [
+              [0, 50],
+              [1, 100],
+            ]
+          : [50, 100],
+      ),
+    );
     expect(screen.getByTestId("retained-table")).toBeTruthy();
     expect(fixture.options.series[0].type).toBe(family === "line" ? "line" : "bar");
     expect(fixture.options.series[0].stack).toBe(
@@ -645,46 +697,181 @@ describe("ordinary table joins the production session", () => {
       fixture.visible = [1];
       fixture.gridProps.onFilterChanged({ api });
     });
-    await waitFor(() => expect(fixture.options.series?.[0]?.data).toEqual(family === "line" ? [[0, -20]] : [-20]));
+    await waitFor(() =>
+      expect(fixture.options.series?.[0]?.data).toEqual(
+        family === "line" ? [[0, -20]] : [-20],
+      ),
+    );
     fireEvent.click(document.querySelector("#chart-view-button")!);
     expect(screen.queryByTestId("chart-canvas")).toBeNull();
     expect(screen.getByTestId("retained-table")).toBeTruthy();
   });
 });
 
-it.each([false, true])("routes pie/donut and saved alias through real navbar, dock and empty recovery (file=%s)", async file => {
+it.each([
+  false,
+  true,
+])("routes pie/donut and saved alias through real navbar, dock and empty recovery (file=%s)", async (file) => {
   fixture.fileMode = file;
-  render(<Owner file={file} family="doughnut" settingsOpen storageOverride={{ chartNavigatorEnabled: true, chartMiniChartEnabled: true }} />);
+  render(
+    <Owner
+      file={file}
+      family="doughnut"
+      settingsOpen
+      storageOverride={{ chartNavigatorEnabled: true, chartMiniChartEnabled: true }}
+    />,
+  );
   fireEvent.click(document.querySelector("#chart-view-button")!);
   await waitFor(() => expect(fixture.options.series?.[0]?.type).toBe("pie"));
-  expect(fixture.options.series[0].data.map((d:any) => d.metadata.rawValue)).toEqual([50, 100]);
+  expect(fixture.options.series[0].data.map((d: any) => d.metadata.rawValue)).toEqual([
+    50, 100,
+  ]);
   expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("doughnut");
-  expect(screen.getByRole("button", { name: "Donut. Selected" }).getAttribute("aria-pressed")).toBe("true");
-  expect(screen.queryByRole("button", { name: /Show navigator|Hide navigator|Show mini chart|Hide mini chart/ })).toBeNull();
-  fireEvent.mouseDown(screen.getByRole("tab", { name: "Customize" }), { button: 0, ctrlKey: false });
+  expect(
+    screen
+      .getByRole("button", { name: "Donut. Selected" })
+      .getAttribute("aria-pressed"),
+  ).toBe("true");
+  expect(
+    screen.queryByRole("button", {
+      name: /Show navigator|Hide navigator|Show mini chart|Hide mini chart/,
+    }),
+  ).toBeNull();
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "Customize" }), {
+    button: 0,
+    ctrlKey: false,
+  });
   fireEvent.click(screen.getByRole("button", { name: "Series" }));
   expect(screen.getByRole("switch", { name: "Callout Labels" })).toBeTruthy();
-  fireEvent.change(screen.getByRole("spinbutton", { name: "Length value" }), { target: { value: "27" } });
-  await waitFor(() => expect(fixture.owner.widget.storage.default.chartModel.chartOptions.donut.series.calloutLine.length).toBe(27));
-  fireEvent.mouseDown(screen.getByRole("tab", { name: "Chart" }), { button: 0, ctrlKey: false });
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Length value" }), {
+    target: { value: "27" },
+  });
+  await waitFor(() =>
+    expect(
+      fixture.owner.widget.storage.default.chartModel.chartOptions.donut.series
+        .calloutLine.length,
+    ).toBe(27),
+  );
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "Chart" }), {
+    button: 0,
+    ctrlKey: false,
+  });
   fireEvent.click(screen.getByRole("button", { name: "Pie" }));
-  await waitFor(() => expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("pie"));
-  fireEvent.mouseDown(screen.getByRole("tab", { name: "Set Up" }), { button: 0, ctrlKey: false });
+  await waitFor(() =>
+    expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("pie"),
+  );
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "Set Up" }), {
+    button: 0,
+    ctrlKey: false,
+  });
   expect(screen.queryByRole("switch", { name: "Switch Category / Series" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Remove income" }));
   await waitFor(() => expect(fixture.options.series).toEqual([]));
   expect(fixture.owner.widget.storage.chartView.enabled).toBe(true);
   expect(screen.getByTestId("chart-canvas")).toBeTruthy();
-  fireEvent.change(screen.getByRole("combobox", { name: "Add a series" }), { target: { value: "0" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "Add a series" }), {
+    target: { value: "0" },
+  });
   await waitFor(() => expect(fixture.options.series[0].data).toHaveLength(2));
-  fireEvent.mouseDown(screen.getByRole("tab", { name: "Chart" }), { button: 0, ctrlKey: false });
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "Chart" }), {
+    button: 0,
+    ctrlKey: false,
+  });
   fireEvent.click(screen.getByRole("button", { name: "Donut" }));
-  await waitFor(() => expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("donut"));
+  await waitFor(() =>
+    expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("donut"),
+  );
   expect(fixture.exportFns.pngFunction).toBeTypeOf("function");
   fireEvent.click(screen.getByRole("button", { name: "Line" }));
-  await waitFor(() => expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("line"));
+  await waitFor(() =>
+    expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("line"),
+  );
   expect(screen.getByRole("button", { name: "Hide navigator" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Hide mini chart" })).toBeTruthy();
   expect(fixture.owner.widget.storage.chartNavigatorEnabled).toBe(true);
   expect(fixture.owner.widget.storage.chartMiniChartEnabled).toBe(true);
+});
+
+it.each([
+  false,
+  true,
+])("activates Box from the real Table/File gallery and retains working controls and zero recovery (file=%s)", async (file) => {
+  fixture.fileMode = file;
+  render(
+    <Owner
+      file={file}
+      family="line"
+      settingsOpen
+      storageOverride={{ chartNavigatorEnabled: true, chartMiniChartEnabled: true }}
+    />,
+  );
+  fireEvent.click(document.querySelector("#chart-view-button")!);
+  await waitFor(() => expect(fixture.options.series?.[0]?.type).toBe("line"));
+  fireEvent.click(screen.getByRole("button", { name: "Box Plot" }));
+  await waitFor(() =>
+    expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe("boxPlot"),
+  );
+  await waitFor(() =>
+    expect(
+      fixture.options.openbbBox?.projection.fields[0].data.map(
+        (d: any) => d.summary.median,
+      ),
+    ).toEqual([50, 100]),
+  );
+  expect(fixture.options.series[0].data.map((d: any) => d.value.slice(1))).toEqual([
+    [50, 50, 50, 50, 50],
+    [100, 100, 100, 100, 100],
+  ]);
+  expect(
+    screen
+      .getByRole("button", { name: "Box Plot. Selected" })
+      .getAttribute("aria-pressed"),
+  ).toBe("true");
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "Set Up" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  fireEvent.change(screen.getByRole("combobox", { name: "Direction" }), {
+    target: { value: "horizontal" },
+  });
+  await waitFor(() =>
+    expect(
+      fixture.owner.widget.storage.default.chartModel.chartOptions["box-plot"].series
+        .direction,
+    ).toBe("horizontal"),
+  );
+  expect(fixture.options.tooltip.axisPointer.axis).toBe("y");
+  expect(screen.queryByRole("switch", { name: "Switch Category / Series" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Remove income" }));
+  await waitFor(() => expect(fixture.options.openbbBox.projection.fields).toEqual([]));
+  expect(fixture.owner.widget.storage.chartView.enabled).toBe(true);
+  expect(screen.getByTestId("chart-canvas")).toBeTruthy();
+  fireEvent.change(screen.getByRole("combobox", { name: "Add a series" }), {
+    target: { value: "0" },
+  });
+  await waitFor(() =>
+    expect(fixture.options.openbbBox.projection.fields[0].data).toHaveLength(2),
+  );
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "Customize" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Series" }));
+  fireEvent.click(screen.getByRole("button", { name: "Whisker" }));
+  fireEvent.change(
+    screen.getAllByRole("spinbutton", { name: "Line Dash Offset value" })[0],
+    { target: { value: "8" } },
+  );
+  await waitFor(() =>
+    expect(
+      fixture.owner.widget.storage.default.chartModel.chartOptions["box-plot"].series
+        .whisker.lineDashOffset,
+    ).toBe(8),
+  );
+  expect(fixture.options.dataZoom).toHaveLength(2);
+  expect(fixture.exportFns.pngFunction).toBeTypeOf("function");
+  fireEvent.click(screen.getByRole("button", { name: "Hide mini chart" }));
+  await waitFor(() => expect(fixture.options.series).toHaveLength(1));
+  expect(fixture.owner.widget.storage.chartMiniChartEnabled).toBe(false);
+  expect(fixture.owner.widget.storage.chartNavigatorEnabled).toBe(true);
 });

@@ -22,13 +22,33 @@ export function callerGeneratedOptions(
         ...(dataOnlyOptions(axes) as RuntimeOptions),
       },
     },
-    ...Object.fromEntries(["scatter", "bubble", "histogram"].map((family) => [family, {
-      axes: { number: { bottom: caption(view.xLabel), left: caption(view.yLabel) } },
-      series: { label: { enabled: false }, ...(dataOnlyOptions(series) as RuntimeOptions) },
-    }])),
-    ...Object.fromEntries(["pie", "donut"].map(family => [family, { series: {
-      calloutLabel: { enabled: true }, sectorLabel: { enabled: true }, ...(dataOnlyOptions(series) as RuntimeOptions),
-    } }])),
+    ...Object.fromEntries(
+      ["scatter", "bubble", "histogram"].map((family) => [
+        family,
+        {
+          axes: {
+            number: { bottom: caption(view.xLabel), left: caption(view.yLabel) },
+          },
+          series: {
+            label: { enabled: false },
+            ...(dataOnlyOptions(series) as RuntimeOptions),
+          },
+        },
+      ]),
+    ),
+    ...Object.fromEntries(
+      ["pie", "donut"].map((family) => [
+        family,
+        {
+          series: {
+            calloutLabel: { enabled: true },
+            sectorLabel: { enabled: true },
+            ...(dataOnlyOptions(series) as RuntimeOptions),
+          },
+        },
+      ]),
+    ),
+    "box-plot": { series: { ...(dataOnlyOptions(series) as RuntimeOptions) } },
     bar: {
       series: {
         label: { enabled: false, placement: "outside-end" },

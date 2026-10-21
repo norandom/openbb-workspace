@@ -1,4 +1,3 @@
-import { resolveAppearanceChrome } from "./effectiveAppearanceChrome";
 import merge from "lodash.merge";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import { isAreaFamily } from "../echarts/cartesianAreaTypes";
@@ -9,11 +8,9 @@ import type {
   ResolvedApplicationAppearance,
 } from "./appearanceModel";
 import { resolveAppearanceAxis } from "./effectiveAppearanceAxes";
+import { resolveAppearanceChrome } from "./effectiveAppearanceChrome";
 import { appearanceLayers } from "./effectiveAppearanceLayers";
-import {
-  paletteSeries,
-  resolveAppearanceSeries,
-} from "./effectiveAppearanceSeries";
+import { paletteSeries, resolveAppearanceSeries } from "./effectiveAppearanceSeries";
 import {
   at,
   child,
@@ -36,10 +33,7 @@ function validateInput(input: AppearanceInput): void {
     throw new Error("Invalid stable series IDs");
   if (!input.theme.name || !["light", "dark"].includes(input.theme.mode))
     throw new Error("Missing selected application theme");
-  for (const palette of [
-    input.theme.palette.fills,
-    input.theme.palette.strokes,
-  ]) {
+  for (const palette of [input.theme.palette.fills, input.theme.palette.strokes]) {
     if (
       !Array.isArray(palette) ||
       !palette.length ||
@@ -62,35 +56,45 @@ function validateInput(input: AppearanceInput): void {
     )
       throw new Error("Invalid concrete axis identity/type");
     if (
-      !(
-        axis.direction === "x" ? ["top", "bottom"] : ["left", "right"]
-      ).includes(axis.position)
+      !(axis.direction === "x" ? ["top", "bottom"] : ["left", "right"]).includes(
+        axis.position,
+      )
     )
       throw new Error("Invalid concrete axis position");
   }
 }
 
 export function resolveCommonAppearance(
-  input: Omit<AppearanceInput, "family"> & { family: AppearanceInput["family"] | import("../compatibility/xyAssignments").XyChartType | "histogram" },
+  input: Omit<AppearanceInput, "family"> & {
+    family:
+      | AppearanceInput["family"]
+      | import("../compatibility/xyAssignments").XyChartType
+      | "histogram"
+      | "boxPlot";
+  },
   sourceLayers: RuntimeOptions[],
 ): ResolvedApplicationAppearance {
   const effective = merge({}, ...sourceLayers);
   const read: ReadAppearance = (path) => at(effective, path);
-  const category = input.axisRuntime.axes.find(axis => axis.id === "category");
-  const numeric = input.axisRuntime.axes.find(axis => axis.id === "number");
+  const category = input.axisRuntime.axes.find((axis) => axis.id === "category");
+  const numeric = input.axisRuntime.axes.find((axis) => axis.id === "number");
   if (!category || !numeric) throw new Error("Missing concrete category/number axis");
   const series = resolveAppearanceSeries(child(read, "series"));
   return {
-    ...resolveAppearanceChrome(sourceLayers, input.theme.palette,
-      input.family === "line" ? series.markers.strokeWidth : series.strokeWidth),
-    axes: { category: resolveAppearanceAxis(sourceLayers, category), number: resolveAppearanceAxis(sourceLayers, numeric) },
+    ...resolveAppearanceChrome(
+      sourceLayers,
+      input.theme.palette,
+      input.family === "line" ? series.markers.strokeWidth : series.strokeWidth,
+    ),
+    axes: {
+      category: resolveAppearanceAxis(sourceLayers, category),
+      number: resolveAppearanceAxis(sourceLayers, numeric),
+    },
     series,
   };
 }
 
-export const resolveApplicationAppearance: ResolveApplicationAppearance = (
-  input,
-) => {
+export const resolveApplicationAppearance: ResolveApplicationAppearance = (input) => {
   try {
     validateInput(input);
     const sourceLayers = appearanceLayers(input);

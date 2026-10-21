@@ -212,7 +212,10 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
     for (const entry of legend?.data ?? []) {
       const id = typeof entry === "string" ? entry : entry.name;
       if (id && !id.startsWith("openbb-mini-"))
-        selected[id] = retained ? nativeLegend?.selected?.[id] !== false : true;
+        selected[id] =
+          (retained ? nativeLegend?.selected?.[id] : undefined) ??
+          legend?.selected?.[id] ??
+          true;
     }
     const projected = request.projectLegendSelection(Object.freeze(selected));
     const legends = Array.isArray(projected.legend)

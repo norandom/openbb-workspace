@@ -20,6 +20,8 @@ export interface BoxStroke {
   readonly lineDashOffset: number;
 }
 export interface ResolvedBoxFieldStyle extends BoxStroke {
+  readonly visible?: boolean;
+  readonly showInMiniChart?: boolean;
   readonly fill: string;
   readonly fillOpacity: number;
   readonly whisker: BoxStroke;

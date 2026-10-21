@@ -1,29 +1,29 @@
-import { isXyChartFamily } from "./xySessionTypes";
-import { isComboChartFamily, type ApplicationChartFamily } from "./comboSessionTypes";
-import { selectOptionBaseline } from "../compatibility/optionState";
-import type {
-  ChartModel,
-  ChartStorageOutput,
-  RuntimeOptions,
-} from "../compatibility/legacyTypes";
-import { createEditorMetadata } from "../compatibility/editorBindings/metadata";
 import { deriveEditorEligibility } from "../compatibility/editorBindings/eligibility";
+import { createEditorMetadata } from "../compatibility/editorBindings/metadata";
 import { selectApplicationEditorState } from "../compatibility/editorBindings/selectApplicationEditorState";
 import type {
   AxisBinding,
   EditorSelectionInput,
 } from "../compatibility/editorBindings/types";
+import type {
+  ChartModel,
+  ChartStorageOutput,
+  RuntimeOptions,
+} from "../compatibility/legacyTypes";
+import { selectOptionBaseline } from "../compatibility/optionState";
 import type { ApplicationAxisId } from "./appearanceModel";
-import type { ApplicationAxisRuntime } from "./axisStructureTypes";
+import { resolveSessionRange } from "./applicationSessionRange";
 import type {
   ApplicationSessionContext,
   ApplicationSessionSelection,
 } from "./applicationSessionTypes";
+import type { ApplicationAxisRuntime } from "./axisStructureTypes";
+import { type ApplicationChartFamily, isComboChartFamily } from "./comboSessionTypes";
 import { resolveApplicationAppearance } from "./effectiveAppearance";
 import { projectOrdinarySetup } from "./setupProjection";
 import { SETUP_AGGREGATIONS, type SetupSelection } from "./setupTypes";
 import type { ResolvedRange } from "./types";
-import { resolveSessionRange } from "./applicationSessionRange";
+import { isXyChartFamily } from "./xySessionTypes";
 
 export function sessionBaseline<F extends ApplicationChartFamily>(
   storage: ChartStorageOutput,
@@ -38,8 +38,10 @@ export function sessionBaseline<F extends ApplicationChartFamily>(
     partitionModel: partition?.chartModel,
   });
   if (!result.valid) throw new Error(result.error);
-  const acceptedCustom = isComboChartFamily(inputs.family) &&
-    local.baseline.chartType === "customCombo" && result.value.chartType === "customCombo";
+  const acceptedCustom =
+    isComboChartFamily(inputs.family) &&
+    local.baseline.chartType === "customCombo" &&
+    result.value.chartType === "customCombo";
   if (result.value.chartType !== inputs.family && !acceptedCustom)
     throw new Error("Selected chart family changed");
   return result.value;
@@ -51,7 +53,13 @@ export function sessionRange<F extends ApplicationChartFamily>(
   return resolveSessionRange(storage, context);
 }
 export function canSwitchCategorySeries(family: ApplicationChartFamily): boolean {
-  return !isComboChartFamily(family) && !isXyChartFamily(family) && family !== "histogram" && family !== "pie";
+  return (
+    !isComboChartFamily(family) &&
+    !isXyChartFamily(family) &&
+    family !== "histogram" &&
+    family !== "boxPlot" &&
+    family !== "pie"
+  );
 }
 export function sessionSetup<F extends ApplicationChartFamily>(
   model: ChartModel,
@@ -76,7 +84,9 @@ export function sessionSetup<F extends ApplicationChartFamily>(
     categoryId,
     seriesIds: range.columnIds.filter((id) => !categories.includes(id)),
     ...(aggFunc === undefined ? {} : { aggFunc: aggFunc as SetupSelection["aggFunc"] }),
-    switchCategorySeries: canSwitchCategorySeries(context.inputs.family) && model.switchCategorySeries === true,
+    switchCategorySeries:
+      canSwitchCategorySeries(context.inputs.family) &&
+      model.switchCategorySeries === true,
   };
 }
 export function sessionBindings(

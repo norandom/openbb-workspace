@@ -75,7 +75,10 @@ export function boxPlotNavigationWindow(
     ...metadata.projection,
     fields: metadata.projection.fields.map((f) => ({
       ...f,
-      enabled: legend?.[f.descriptor.id] !== false,
+      enabled:
+        legend?.[f.descriptor.id] ??
+        input.style.fields[f.descriptor.id].visible ??
+        true,
     })),
   };
   const context = {

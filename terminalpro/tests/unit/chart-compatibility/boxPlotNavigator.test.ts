@@ -226,3 +226,49 @@ it("reduces numeric tick count after measuring crowded financial labels", () => 
     navigatorAxes(ordinary.options.series)[0].data,
   );
 });
+
+function renderBoxSeries(options: EChartsOption, index: number) {
+  const series = customSeries(options, index);
+  if (typeof series.renderItem !== "function") throw Error("Expected Box renderer");
+  return series.renderItem(
+    { dataIndex: 0, coordSys: { x: 0, y: 0, width: 600, height: 500 } } as any,
+    { coord: ([x, y]: number[]) => [x * 30 + 100, 400 - y * 20] } as any,
+  );
+}
+it("keeps configured overview visibility independent of main legend and navigation", () => {
+  const base = boxInput();
+  base.style.fields.amount.visible = false;
+  base.style.fields.other.showInMiniChart = false;
+  const input = {
+    ...base,
+    context: {
+      ...base.context,
+      navigation: {
+        enabled: true,
+        mini: true,
+        theme: projectCallerTheme("light", [], {}),
+      },
+    },
+  };
+  const initial = supportedBox(input);
+  expect(renderBoxSeries(initial.options, 0)).toBeUndefined();
+  expect(renderBoxSeries(initial.options, 1)).toBeDefined();
+  expect(renderBoxSeries(initial.options, 2)).toBeUndefined();
+  expect(renderBoxSeries(initial.options, 3)).toBeUndefined();
+  const enabled = supportedBox({
+    ...input,
+    context: { ...input.context, legendSelection: { amount: true, other: false } },
+  });
+  expect(renderBoxSeries(enabled.options, 0)).toBeDefined();
+  expect(renderBoxSeries(enabled.options, 1)).toBeUndefined();
+  expect(renderBoxSeries(enabled.options, 2)).toBeUndefined();
+  expect(renderBoxSeries(enabled.options, 3)).toBeUndefined();
+  const cropped = boxPlotNavigationWindow(input, initial.options, {
+    dataZoom: [{ id: "openbb-navigator", start: 10, end: 90 }],
+  });
+  expect(renderBoxSeries(cropped, 0)).toBeUndefined();
+  expect(navigatorAxes(cropped.legend)[0].selected).toMatchObject({
+    amount: false,
+    other: true,
+  });
+});

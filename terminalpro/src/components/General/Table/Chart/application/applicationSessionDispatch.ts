@@ -1,38 +1,40 @@
-import { isPieChartFamily } from "./pieSessionTypes";
-import { applyPieEditorTransaction } from "./pieEditorTransaction";
-import { applyHistogramEditorTransaction } from "./histogramEditorTransaction";
-import { isXyChartFamily } from "./xySessionTypes";
-import { applyXyEditorTransaction } from "./xyEditorTransaction";
 import type { WidgetT } from "../../../../types";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
+import type { ApplicationChartCommand } from "./applicationChartSessionTypes";
+import type { captureApplicationSession } from "./applicationSessionCapture";
+import { applyApplicationEditorTransaction } from "./applicationSessionEdit";
+import { latestWidgetRangeInputs } from "./applicationSessionRange";
+import {
+  contextFor,
+  nextSessionStamp,
+  sessionAssignmentKey,
+  sessionDataKey,
+} from "./applicationSessionRuntime";
+import { applyApplicationSetupTransaction } from "./applicationSessionSetup";
+import { validateSynchronousEditorStamp } from "./applicationSessionStamp";
 import type {
   ApplicationSessionContext,
   ApplicationSessionInputs,
   ApplicationSessionState,
 } from "./applicationSessionTypes";
-import type { ApplicationChartCommand } from "./applicationChartSessionTypes";
-import {
-  isComboChartFamily,
-  type ApplicationChartFamily,
-  type ComboSessionContext,
-} from "./comboSessionTypes";
+import { applyBoxPlotEditorTransaction } from "./boxPlotEditorTransaction";
+import { applyComboEditorTransaction } from "./comboEditorTransaction";
 import {
   applyComboAssignmentTransaction,
   applyComboFamilyTransaction,
 } from "./comboSessionAssignments";
-import { applyComboEditorTransaction } from "./comboEditorTransaction";
 import { selectComboSession } from "./comboSessionSelection";
-import { applyApplicationEditorTransaction } from "./applicationSessionEdit";
-import { applyApplicationSetupTransaction } from "./applicationSessionSetup";
-import type { captureApplicationSession } from "./applicationSessionCapture";
 import {
-  contextFor,
-  nextSessionStamp,
-  sessionDataKey,
-  sessionAssignmentKey,
-} from "./applicationSessionRuntime";
-import { latestWidgetRangeInputs } from "./applicationSessionRange";
-import { validateSynchronousEditorStamp } from "./applicationSessionStamp";
+  type ApplicationChartFamily,
+  type ComboSessionContext,
+  isComboChartFamily,
+} from "./comboSessionTypes";
+import { applyHistogramEditorTransaction } from "./histogramEditorTransaction";
+import { applyPieEditorTransaction } from "./pieEditorTransaction";
+import { isPieChartFamily } from "./pieSessionTypes";
+import { applyXyEditorTransaction } from "./xyEditorTransaction";
+import { isXyChartFamily } from "./xySessionTypes";
+
 function transaction(
   storage: ChartStorageOutput,
   context: ApplicationSessionContext<ApplicationChartFamily>,
@@ -55,14 +57,42 @@ function transaction(
       intent.edit,
       recapture,
     );
+  if (context.inputs.family === "boxPlot")
+    return applyBoxPlotEditorTransaction(
+      storage,
+      context as ApplicationSessionContext<"boxPlot">,
+      command,
+    );
+  if (intent.panel === "boxPlot") return { status: "stale" as const };
   if (isPieChartFamily(context.inputs.family))
-    return applyPieEditorTransaction(storage, context as ApplicationSessionContext<import("../compatibility/pieAssignments").PieChartType>, command);
-  if (intent.panel === "pieLabel" || intent.panel === "pieCallout" || intent.panel === "pieSector") return { status: "stale" as const };
+    return applyPieEditorTransaction(
+      storage,
+      context as ApplicationSessionContext<
+        import("../compatibility/pieAssignments").PieChartType
+      >,
+      command,
+    );
+  if (
+    intent.panel === "pieLabel" ||
+    intent.panel === "pieCallout" ||
+    intent.panel === "pieSector"
+  )
+    return { status: "stale" as const };
   if (context.inputs.family === "histogram")
-    return applyHistogramEditorTransaction(storage, context as ApplicationSessionContext<"histogram">, command);
+    return applyHistogramEditorTransaction(
+      storage,
+      context as ApplicationSessionContext<"histogram">,
+      command,
+    );
   if (intent.panel === "histogram") return { status: "stale" as const };
   if (isXyChartFamily(context.inputs.family))
-    return applyXyEditorTransaction(storage, context as ApplicationSessionContext<import("../compatibility/xyAssignments").XyChartType>, command);
+    return applyXyEditorTransaction(
+      storage,
+      context as ApplicationSessionContext<
+        import("../compatibility/xyAssignments").XyChartType
+      >,
+      command,
+    );
   if (intent.panel === "xy") return { status: "stale" as const };
   if (isComboChartFamily(context.inputs.family)) {
     const combo = context as ComboSessionContext;
@@ -125,10 +155,8 @@ export function executeApplicationChartCommand(
     command.family !== inputs.family ||
     (command.family !== state.local.baseline.chartType &&
       command.family !== state.sourceFamily) ||
-    (state.pendingFamily !== undefined &&
-      command.family !== state.pendingFamily) ||
-    validateSynchronousEditorStamp(command.stamp, state.local.stamp).status !==
-      "ready"
+    (state.pendingFamily !== undefined && command.family !== state.pendingFamily) ||
+    validateSynchronousEditorStamp(command.stamp, state.local.stamp).status !== "ready"
   )
     return { widget, value: state };
   const result = transaction(
@@ -149,8 +177,7 @@ export function executeApplicationChartCommand(
       error: undefined,
       ...(committed.local.baseline.chartType !== state.local.baseline.chartType
         ? {
-            pendingFamily: committed.local.baseline
-              .chartType as ApplicationChartFamily,
+            pendingFamily: committed.local.baseline.chartType as ApplicationChartFamily,
           }
         : {}),
       capture: { ...committed.capture, dataRevision: stamp.dataRevision },

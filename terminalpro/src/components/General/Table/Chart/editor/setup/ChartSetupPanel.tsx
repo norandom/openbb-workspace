@@ -1,7 +1,7 @@
-import type { ApplicationEditorMode } from "../combo/comboEditorMode";
-import { ComboAssignmentControls } from "../combo/ComboAssignmentControls";
-import { useId, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
 import { Switch } from "../../../../../ds/atoms/Switch";
+import { ComboAssignmentControls } from "../combo/ComboAssignmentControls";
+import type { ApplicationEditorMode } from "../combo/comboEditorMode";
 import "./chartSetupPanel.css";
 
 export type ChartSetupChoice = { value: string; label: string };
@@ -83,8 +83,7 @@ function Series({
   series,
   onEdit,
   mode,
-}: Pick<ChartSetupState, "series"> &
-  Pick<ChartSetupPanelProps, "onEdit" | "mode">) {
+}: Pick<ChartSetupState, "series"> & Pick<ChartSetupPanelProps, "onEdit" | "mode">) {
   const dragged = useRef<string | null>(null);
   function reorder(source: string | null, target: string) {
     if (source === null) return;
@@ -127,17 +126,23 @@ function Series({
                 dragged.current = null;
               }}
               onKeyDown={(event) => {
-                if (event.key !== "ArrowUp" && event.key !== "ArrowDown")
-                  return;
+                if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
                 event.preventDefault();
-                const target =
-                  series[index + (event.key === "ArrowUp" ? -1 : 1)];
+                const target = series[index + (event.key === "ArrowUp" ? -1 : 1)];
                 if (target) reorder(item.id, target.id);
               }}
             >
               <span aria-hidden="true">⠿</span>
             </button>
-            <span className="chart-setup-series-label">{item.label}{mode?.kind === "xy" && <small> ({mode.roles.find((r) => r.colId === item.id)?.role.toUpperCase()})</small>}</span>
+            <span className="chart-setup-series-label">
+              {item.label}
+              {mode?.kind === "xy" && (
+                <small>
+                  {" "}
+                  ({mode.roles.find((r) => r.colId === item.id)?.role.toUpperCase()})
+                </small>
+              )}
+            </span>
             <button
               type="button"
               className="chart-setup-remove"
@@ -148,11 +153,7 @@ function Series({
             </button>
           </div>
           {mode?.kind === "combo" && (
-            <ComboAssignmentControls
-              mode={mode}
-              colId={item.id}
-              label={item.label}
-            />
+            <ComboAssignmentControls mode={mode} colId={item.id} label={item.label} />
           )}
         </div>
       ))}
@@ -173,8 +174,30 @@ export function ChartSetupPanel({
   );
   return (
     <div className="chart-setup-panel">
+      {mode?.kind === "boxPlot" && (
+        <Group label="Direction">
+          <Choice
+            label="Direction"
+            value={mode.controls.direction}
+            choices={[
+              { value: "vertical", label: "Vertical" },
+              { value: "horizontal", label: "Horizontal" },
+            ]}
+            onChange={(value) => {
+              if (value === "vertical" || value === "horizontal")
+                mode.onEdit({ kind: "direction", value });
+            }}
+          />
+        </Group>
+      )}
       <Group
-        label={mode?.kind === "xy" ? "Labels" : value.switchCategorySeries ? "Series Labels" : "Categories"}
+        label={
+          mode?.kind === "xy"
+            ? "Labels"
+            : value.switchCategorySeries
+              ? "Series Labels"
+              : "Categories"
+        }
       >
         <Choice
           label={mode?.kind === "xy" ? "Labels" : "Category"}
@@ -188,9 +211,7 @@ export function ChartSetupPanel({
               <Switch
                 label="Aggregate"
                 checked={value.aggregate}
-                onCheckedChange={(next) =>
-                  onEdit({ kind: "aggregate", value: next })
-                }
+                onCheckedChange={(next) => onEdit({ kind: "aggregate", value: next })}
               />
             </div>
             {value.aggregate && (
@@ -198,16 +219,28 @@ export function ChartSetupPanel({
                 label="Aggregation method"
                 value={value.aggregationMethod}
                 choices={aggregationMethods}
-                onChange={(next) =>
-                  onEdit({ kind: "aggregation-method", value: next })
-                }
+                onChange={(next) => onEdit({ kind: "aggregation-method", value: next })}
               />
             )}
           </>
         )}
       </Group>
-      <Group label={mode?.kind === "xy" ? "X Y Values" : value.switchCategorySeries ? "Category Values" : "Series"}>
-        {mode?.kind === "xy" && <Switch label="Paired Mode" checked={mode.paired} onCheckedChange={(value) => mode.onEdit({ kind: "paired", value })} />}
+      <Group
+        label={
+          mode?.kind === "xy"
+            ? "X Y Values"
+            : value.switchCategorySeries
+              ? "Category Values"
+              : "Series"
+        }
+      >
+        {mode?.kind === "xy" && (
+          <Switch
+            label="Paired Mode"
+            checked={mode.paired}
+            onCheckedChange={(value) => mode.onEdit({ kind: "paired", value })}
+          />
+        )}
         <Series series={value.series} onEdit={onEdit} mode={mode} />
         {unselected.length > 0 && (
           <div className="chart-setup-add">
@@ -233,17 +266,21 @@ export function ChartSetupPanel({
             <span aria-hidden="true">+</span>
           </div>
         )}
-        {mode?.kind !== "combo" && mode?.kind !== "xy" && mode?.kind !== "histogram" && (mode?.kind !== "pie" || mode.canSwitchCategorySeries) && (
-          <div className="chart-setup-switch chart-setup-transpose">
-            <Switch
-              label="Switch Category / Series"
-              checked={value.switchCategorySeries}
-              onCheckedChange={(next) =>
-                onEdit({ kind: "switch-category-series", value: next })
-              }
-            />
-          </div>
-        )}
+        {mode?.kind !== "combo" &&
+          mode?.kind !== "xy" &&
+          mode?.kind !== "histogram" &&
+          mode?.kind !== "boxPlot" &&
+          (mode?.kind !== "pie" || mode.canSwitchCategorySeries) && (
+            <div className="chart-setup-switch chart-setup-transpose">
+              <Switch
+                label="Switch Category / Series"
+                checked={value.switchCategorySeries}
+                onCheckedChange={(next) =>
+                  onEdit({ kind: "switch-category-series", value: next })
+                }
+              />
+            </div>
+          )}
       </Group>
     </div>
   );

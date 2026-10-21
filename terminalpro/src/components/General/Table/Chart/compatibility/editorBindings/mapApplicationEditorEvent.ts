@@ -4,7 +4,6 @@ import { isAreaFamily } from "../../echarts/cartesianAreaTypes";
 import { isCartesianFamily } from "../../echarts/cartesianTypes";
 import type { RuntimeOptions } from "../legacyTypes";
 import type { ApplicationEditorEvent, MapApplicationEditorEvent } from "./types";
-import { axisLeaf, fontLeaf, legendLeaf } from "./valueMapping";
 import {
   binding,
   fontContext,
@@ -13,6 +12,7 @@ import {
   styleContext,
   validateEdit,
 } from "./validation";
+import { axisLeaf, fontLeaf, legendLeaf } from "./valueMapping";
 
 function validateEvent(input: unknown) {
   const event = record(input);
@@ -120,17 +120,48 @@ function eventPatch(event: ApplicationEditorEvent): RuntimeOptions {
 }
 export const mapApplicationEditorEvent: MapApplicationEditorEvent = (event, family) => {
   try {
-    if (!isCartesianFamily(family) && !isAreaFamily(family) && !isXyChartFamily(family) && family !== "histogram" && !isPieChartFamily(family))
+    if (
+      !isCartesianFamily(family) &&
+      !isAreaFamily(family) &&
+      !isXyChartFamily(family) &&
+      family !== "histogram" &&
+      family !== "boxPlot" &&
+      !isPieChartFamily(family)
+    )
       throw new Error("Unsupported chart family");
     validateEvent(event);
-    if (isPieChartFamily(family) && (!["titles", "legend", "padding", "background", "tooltips", "series", "shadow"].includes(event.panel) ||
-      (event.panel === "titles" && !["title", "subtitle"].includes(event.edit.caption)) ||
-      (event.panel === "series" && event.edit.field === "lineDash"))) throw Error("Unsupported pie control");
+    if (
+      isPieChartFamily(family) &&
+      (![
+        "titles",
+        "legend",
+        "padding",
+        "background",
+        "tooltips",
+        "series",
+        "shadow",
+      ].includes(event.panel) ||
+        (event.panel === "titles" &&
+          !["title", "subtitle"].includes(event.edit.caption)) ||
+        (event.panel === "series" && event.edit.field === "lineDash"))
+    )
+      throw Error("Unsupported pie control");
     return {
       valid: true,
       value: {
-        [isPieChartFamily(family) ? family === "pie" ? "pie" : "donut" : isXyChartFamily(family) || family === "histogram" ? family : isAreaFamily(family) ? "area" : family === "line" ? "line" : "bar"]:
-          eventPatch(event),
+        [family === "boxPlot"
+          ? "box-plot"
+          : isPieChartFamily(family)
+            ? family === "pie"
+              ? "pie"
+              : "donut"
+            : isXyChartFamily(family) || family === "histogram"
+              ? family
+              : isAreaFamily(family)
+                ? "area"
+                : family === "line"
+                  ? "line"
+                  : "bar"]: eventPatch(event),
       },
     };
   } catch (error) {

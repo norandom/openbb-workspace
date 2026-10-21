@@ -1,8 +1,8 @@
 import type { ComboSeriesAssignment } from "../compatibility/comboAssignments";
 import type { ComboGeometry } from "../echarts/comboTypes";
 import type {
-  ApplicationSessionReady,
   ApplicationSessionCommand,
+  ApplicationSessionReady,
 } from "./applicationSessionTypes";
 import type {
   ApplicationChartFamily,
@@ -10,10 +10,23 @@ import type {
 } from "./comboSessionTypes";
 import type { SessionStamp } from "./types";
 export type ApplicationChartReady =
-  | (Omit<ApplicationSessionReady, "editor"> & { readonly kind: "pie"; readonly editor: import("./pieSessionTypes").PieEditorState;
-      readonly legendPagination?: import("../echarts/pieLegendTypes").PieLegendPagination })
-  | (ApplicationSessionReady & { readonly kind: "histogram"; readonly histogram: import("./histogramSessionTypes").HistogramEditorProjection })
-  | (ApplicationSessionReady & { readonly kind: "xy"; readonly xy: import("./xySessionTypes").XyEditorProjection })
+  | (ApplicationSessionReady & {
+      readonly kind: "boxPlot";
+      readonly boxPlot: import("./boxPlotSessionTypes").BoxPlotEditorProjection;
+    })
+  | (Omit<ApplicationSessionReady, "editor"> & {
+      readonly kind: "pie";
+      readonly editor: import("./pieSessionTypes").PieEditorState;
+      readonly legendPagination?: import("../echarts/pieLegendTypes").PieLegendPagination;
+    })
+  | (ApplicationSessionReady & {
+      readonly kind: "histogram";
+      readonly histogram: import("./histogramSessionTypes").HistogramEditorProjection;
+    })
+  | (ApplicationSessionReady & {
+      readonly kind: "xy";
+      readonly xy: import("./xySessionTypes").XyEditorProjection;
+    })
   | (ApplicationSessionReady & { readonly kind: "cartesian" })
   | (ApplicationSessionReady & {
       readonly kind: "combo";
@@ -29,6 +42,7 @@ export interface ApplicationChartCommand {
   readonly geometry?: ComboGeometry;
   readonly intent:
     | ApplicationSessionCommand["intent"]
+    | import("./boxPlotSessionTypes").BoxPlotEditIntent
     | import("./pieSessionTypes").PieEditIntent
     | import("./xySessionTypes").XyEditIntent
     | import("./histogramSessionTypes").HistogramEditIntent

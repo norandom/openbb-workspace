@@ -1,11 +1,28 @@
+import type { ComboAssignmentCommand } from "../../application/comboSessionTypes";
 import type { ComboSeriesAssignment } from "../../compatibility/comboAssignments";
 import type { ComboGeometry } from "../../echarts/comboTypes";
-import type { ComboAssignmentCommand } from "../../application/comboSessionTypes";
 export type ApplicationEditorMode =
   | { kind: "ordinary" }
+  | {
+      kind: "boxPlot";
+      controls: import("../../application/boxPlotSessionTypes").BoxPlotControlValues;
+      onEdit: (
+        edit: import("../../application/boxPlotSessionTypes").BoxPlotEditIntent["edit"],
+      ) => void;
+    }
   | { kind: "pie"; canSwitchCategorySeries: boolean }
-  | ({ kind: "histogram"; onEdit: (edit: import("../../application/histogramSessionTypes").HistogramEditIntent["edit"]) => void } & import("../../application/histogramSessionTypes").HistogramEditorProjection)
-  | ({ kind: "xy"; onEdit: (edit: import("../../application/xySessionTypes").XyEditIntent["edit"]) => void } & import("../../application/xySessionTypes").XyEditorProjection)
+  | ({
+      kind: "histogram";
+      onEdit: (
+        edit: import("../../application/histogramSessionTypes").HistogramEditIntent["edit"],
+      ) => void;
+    } & import("../../application/histogramSessionTypes").HistogramEditorProjection)
+  | ({
+      kind: "xy";
+      onEdit: (
+        edit: import("../../application/xySessionTypes").XyEditIntent["edit"],
+      ) => void;
+    } & import("../../application/xySessionTypes").XyEditorProjection)
   | {
       kind: "combo";
       assignments: readonly Readonly<ComboSeriesAssignment>[];

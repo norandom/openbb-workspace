@@ -20,7 +20,12 @@ export function boxPlotNavigator(
   };
   const full = {
     ...projection,
-    fields: projection.fields.map((f) => ({ ...f, enabled: true })),
+    fields: projection.fields.map((f) => ({
+      ...f,
+      enabled:
+        input.style.fields[f.descriptor.id].visible !== false &&
+        input.style.fields[f.descriptor.id].showInMiniChart !== false,
+    })),
   };
   const domain = boxPlotDomain(overviewInput, full);
   const scale = boxAxisTransport(domain.value, domain.value);

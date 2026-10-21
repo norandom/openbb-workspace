@@ -60,7 +60,9 @@ export function boxPlotLayout(
       name: f.descriptor.id,
       icon: markerSymbol("square"),
     })),
-    selected: { ...input.context.legendSelection },
+    selected: Object.fromEntries(
+      projection.fields.map((field) => [field.descriptor.id, field.enabled]),
+    ),
     formatter: (id) => labels.get(id) ?? "",
     orient: vertical ? "vertical" : "horizontal",
     [position]: a.padding[position] + (position === "top" ? captionSpace : 0),

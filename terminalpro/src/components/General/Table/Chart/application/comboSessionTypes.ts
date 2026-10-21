@@ -1,20 +1,39 @@
-import type { ComboAssignmentDiagnostic, ComboChartType, ComboSeriesAssignment, ComboSeriesChartType } from "../compatibility/comboAssignments";
+import type {
+  ComboAssignmentDiagnostic,
+  ComboChartType,
+  ComboSeriesAssignment,
+  ComboSeriesChartType,
+} from "../compatibility/comboAssignments";
 import type { OptionBaseline } from "../compatibility/optionStateTypes";
 import type { CartesianFamily } from "../echarts/cartesianTypes";
 import type { ApplicationSessionContext } from "./applicationSessionTypes";
 import type { ResolvedRange, SessionStamp } from "./types";
 
-export type ApplicationChartFamily = CartesianFamily | ComboChartType | import("../compatibility/xyAssignments").XyChartType | "histogram" | import("../compatibility/pieAssignments").PieChartType;
+export type ApplicationChartFamily =
+  | CartesianFamily
+  | ComboChartType
+  | import("../compatibility/xyAssignments").XyChartType
+  | "histogram"
+  | "boxPlot"
+  | import("../compatibility/pieAssignments").PieChartType;
 export type ComboSessionContext = ApplicationSessionContext<ComboChartType>;
 export function isComboChartFamily(value: unknown): value is ComboChartType {
-  return value === "columnLineCombo" || value === "areaColumnCombo" || value === "customCombo";
+  return (
+    value === "columnLineCombo" ||
+    value === "areaColumnCombo" ||
+    value === "customCombo"
+  );
 }
 export interface ComboAssignmentCommand {
   readonly stamp: SessionStamp;
   readonly family: ComboChartType;
-  readonly intent: { readonly panel: "comboAssignment"; readonly colId: string; readonly edit:
-    | { readonly kind: "type"; readonly value: ComboSeriesChartType }
-    | { readonly kind: "secondaryAxis"; readonly value: boolean } };
+  readonly intent: {
+    readonly panel: "comboAssignment";
+    readonly colId: string;
+    readonly edit:
+      | { readonly kind: "type"; readonly value: ComboSeriesChartType }
+      | { readonly kind: "secondaryAxis"; readonly value: boolean };
+  };
 }
 export interface ComboSessionAssignmentSelection {
   readonly baseline: OptionBaseline;

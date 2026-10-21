@@ -64,7 +64,10 @@ export function projectBoxPlot(
     fields.push({
       descriptor,
       paletteIndex,
-      enabled: input.context.legendSelection?.[descriptor.id] !== false,
+      enabled:
+        input.context.legendSelection?.[descriptor.id] ??
+        input.style.fields[descriptor.id].visible ??
+        true,
       data,
     });
   }

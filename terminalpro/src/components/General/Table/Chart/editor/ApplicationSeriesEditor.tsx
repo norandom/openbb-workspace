@@ -1,28 +1,39 @@
-import { PieLabelControls } from "./pie/PieLabelControls";
-import { HistogramBinControls } from "./histogram/HistogramBinControls";
-import { XyPointControls } from "./xy/XyPointControls";
-import type { ApplicationCustomizeEditorProps } from "./ApplicationCustomizeEditor";
-import { ComboGeometryControl } from "./combo/ComboGeometryControl";
 import { Switch } from "../../../../ds/atoms/Switch";
-import { ChartTooltipsPanel } from "./tooltips/ChartTooltipsPanel";
-import { ChartSeriesStylePanel } from "./series/ChartSeriesStylePanel";
-import { ChartShadowPanel } from "./shadow/ChartShadowPanel";
+import type { ApplicationCustomizeEditorProps } from "./ApplicationCustomizeEditor";
+import { ApplicationEditorGroup } from "./ApplicationEditorGroup";
+import { BoxPlotControls } from "./box/BoxPlotControls";
+import { ComboGeometryControl } from "./combo/ComboGeometryControl";
+import { HistogramBinControls } from "./histogram/HistogramBinControls";
 import { ChartLabelsPanel } from "./labels/ChartLabelsPanel";
 import { ChartMarkersPanel } from "./markers/ChartMarkersPanel";
-import { ApplicationEditorGroup } from "./ApplicationEditorGroup";
+import { PieLabelControls } from "./pie/PieLabelControls";
+import { ChartSeriesStylePanel } from "./series/ChartSeriesStylePanel";
+import { ChartShadowPanel } from "./shadow/ChartShadowPanel";
+import { ChartTooltipsPanel } from "./tooltips/ChartTooltipsPanel";
+import { XyPointControls } from "./xy/XyPointControls";
 export function ApplicationSeriesEditor({
   state,
   onIntent,
   mode,
 }: ApplicationCustomizeEditorProps) {
-  if (!("axes" in state)) return (
-    <ApplicationEditorGroup label="Series">
-      <ChartTooltipsPanel {...state.tooltips} onEdit={edit => onIntent({ panel: "tooltips", edit })} />
-      <ChartSeriesStylePanel {...state.series} onEdit={edit => onIntent({ panel: "series", edit })} />
-      <PieLabelControls {...state} onIntent={onIntent} />
-      <ChartShadowPanel {...state.shadow} onEdit={edit => onIntent({ panel: "shadow", edit })} />
-    </ApplicationEditorGroup>
-  );
+  if (!("axes" in state))
+    return (
+      <ApplicationEditorGroup label="Series">
+        <ChartTooltipsPanel
+          {...state.tooltips}
+          onEdit={(edit) => onIntent({ panel: "tooltips", edit })}
+        />
+        <ChartSeriesStylePanel
+          {...state.series}
+          onEdit={(edit) => onIntent({ panel: "series", edit })}
+        />
+        <PieLabelControls {...state} onIntent={onIntent} />
+        <ChartShadowPanel
+          {...state.shadow}
+          onEdit={(edit) => onIntent({ panel: "shadow", edit })}
+        />
+      </ApplicationEditorGroup>
+    );
   const eligibility = state.eligibility;
   return (
     <ApplicationEditorGroup label="Series">
@@ -32,10 +43,17 @@ export function ApplicationSeriesEditor({
         onEdit={(edit) => onIntent({ panel: "tooltips", edit })}
       />
       {mode?.kind === "histogram" && <HistogramBinControls mode={mode} />}
-      {mode?.kind === "xy" ? <XyPointControls mode={mode} /> : <ChartSeriesStylePanel
-        {...state.series}
-        onEdit={(edit) => onIntent({ panel: "series", edit })}
-      />}
+      {mode?.kind === "xy" ? (
+        <XyPointControls mode={mode} />
+      ) : (
+        <ChartSeriesStylePanel
+          {...state.series}
+          onEdit={(edit) => onIntent({ panel: "series", edit })}
+        />
+      )}
+      {mode?.kind === "boxPlot" && (
+        <BoxPlotControls value={mode.controls} onEdit={mode.onEdit} />
+      )}
       {eligibility.connectMissingData && (
         <div className="chart-caption-toggle">
           <Switch
