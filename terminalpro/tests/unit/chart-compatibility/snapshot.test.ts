@@ -3,6 +3,12 @@ import { validateSnapshot } from "../../../src/components/General/Table/Chart/co
 import { invalidSnapshotInputs, validSnapshotInput } from "./snapshot.fixtures";
 
 describe("resolved snapshot validation", () => {
+  it("allows an empty pie numeric selection under the explicit pie policy only", () => {
+    const input = { ...validSnapshotInput, selectedColumnIds: ["period"] };
+    expect(validateSnapshot(input, "pie-observations").valid).toBe(true);
+    expect(validateSnapshot(input).valid).toBe(false);
+    expect(validateSnapshot({ ...input, categoryColumnId: "missing" }, "pie-observations").valid).toBe(false);
+  });
   it.each(invalidSnapshotInputs)("rejects $name at its field path", ({ input, path }) => {
     const result = validateSnapshot(input);
     expect(result.valid).toBe(false);
