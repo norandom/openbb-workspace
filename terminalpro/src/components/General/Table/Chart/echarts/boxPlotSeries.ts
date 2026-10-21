@@ -1,7 +1,11 @@
-import type { CustomSeriesOption } from "echarts";
+import { color, type CustomSeriesOption } from "echarts";
 import type { BoxValueScale } from "./boxPlotDomain";
 import { createBoxRenderer } from "./boxPlotGeometry";
 import type { BoxPlotMappingInput, BoxPlotProjection } from "./boxPlotTypes";
+
+function legendColor(value: string, opacity: number): string {
+  return color.modifyAlpha(value, (color.parse(value)?.[3] ?? 1) * opacity) ?? value;
+}
 
 export function boxPlotSeries(
   input: BoxPlotMappingInput,
@@ -19,7 +23,21 @@ export function boxPlotSeries(
     animation: false,
     dimensions: ["slot", "min", "q1", "median", "q3", "max"],
     encode: vertical ? { x: 0, y: [1, 2, 3, 4, 5] } : { x: [1, 2, 3, 4, 5], y: 0 },
-    itemStyle: { color: input.style.fields[field.descriptor.id].fill },
+    // Native legend markers have one global opacity, so preserve each paint's alpha in its colour.
+    itemStyle: {
+      color: legendColor(
+        input.style.fields[field.descriptor.id].fill,
+        input.style.fields[field.descriptor.id].fillOpacity,
+      ),
+      borderColor: legendColor(
+        input.style.fields[field.descriptor.id].stroke,
+        input.style.fields[field.descriptor.id].strokeOpacity,
+      ),
+      borderWidth: input.style.fields[field.descriptor.id].strokeWidth,
+      borderType: [...input.style.fields[field.descriptor.id].lineDash],
+      borderDashOffset: input.style.fields[field.descriptor.id].lineDashOffset,
+      opacity: 1,
+    },
     data: field.data.map((d) => ({
       value: [
         d.groupSlot,

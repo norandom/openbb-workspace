@@ -55,9 +55,9 @@ function supportedBox(input: ReturnType<typeof navigable>) {
   return result;
 }
 beforeEach(() =>
-  vi
-    .spyOn(HTMLCanvasElement.prototype, "getContext")
-    .mockReturnValue({ measureText: (s: string) => ({ width: s.length * 6 }) } as any),
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+    measureText: (s: string) => ({ width: s.length * 6 }),
+  } as any),
 );
 
 import { boxPlotNavigationWindow } from "../../../src/components/General/Table/Chart/echarts/boxPlotNavigationWindow";
@@ -105,6 +105,103 @@ it("native vertical crop expands actual main boxes and leaves overview geometry 
     const rects = boxes(chart);
     expect(rects[0].shape.width).toBeGreaterThan(main * 1.8);
     expect(rects[2].shape.width).toBe(mini);
+  });
+});
+
+it("renders planned wrapped category labels at raw slots and measures the numeric span from the final grid", () => {
+  const input = navigable();
+  input.context.display.category = String;
+  input.context.navigation.enabled = input.context.navigation.mini = false;
+  input.style.application.title.enabled =
+    input.style.application.subtitle.enabled = false;
+  input.style.application.legend.enabled = false;
+  input.style.application.padding = {
+    top: 20,
+    bottom: 20,
+    left: 20,
+    right: 20,
+  };
+  for (const axis of [input.style.axes.category, input.style.axes.number.appearance]) {
+    axis.title.enabled = false;
+    axis.labels.rotation = undefined;
+    axis.labels.autoRotate = true;
+  }
+  input.snapshot.rows = Array.from({ length: 12 }, (_, i) => ({
+    id: `fiscal-${i}`,
+    category: `FY ${2016 + i}${i === 0 ? " (partial: 1/4 quarters)" : i === 11 ? " (partial: 3/4 quarters)" : ""}`,
+    values: { amount: i + 1, other: i + 2 },
+  }));
+  input.context.viewport.width = 600;
+  const result = supportedBox(input);
+  const xAxis = result.options.xAxis as any;
+  expect(xAxis.axisLabel.rotate).toBe(25);
+  expect(xAxis.axisLabel.customValues).toEqual([0, 2, 4, 6, 8, 10]);
+  expect(xAxis.axisLabel.formatter(2)).toBe("FY\n2018");
+  expect(result.projection.groups).toHaveLength(12);
+  const chart = init(null, undefined, {
+    renderer: "svg",
+    ssr: true,
+    width: 600,
+    height: 500,
+  });
+  try {
+    chart.setOption(result.options);
+    const model = (chart as any).getModel();
+    const grid = model.getComponent("grid", 0).coordinateSystem.getRect();
+    expect(grid.height).toBeCloseTo(result.valueAxis.span);
+    expect(
+      model
+        .getComponent("xAxis", 0)
+        .axis.getViewLabels()
+        .map((label: any) => label.tickValue),
+    ).toEqual([0, 2, 4, 6, 8, 10]);
+    expect(chart.renderToSVGString()).toContain("2018");
+    expect(chart.renderToSVGString()).not.toMatch(/NaN|Infinity/);
+  } finally {
+    chart.dispose();
+  }
+  const compact = supportedBox({
+    ...input,
+    context: { ...input.context, viewport: { width: 600, height: 240 } },
+  });
+  expect(compact.valueAxis.span).toBeLessThan(result.valueAxis.span);
+  expect(compact.valueAxis.density.tickCount).toBeLessThan(
+    result.valueAxis.density.tickCount,
+  );
+  expect(compact.valueAxis.fullExtent).not.toEqual(result.valueAxis.fullExtent);
+});
+
+it("renders numeric main text above an 18px miniature whose labels remain raw", () => {
+  const input = navigable("horizontal");
+  input.context.display.numericAxis = (value) => `financial ${value.toFixed(2)} B`;
+  const result = supportedBox(input);
+  engine(result.options, (chart) => {
+    const model = (chart as any).getModel();
+    const main = model.getComponent("grid", 0).coordinateSystem.getRect();
+    const mini = model.getComponent("grid", 1).coordinateSystem.getRect();
+    expect(mini.height).toBe(18);
+    expect(main.width).toBeCloseTo(result.valueAxis.span);
+    expect(mini.y - (main.y + main.height)).toBeGreaterThan(10);
+    const financial = chart
+      .getZr()
+      .storage.getDisplayList(true)
+      .filter(
+        (item: any) =>
+          item.type === "tspan" && String(item.style.text).startsWith("financial"),
+      );
+    expect(financial.length).toBeGreaterThan(1);
+    for (const item of financial) {
+      const bounds = item.getBoundingRect().clone();
+      if (item.transform) bounds.applyTransform(item.transform);
+      expect(bounds.y + bounds.height).toBeLessThan(mini.y);
+    }
+    const miniAxis = model.getComponent("xAxis", 1).axis;
+    expect(
+      miniAxis
+        .getViewLabels()
+        .every((label: any) => label.formattedLabel === String(label.tickValue)),
+    ).toBe(true);
+    expect(miniAxis.getViewLabels().length).toBeGreaterThan(2);
   });
 });
 it("native horizontal crop applies percentages exactly once to raw financial coordinates", () => {

@@ -98,14 +98,20 @@ export function composeBoxPlot(
       scale,
       domain.empty,
       valueAxis,
-      axisLayout.categorySpan,
+      axisLayout.categoryPlan,
       axisLayout.numericRotation,
     ),
     series: boxPlotSeries(input, projection, scale, domain.empty),
     tooltip: boxPlotTooltip(input, projection, domain.empty),
   };
   finiteBoxGeometry(options);
-  const decorated = boxPlotNavigator(input, projection, valueAxis, options);
+  const decorated = boxPlotNavigator(
+    input,
+    projection,
+    valueAxis,
+    options,
+    axisLayout.navigatorGeometry,
+  );
   return {
     status: "supported" as const,
     options: { ...decorated, openbbBox: { projection } } as EChartsOption,

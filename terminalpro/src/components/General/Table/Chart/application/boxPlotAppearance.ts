@@ -2,6 +2,8 @@ import merge from "lodash.merge";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import type {
   BoxPlotMappingInput,
+  BoxLabelWrapping,
+  BoxResolvedAxis,
   BoxStroke,
   ResolvedBoxFieldStyle,
 } from "../echarts/boxPlotTypes";
@@ -14,6 +16,7 @@ import type {
 import type { BoxPlotControlValues } from "./boxPlotSessionTypes";
 import { resolveCommonAppearance } from "./effectiveAppearance";
 import { appearanceDefaults } from "./effectiveAppearanceDefaults";
+import { mixAppearanceColor } from "./effectiveAppearanceColors";
 import { at, bool, dash, number, object, text } from "./effectiveAppearanceValues";
 export class BoxPlotExtensionError extends Error {}
 function inspectExtensions(effective: RuntimeOptions) {
@@ -73,10 +76,55 @@ function numericBounds(layers: RuntimeOptions[], axis: ApplicationConcreteAxis) 
     }
   return result;
 }
+function axisValue(
+  layers: RuntimeOptions[],
+  axis: ApplicationConcreteAxis,
+  path: string,
+): unknown {
+  const runtime = at(axis.options, path);
+  if (runtime !== undefined) return runtime;
+  const positions = axis.direction === "x" ? ["bottom", "top"] : ["left", "right"];
+  let value: unknown;
+  for (const layer of layers) {
+    const root = at(layer, `axes.${axis.id}`);
+    const generic = at(root, path);
+    if (generic !== undefined) value = generic;
+    for (const position of positions) {
+      const positioned = at(root, `${position}.${path}`);
+      if (positioned !== undefined) {
+        value = positioned;
+        break;
+      }
+    }
+  }
+  return value;
+}
+function labelPolicy(
+  layers: RuntimeOptions[],
+  axis: ApplicationConcreteAxis,
+  appearance: BoxResolvedAxis,
+): BoxResolvedAxis {
+  const read = (key: string) => axisValue(layers, axis, `label.${key}`);
+  const wrapping = read("wrapping") ?? (axis.id === "category" ? "on-space" : "never");
+  if (!["never", "always", "hyphenate", "on-space"].includes(text(wrapping)))
+    throw Error("Invalid Box label wrapping");
+  const minSpacing = read("minSpacing");
+  return {
+    ...appearance,
+    labels: {
+      ...appearance.labels,
+      enabled: bool(read("enabled") ?? true),
+      avoidCollisions: bool(read("avoidCollisions") ?? true),
+      wrapping: wrapping as BoxLabelWrapping,
+      ...(minSpacing === undefined ? {} : { minSpacing: number(minSpacing) }),
+    },
+  };
+}
 function fieldStyle(
   series: RuntimeOptions,
   fill: string,
   stroke: string,
+  background: string,
 ): ResolvedBoxFieldStyle {
   const main: BoxStroke = {
     stroke: text(series.stroke ?? stroke),
@@ -92,7 +140,7 @@ function fieldStyle(
     ...(series.showInMiniChart === undefined
       ? {}
       : { showInMiniChart: bool(series.showInMiniChart) }),
-    fill: text(series.fill ?? fill),
+    fill: text(series.fill ?? mixAppearanceColor(fill, background, 0.7)),
     fillOpacity: number(series.fillOpacity, 0, 1),
     whisker: {
       stroke: text(whisker.stroke ?? main.stroke),
@@ -150,7 +198,14 @@ export function resolveBoxPlotAppearance(
     axes: [category, numeric],
     categoryAxisType: "category",
   };
-  const application = resolveCommonAppearance({ ...input, axisRuntime }, layers);
+  const common = resolveCommonAppearance({ ...input, axisRuntime }, layers);
+  const application = {
+    ...common,
+    axes: {
+      category: labelPolicy(layers, category, common.axes.category),
+      number: labelPolicy(layers, numeric, common.axes.number),
+    },
+  };
   const fields = Object.fromEntries(
     input.seriesIds.map((id, index) => [
       id,
@@ -158,6 +213,7 @@ export function resolveBoxPlotAppearance(
         series,
         application.palette.fills[index % application.palette.fills.length],
         application.palette.strokes[index % application.palette.strokes.length],
+        input.theme.colors.chartBackgroundColor,
       ),
     ]),
   );
@@ -178,9 +234,13 @@ export function resolveBoxPlotAppearance(
       },
     },
     band: {
-      paddingInner: number(at(effective, "axes.category.paddingInner") ?? 0.2, 0, 1),
-      paddingOuter: number(at(effective, "axes.category.paddingOuter") ?? 0.3, 0, 0.5),
-      groupPaddingInner: number(series.groupPaddingInner ?? 0.1, 0, 1),
+      paddingInner: number(axisValue(layers, category, "paddingInner") ?? 0.3, 0, 1),
+      paddingOuter: number(axisValue(layers, category, "paddingOuter") ?? 0.15, 0, 0.5),
+      groupPaddingInner: number(
+        axisValue(layers, category, "groupPaddingInner") ?? 0.2,
+        0,
+        1,
+      ),
     },
     fields,
   };
@@ -189,6 +249,7 @@ export function resolveBoxPlotAppearance(
     series,
     application.palette.fills[0],
     application.palette.strokes[0],
+    input.theme.colors.chartBackgroundColor,
   );
   const values: BoxPlotControlValues = {
     direction,

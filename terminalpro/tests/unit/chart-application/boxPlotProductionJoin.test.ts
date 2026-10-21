@@ -3,6 +3,16 @@ import { initialApplicationSession } from "../../../src/components/General/Table
 import { projectBoxPlotSession } from "../../../src/components/General/Table/Chart/application/boxPlotSessionProjection";
 import { selectBoxPlotSession } from "../../../src/components/General/Table/Chart/application/boxPlotSessionSelection";
 import { sessionFixture } from "./applicationSessionFixture";
+import { resolveBoxPlotAppearance } from "../../../src/components/General/Table/Chart/application/boxPlotAppearance";
+
+function appearance(context = boxFixture()) {
+  return resolveBoxPlotAppearance({
+    ...context.inputs,
+    baseline: context.local.baseline,
+    seriesIds: ["revenue", "income"],
+    axisRuntime: context.local.axes,
+  });
+}
 
 function boxFixture() {
   const source = { ...sessionFixture() };
@@ -47,6 +57,174 @@ beforeEach(() =>
     .mockReturnValue({ measureText: (s: string) => ({ width: s.length * 7 }) } as any),
 );
 afterEach(() => vi.restoreAllMocks());
+it.each([
+  ["light", "#ffffff", "#b8c2cc"],
+  ["dark", "#101820", "#112030"],
+] as const)("restores source %s palette mixing and category band defaults", (mode, background, fill) => {
+  const context = boxFixture();
+  context.inputs.theme = {
+    ...context.inputs.theme,
+    mode,
+    colors: { ...context.inputs.theme.colors, chartBackgroundColor: background },
+  };
+  const resolved = appearance(context);
+  expect(resolved.style.fields.revenue).toMatchObject({
+    fill,
+    fillOpacity: 1,
+    stroke: "#112233",
+    strokeOpacity: 1,
+  });
+  expect(resolved.style.band).toEqual({
+    paddingInner: 0.3,
+    paddingOuter: 0.15,
+    groupPaddingInner: 0.2,
+  });
+  for (const axis of [
+    resolved.style.axes.category,
+    resolved.style.axes.number.appearance,
+  ]) {
+    expect(axis.labels).toMatchObject({ enabled: true, avoidCollisions: true });
+    expect(axis.labels).not.toHaveProperty("minSpacing");
+  }
+  expect(resolved.style.axes.category.labels.wrapping).toBe("on-space");
+  expect(resolved.style.axes.number.appearance.labels.wrapping).toBe("never");
+});
+it("retains explicit fill/alpha and effective generic, positional and runtime category policy", () => {
+  const context = boxFixture();
+  context.inputs.theme = {
+    ...context.inputs.theme,
+    overrides: {
+      common: {
+        axes: {
+          category: {
+            paddingInner: 0.1,
+            groupPaddingInner: 0.4,
+            label: { minSpacing: 13 },
+          },
+        },
+      },
+      "box-plot": {
+        axes: {
+          category: { bottom: { paddingInner: 0.5, label: { wrapping: "always" } } },
+        },
+      },
+    },
+  };
+  context.local.baseline.options = {
+    "box-plot": {
+      legend: { item: { marker: { strokeWidth: 4 } } },
+      series: {
+        fill: "#12345680",
+        fillOpacity: 0.4,
+        strokeOpacity: 0.6,
+        groupPaddingInner: 0.99,
+      },
+      axes: {
+        category: {
+          paddingInner: 0.35,
+          groupPaddingInner: 0.25,
+          bottom: {
+            paddingOuter: 0.2,
+            label: {
+              enabled: false,
+              avoidCollisions: false,
+              minSpacing: 7,
+              wrapping: "hyphenate",
+            },
+          },
+        },
+        number: {
+          label: {
+            enabled: false,
+            avoidCollisions: false,
+            minSpacing: 3,
+            wrapping: "always",
+          },
+        },
+      },
+    },
+  };
+  let resolved = appearance(context);
+  expect(resolved.style.fields.revenue).toMatchObject({
+    fill: "#12345680",
+    fillOpacity: 0.4,
+    strokeOpacity: 0.6,
+  });
+  expect(resolved.style.application.legendMarkerStrokeWidth).toBe(4);
+  expect(resolved.style.band).toEqual({
+    paddingInner: 0.35,
+    paddingOuter: 0.2,
+    groupPaddingInner: 0.25,
+  });
+  expect(resolved.style.axes.category.labels).toMatchObject({
+    enabled: false,
+    avoidCollisions: false,
+    minSpacing: 7,
+    wrapping: "hyphenate",
+  });
+  expect(resolved.style.axes.number.appearance.labels).toMatchObject({
+    enabled: false,
+    avoidCollisions: false,
+    minSpacing: 3,
+    wrapping: "always",
+  });
+  context.local.axes = {
+    ...context.local.axes,
+    axes: context.local.axes.axes.map((axis) =>
+      axis.id === "category"
+        ? {
+            ...axis,
+            options: {
+              paddingInner: 0.6,
+              groupPaddingInner: 0.7,
+              label: {
+                enabled: true,
+                avoidCollisions: true,
+                minSpacing: 0,
+                wrapping: "never",
+              },
+            },
+          }
+        : axis,
+    ),
+  };
+  resolved = appearance(context);
+  expect(resolved.style.band).toEqual({
+    paddingInner: 0.6,
+    paddingOuter: 0.2,
+    groupPaddingInner: 0.7,
+  });
+  expect(resolved.style.axes.category.labels).toMatchObject({
+    enabled: true,
+    avoidCollisions: true,
+    minSpacing: 0,
+    wrapping: "never",
+  });
+  context.local.axes = {
+    ...context.local.axes,
+    axes: context.local.axes.axes.map((axis) =>
+      axis.id === "number"
+        ? {
+            ...axis,
+            options: {
+              label: {
+                enabled: true,
+                avoidCollisions: true,
+                minSpacing: 1,
+                wrapping: "never",
+              },
+            },
+          }
+        : axis,
+    ),
+  };
+  expect(appearance(context).style.axes.number.appearance.labels).toMatchObject({
+    enabled: true,
+    avoidCollisions: true,
+    minSpacing: 1,
+    wrapping: "never",
+  });
+});
 it("joins ordinary Box observations into raw financial summaries and concrete axes", () => {
   const result = boxProject();
   expect(result.boxPlot.projection.fields[0].data[0].summary).toEqual({

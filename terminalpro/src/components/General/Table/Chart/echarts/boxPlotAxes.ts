@@ -1,38 +1,21 @@
 import type { XAXisComponentOption, YAXisComponentOption } from "echarts";
-import type { ResolvedApplicationAxis } from "../application/appearanceModel";
 import { boxDisplayText } from "./boxPlotAdmission";
+import {
+  type BoxCategoryLabelPlan,
+  planBoxCategoryLabels,
+} from "./boxPlotCategoryPlan";
 import type { BoxValueScale } from "./boxPlotDomain";
-import type { BoxPlotMappingInput, BoxPlotProjection } from "./boxPlotTypes";
+import type {
+  BoxPlotMappingInput,
+  BoxPlotProjection,
+  BoxResolvedAxis,
+} from "./boxPlotTypes";
 import type { BoxValueAxisPlan } from "./boxPlotValueAxis";
 import { fontStyle } from "./cartesianDisplay";
 import { alternatingGrid } from "./cartesianGrid";
 import { measureText } from "./cartesianLayout";
 
-function rotation(
-  input: BoxPlotMappingInput,
-  projection: BoxPlotProjection,
-  usableSpan?: number,
-): number {
-  const a = input.style.axes.category;
-  if (a.labels.rotation !== undefined) return -a.labels.rotation;
-  if (!a.labels.autoRotate) return 0;
-  const horizontal = input.style.direction === "vertical";
-  const span =
-    usableSpan ??
-    (horizontal ? input.context.viewport.width : input.context.viewport.height);
-  const overlap = projection.groups.some((g) => {
-    const size = measureText(
-      boxDisplayText(input.context.display.category(g.category)),
-      a.labels,
-    );
-    return (
-      (horizontal ? size.width : size.height) + 10 >
-      span / Math.max(1, projection.groups.length)
-    );
-  });
-  return overlap ? 25 : 0;
-}
-function appearance(a: ResolvedApplicationAxis) {
+function appearance(a: BoxResolvedAxis) {
   return {
     type: "value" as const,
     scale: true,
@@ -54,6 +37,8 @@ function appearance(a: ResolvedApplicationAxis) {
     },
     axisLabel: {
       ...fontStyle(a.labels),
+      show: a.labels.enabled !== false,
+      hideOverlap: false,
       margin: a.labels.padding,
       rotate: -(a.labels.rotation ?? 0),
     },
@@ -70,12 +55,11 @@ function appearance(a: ResolvedApplicationAxis) {
 function categoryAxis(
   input: BoxPlotMappingInput,
   projection: BoxPlotProjection,
-  usableSpan?: number,
+  plan: BoxCategoryLabelPlan,
 ): XAXisComponentOption {
   const a = input.style.axes.category;
   const base = appearance(a);
   const count = projection.groups.length;
-  const slots = projection.groups.map((g) => g.slot);
   const b = input.style.band;
   const c = b.paddingOuter + (1 - b.paddingInner) / 2;
   const category = (v: unknown) =>
@@ -89,16 +73,11 @@ function categoryAxis(
     inverse: input.style.direction === "horizontal",
     axisLabel: {
       ...base.axisLabel,
-      customValues: slots,
-      rotate: rotation(input, projection, usableSpan),
-      formatter: (v: number) => {
-        const raw = category(v);
-        return raw === undefined
-          ? ""
-          : boxDisplayText(input.context.display.category(raw));
-      },
+      customValues: [...plan.slots],
+      rotate: plan.rotation,
+      formatter: (v: number) => (Number.isInteger(v) ? (plan.labels[v] ?? "") : ""),
     },
-    axisTick: { ...base.axisTick, customValues: [...slots] },
+    axisTick: { ...base.axisTick, customValues: [...plan.slots] },
     axisPointer: {
       snap: true,
       label: {
@@ -155,6 +134,7 @@ function edgeLabels(
   rotation: number,
 ) {
   if (
+    input.style.axes.number.appearance.labels.avoidCollisions === false ||
     input.style.direction !== "horizontal" ||
     plan.rawTicks.length <= 2 ||
     !plan.visibleExtent.length
@@ -185,11 +165,20 @@ export function boxPlotAxes(
   scale: BoxValueScale,
   empty: boolean,
   plan?: BoxValueAxisPlan,
-  categorySpan?: number,
+  categoryPlan?: BoxCategoryLabelPlan,
   numericRotation?: number,
 ) {
   const vertical = input.style.direction === "vertical";
-  const c = categoryAxis(input, projection, categorySpan);
+  const c = categoryAxis(
+    input,
+    projection,
+    categoryPlan ??
+      planBoxCategoryLabels(
+        input,
+        projection,
+        vertical ? input.context.viewport.width : input.context.viewport.height,
+      ),
+  );
   const n = valueAxis(input, scale, empty);
   if (plan) {
     const hidden = edgeLabels(input, plan, numericRotation ?? 0);
@@ -206,7 +195,10 @@ export function boxPlotAxes(
           : boxDisplayText(input.context.display.numericAxis(scale.constant ?? v)),
       customValues: [...(plan.transport.ticks ?? [])],
     };
-    n.axisTick = { ...n.axisTick, customValues: [...(plan.transport.ticks ?? [])] };
+    n.axisTick = {
+      ...n.axisTick,
+      customValues: [...(plan.transport.ticks ?? [])],
+    };
   }
   const axes = (
     [

@@ -27,6 +27,22 @@ export interface ResolvedBoxFieldStyle extends BoxStroke {
   readonly whisker: BoxStroke;
   readonly cap: { readonly lengthRatio: number };
 }
+export type BoxLabelWrapping = "never" | "always" | "hyphenate" | "on-space";
+export type BoxResolvedAxis = Omit<ResolvedApplicationAxis, "labels"> & {
+  readonly labels: ResolvedApplicationAxis["labels"] & {
+    readonly enabled?: boolean;
+    readonly avoidCollisions?: boolean;
+    readonly minSpacing?: number;
+    readonly wrapping?: BoxLabelWrapping;
+  };
+};
+export interface BoxNavigatorGeometry {
+  readonly left: number;
+  readonly right: number;
+  readonly bottom: number;
+  readonly height: number;
+  readonly labelSpace: number;
+}
 export interface BoxPlotMappingInput {
   readonly snapshot: ChartSnapshot;
   readonly style: {
@@ -37,9 +53,9 @@ export interface BoxPlotMappingInput {
     readonly application: Omit<ResolvedApplicationAppearance, "axes" | "series">;
     readonly direction: "vertical" | "horizontal";
     readonly axes: {
-      readonly category: ResolvedApplicationAxis;
+      readonly category: BoxResolvedAxis;
       readonly number: {
-        readonly appearance: ResolvedApplicationAxis;
+        readonly appearance: BoxResolvedAxis;
         readonly min?: number;
         readonly max?: number;
       };

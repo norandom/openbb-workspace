@@ -71,7 +71,7 @@ export function boxPlotLayout(
     itemWidth: l.markerSize,
     itemHeight: l.markerSize,
     itemGap: vertical ? l.verticalSpacing : l.horizontalSpacing,
-    itemStyle: { borderWidth: a.legendMarkerStrokeWidth },
+    itemStyle: { borderWidth: a.legendMarkerStrokeWidth, borderType: "inherit" },
   };
   return {
     backgroundColor: a.background.visible ? a.background.fill : "transparent",

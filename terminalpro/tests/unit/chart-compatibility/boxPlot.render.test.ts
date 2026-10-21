@@ -279,6 +279,55 @@ it("uses native stable-ID legend events and remapping to recompute widths/domain
   });
 });
 
+it("paints actual native legend markers with independent fill/stroke alpha, widths and dash", () => {
+  const i = input();
+  i.style.application.legend.enabled = true;
+  i.style.fields.amount.strokeWidth = 5;
+  i.style.application.legendMarkerStrokeWidth = 2;
+  const markers = (chart: EChartsType) =>
+    chart
+      .getZr()
+      .storage.getDisplayList(true)
+      .filter(
+        (el) =>
+          el.style.fill === "rgba(20,93,160,0.4)" &&
+          el.style.stroke === "rgba(174,18,52,0.7)",
+      );
+  engine(i, (chart) => {
+    expect(markers(chart)).toHaveLength(1);
+    expect(markers(chart)[0].style).toMatchObject({
+      opacity: 1,
+      lineWidth: 2,
+      lineDash: [3, 1],
+      lineDashOffset: 1,
+    });
+    const bodyWidth = filled(chart, "#145da0")[0].shape.width;
+    chart.dispatchAction({ type: "legendToggleSelect", name: "other" });
+    i.context.legendSelection = { amount: true, other: false };
+    chart.setOption(options(i), { notMerge: true });
+    expect(markers(chart)).toHaveLength(1);
+    expect(filled(chart, "#145da0")[0].shape.width).toBeGreaterThan(bodyWidth);
+    expect(filled(chart, "#b33b32")).toHaveLength(0);
+    expect(chart.renderToSVGString()).toContain('stroke-opacity="0.7"');
+    i.style.application.legendMarkerStrokeWidth = 4;
+    chart.setOption(options(i), { notMerge: true });
+    expect(markers(chart)[0].style.lineWidth).toBe(4);
+    i.style.fields.amount.fill = "rgba(20,93,160,0.5)";
+    i.style.fields.amount.stroke = "rgba(174,18,52,0.25)";
+    chart.setOption(options(i), { notMerge: true });
+    const translucent = chart
+      .getZr()
+      .storage.getDisplayList(true)
+      .filter(
+        (el) =>
+          el.style.fill === "rgba(20,93,160,0.2)" &&
+          el.style.stroke === "rgba(174,18,52,0.175)",
+      );
+    expect(translucent).toHaveLength(1);
+    expect(translucent[0].style.opacity).toBe(1);
+  });
+});
+
 it("renders constant raw-value ticks, empty and clipped recovery, zero-width boxes and propagates engine errors through lifecycle mount", () => {
   const i = input();
   i.context.legendSelection = { other: false };

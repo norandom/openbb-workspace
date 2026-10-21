@@ -56,7 +56,12 @@ function boxInput(
           ...stroke,
           fill: "#145da0",
           fillOpacity: 0.4,
-          whisker: { ...stroke, stroke: "#cc7766", strokeWidth: 3, strokeOpacity: 0.2 },
+          whisker: {
+            ...stroke,
+            stroke: "#cc7766",
+            strokeWidth: 3,
+            strokeOpacity: 0.2,
+          },
           cap: { lengthRatio: 0.5 },
         },
         other: {
@@ -98,9 +103,9 @@ function supportedBox(input: BoxPlotMappingInput) {
   return result;
 }
 beforeEach(() =>
-  vi
-    .spyOn(HTMLCanvasElement.prototype, "getContext")
-    .mockReturnValue({ measureText: (s: string) => ({ width: s.length * 6 }) } as any),
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+    measureText: (s: string) => ({ width: s.length * 6 }),
+  } as any),
 );
 it("crops numeric screen x once and retains every category and full overview", () => {
   const input = navigable("horizontal");
@@ -257,7 +262,10 @@ it("keeps configured overview visibility independent of main legend and navigati
   expect(renderBoxSeries(initial.options, 3)).toBeUndefined();
   const enabled = supportedBox({
     ...input,
-    context: { ...input.context, legendSelection: { amount: true, other: false } },
+    context: {
+      ...input.context,
+      legendSelection: { amount: true, other: false },
+    },
   });
   expect(renderBoxSeries(enabled.options, 0)).toBeDefined();
   expect(renderBoxSeries(enabled.options, 1)).toBeUndefined();
@@ -271,4 +279,93 @@ it("keeps configured overview visibility independent of main legend and navigati
     amount: false,
     other: true,
   });
+});
+
+it("anchors the 18px miniature independently of main numeric labels and restores raw ticks after cloning", () => {
+  const base = boxInput("horizontal");
+  base.context.display.numericAxis = (value) => `financial ${value.toFixed(2)} B`;
+  const result = supportedBox({
+    ...base,
+    context: {
+      ...base.context,
+      navigation: {
+        enabled: true,
+        mini: true,
+        theme: projectCallerTheme("light", [], {}),
+      },
+    },
+  });
+  const grids = navigatorAxes(result.options.grid);
+  const mini = grids[1];
+  const slider = navigatorAxes(result.options.dataZoom)[0];
+  expect(mini.height).toBe(18);
+  expect(mini.bottom).toBe(57); // 40px chrome + 12px navigator font + 5px margin.
+  expect(slider).toMatchObject({
+    left: mini.left,
+    right: mini.right,
+    bottom: mini.bottom,
+    height: 18,
+  });
+  const mask = (result.options.graphic as any[])[0];
+  expect(mask).toMatchObject({ left: mini.left, bottom: mini.bottom });
+  expect(mask.children[0].shape.height).toBe(18);
+  expect(Number(grids[0].bottom)).toBeGreaterThan(Number(mini.bottom) + 18 + 10);
+  expect(result.valueAxis.span).toBe(
+    base.context.viewport.width - Number(grids[0].left) - Number(grids[0].right),
+  );
+  const axis = navigatorAxes(result.options.xAxis)[1];
+  const ticks = (axis.axisLabel as any).customValues;
+  expect(ticks.length).toBeGreaterThan(2);
+  expect(ticks).toEqual(expect.arrayContaining([0, 10, 20, 30]));
+  expect((axis.axisLabel!.formatter as Function)(ticks[1])).toBe(String(ticks[1]));
+  expect(
+    (navigatorAxes(result.options.xAxis)[0].axisLabel!.formatter as Function)(10),
+  ).toContain("financial");
+});
+
+it("retains raw singleton and empty miniature transport and recovers after observations return", () => {
+  const input = boxInput("horizontal");
+  for (const row of input.snapshot.rows) row.values.amount = row.values.other = 5.5;
+  const withNavigation = {
+    ...input,
+    context: {
+      ...input.context,
+      navigation: {
+        enabled: true,
+        mini: true,
+        theme: projectCallerTheme("light", [], {}),
+      },
+    },
+  };
+  const constant = supportedBox(withNavigation);
+  const singleton = navigatorAxes(constant.options.xAxis)[1];
+  expect(singleton).toMatchObject({ min: 0, max: 1 });
+  expect((singleton.axisLabel as any).customValues).toEqual([0.5]);
+  expect((singleton.axisLabel!.formatter as Function)(0.5)).toBe("5.5");
+  for (const row of input.snapshot.rows) row.values.amount = row.values.other = null;
+  const empty = supportedBox(withNavigation);
+  expect((navigatorAxes(empty.options.xAxis)[1].axisLabel as any).customValues).toEqual(
+    [],
+  );
+  input.snapshot.rows[0].values.amount = 7;
+  const recovered = supportedBox(withNavigation);
+  expect(
+    (navigatorAxes(recovered.options.xAxis)[1].axisLabel!.formatter as Function)(0.5),
+  ).toBe("7");
+});
+
+it("retains numeric endpoint labels and the requested density when collision avoidance is disabled", () => {
+  const input = boxInput("horizontal");
+  input.context.display.numericAxis = (value) =>
+    `long financial label USD ${value} billion`;
+  input.style.axes.number.appearance.labels.avoidCollisions = false;
+  input.style.axes.number.appearance.labels.autoRotate = true;
+  input.style.axes.number.appearance.labels.rotation = undefined;
+  const result = supportedBox(input);
+  const axis = navigatorAxes(result.options.xAxis)[0];
+  expect(result.valueAxis.rawTicks.length).toBeGreaterThan(2);
+  const formatter = axis.axisLabel!.formatter as Function;
+  for (const value of result.valueAxis.rawTicks)
+    expect(formatter(value)).toContain("long financial");
+  expect(axis.axisLabel!.rotate).toBeCloseTo(0);
 });

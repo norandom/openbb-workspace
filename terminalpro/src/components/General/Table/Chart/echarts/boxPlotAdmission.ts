@@ -78,6 +78,19 @@ function field(v: unknown): v is ResolvedBoxFieldStyle {
     ratio(v.cap.lengthRatio)
   );
 }
+function labelPolicy(axis: unknown): boolean {
+  if (!record(axis) || !record(axis.labels)) return false;
+  const labels = axis.labels;
+  return (
+    (labels.enabled === undefined || typeof labels.enabled === "boolean") &&
+    (labels.avoidCollisions === undefined ||
+      typeof labels.avoidCollisions === "boolean") &&
+    (labels.minSpacing === undefined || size(labels.minSpacing)) &&
+    (labels.wrapping === undefined ||
+      (typeof labels.wrapping === "string" &&
+        ["never", "always", "hyphenate", "on-space"].includes(labels.wrapping)))
+  );
+}
 function styleValid(s: BoxPlotMappingInput["style"]): boolean {
   if (
     !record(s) ||
@@ -99,7 +112,9 @@ function styleValid(s: BoxPlotMappingInput["style"]): boolean {
     c.precision <= 20 &&
     xyApplicationDiagnostics(s.application).length === 0 &&
     xyAxisCheck(s.axes.category) &&
+    labelPolicy(s.axes.category) &&
     xyAxisCheck(n.appearance) &&
+    labelPolicy(n.appearance) &&
     (n.min === undefined || finite(n.min)) &&
     (n.max === undefined || finite(n.max)) &&
     !(n.min !== undefined && n.max !== undefined && n.min > n.max) &&

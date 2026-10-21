@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import * as summary from "../../../src/components/General/Table/Chart/compatibility/boxSummary";
+import { admitBoxPlot } from "../../../src/components/General/Table/Chart/echarts/boxPlotAdmission";
 import { translateBoxPlot } from "../../../src/components/General/Table/Chart/echarts/boxPlot";
 import type { BoxPlotMappingInput } from "../../../src/components/General/Table/Chart/echarts/boxPlotTypes";
 import { histogramInput } from "./histogram.fixtures";
@@ -49,6 +50,34 @@ function supported(i = input()) {
   if (result.status !== "supported") throw Error(JSON.stringify(result));
   return result;
 }
+it("validates optional Box label policy before layout without requiring it on old snapshots", () => {
+  expect(admitBoxPlot(input())).toHaveProperty("input");
+  for (const numeric of [false, true]) {
+    for (const [key, value] of [
+      ["enabled", "false"],
+      ["avoidCollisions", 0],
+      ["minSpacing", -1],
+      ["minSpacing", "5"],
+      ["wrapping", "truncate"],
+    ] as const) {
+      const i = input();
+      const axis = numeric ? i.style.axes.number.appearance : i.style.axes.category;
+      Object.assign(axis.labels, { [key]: value });
+      expect(admitBoxPlot(i)).toHaveProperty("status", "invalid");
+    }
+    for (const wrapping of ["never", "always", "hyphenate", "on-space"] as const) {
+      const i = input();
+      const axis = numeric ? i.style.axes.number.appearance : i.style.axes.category;
+      Object.assign(axis.labels, {
+        enabled: false,
+        avoidCollisions: false,
+        minSpacing: 0,
+        wrapping,
+      });
+      expect(admitBoxPlot(i)).toHaveProperty("input");
+    }
+  }
+});
 beforeEach(() =>
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
     measureText: (s: string) => ({ width: s.length * 6 }),
