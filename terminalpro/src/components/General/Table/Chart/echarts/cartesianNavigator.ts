@@ -1,13 +1,11 @@
-import { navigatorAxes, navigatorOverview } from "./cartesianNavigatorOverview";
-import type {
-  EChartsOption,
-} from "echarts";
+import type { EChartsOption } from "echarts";
 import type { ApplicationThemeInput } from "../application/appearanceModel";
 import {
   navigatorBorder,
   navigatorMask,
   rangedNavigatorMask,
 } from "./cartesianNavigatorMask";
+import { navigatorAxes, navigatorOverview } from "./cartesianNavigatorOverview";
 
 const ID = "openbb-navigator";
 interface NavigatorGeometry {
@@ -42,7 +40,14 @@ export function retainNavigatorExtent(
     : [options.dataZoom!];
   return {
     ...options,
-    dataZoom: dataZoom.map((zoom) => (zoom.id === ID || zoom.id === "openbb-xy-inside" || zoom.id === "openbb-histogram-inside" ? { ...zoom, start, end } : zoom)),
+    dataZoom: dataZoom.map((zoom) =>
+      zoom.id === ID ||
+      zoom.id === "openbb-box-inside" ||
+      zoom.id === "openbb-xy-inside" ||
+      zoom.id === "openbb-histogram-inside"
+        ? { ...zoom, start, end }
+        : zoom,
+    ),
     ...(options.graphic
       ? { graphic: rangedNavigatorMask(options.graphic, start, end) }
       : {}),
@@ -65,7 +70,7 @@ export function cartesianNavigator(
     top: number;
     bottom: number;
   };
-  const height = mini ? geometry.miniHeight ?? 40 : 18;
+  const height = mini ? (geometry.miniHeight ?? 40) : 18;
   const left = geometry.left ?? grid.left;
   const right = geometry.right ?? grid.right;
   const labelSpace = mini
@@ -78,14 +83,7 @@ export function cartesianNavigator(
   const ys = navigatorAxes(options.yAxis);
   return {
     ...options,
-    graphic: navigatorMask(
-      left,
-      right,
-      bottom,
-      height,
-      viewport.width,
-      foreground,
-    ),
+    graphic: navigatorMask(left, right, bottom, height, viewport.width, foreground),
     grid: mini
       ? [
           { ...grid, bottom: bottom + height + 10 },

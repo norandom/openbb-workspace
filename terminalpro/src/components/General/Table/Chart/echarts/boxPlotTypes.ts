@@ -1,10 +1,12 @@
 import type {
+  ApplicationThemeInput,
   ResolvedApplicationAppearance,
   ResolvedApplicationAxis,
 } from "../application/appearanceModel";
 import type { ChartDisplayPolicy } from "../application/types";
 import type { BoxSummary } from "../compatibility/boxSummary";
 import type { ChartSnapshot, SnapshotColumn } from "../compatibility/snapshotTypes";
+import type { BoxAxisWindow, BoxValueAxisPlan } from "./boxPlotValueAxis";
 import type {
   CartesianTranslationResult,
   ResolvedCartesianStyle,
@@ -48,6 +50,12 @@ export interface BoxPlotMappingInput {
     readonly fields: Readonly<Record<string, ResolvedBoxFieldStyle>>;
   };
   readonly context: {
+    readonly navigation?: {
+      readonly enabled: boolean;
+      readonly mini: boolean;
+      readonly theme: ApplicationThemeInput;
+      readonly window?: BoxAxisWindow;
+    };
     readonly display: ChartDisplayPolicy;
     readonly viewport: { readonly width: number; readonly height: number };
     readonly legendSelection?: Readonly<Record<string, boolean>>;
@@ -83,5 +91,6 @@ export type BoxPlotTranslationResult =
   | (Extract<CartesianTranslationResult, { status: "supported" }> & {
       readonly projection: BoxPlotProjection;
       readonly domain: BoxPlotDomain;
+      readonly valueAxis: BoxValueAxisPlan;
     });
 export type TranslateBoxPlot = (input: BoxPlotMappingInput) => BoxPlotTranslationResult;

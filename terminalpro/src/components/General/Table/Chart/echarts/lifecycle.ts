@@ -1,11 +1,11 @@
+import type { EChartsOption } from "echarts";
+import { navigatorAxes } from "./cartesianNavigatorOverview";
 import { histogramNavigationWindow } from "./histogramNavigationWindow";
 import { isHistogramOptions } from "./histogramNavigator";
-import { xyNavigationWindow } from "./xyNavigationWindow";
-import { navigatorAxes } from "./cartesianNavigatorOverview";
-import { isXyNavigator } from "./xyNavigator";
-import type { EChartsOption } from "echarts";
 import { createPieLegendBinding, type PieLegendBinding } from "./pieLegendBinding";
 import type { PieLegendPagination } from "./pieLegendTypes";
+import { xyNavigationWindow } from "./xyNavigationWindow";
+import { isXyNavigator } from "./xyNavigator";
 
 /** Fully resolved renderer options; no storage or provider contracts depend on ECharts. */
 export interface ChartRenderRequest {
@@ -20,6 +20,10 @@ export interface ChartRenderRequest {
     selected: Readonly<Record<string, boolean>>,
   ) => EChartsOption;
   /** Interaction failures invalidate export before reaching the existing host error channel. */
+  readonly projectNavigationWindow?: (
+    projected: EChartsOption,
+    current: EChartsOption,
+  ) => EChartsOption;
   readonly onError?: (error: unknown) => void;
 }
 export type LifecycleResult = "applied" | "deferred" | "stale" | "disposed";
@@ -65,8 +69,23 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   let applying = false;
   let generation = 0;
   const resetXy = () => {
-    if (!disposed && instance && pending && (isXyNavigator(pending.options) || isHistogramOptions(pending.options)))
+    if (
+      disposed ||
+      applying ||
+      !instance ||
+      !pending ||
+      !(
+        pending.projectNavigationWindow ||
+        isXyNavigator(pending.options) ||
+        isHistogramOptions(pending.options)
+      )
+    )
+      return;
+    try {
       instance.dispatchAction({ type: "dataZoom", start: 0, end: 100 });
+    } catch (error) {
+      interactionFailure(error);
+    }
   };
   container.addEventListener("dblclick", resetXy);
 
@@ -98,7 +117,11 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
 
   function interactionFailure(error: unknown): void {
     const request = pending;
-    try { release(); } catch { /* Preserve the interaction failure. */ }
+    try {
+      release();
+    } catch {
+      /* Preserve the interaction failure. */
+    }
     if (request?.onError) request.onError(error);
     else throw error;
   }
@@ -108,43 +131,83 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
     const current = generation;
     pieLegend = createPieLegendBinding({
       container,
-      isActive: () => !disposed && !applying && sized() && !!instance && generation === current && appliedRevision === pending?.revision,
+      isActive: () =>
+        !disposed &&
+        !applying &&
+        sized() &&
+        !!instance &&
+        generation === current &&
+        appliedRevision === pending?.revision,
       readSelected: () => {
         const legends = (instance?.getOption() as EChartsOption | undefined)?.legend;
         return (Array.isArray(legends) ? legends[0] : legends)?.selected ?? {};
       },
-      toggle: (key) => { instance?.dispatchAction({ type: "legendToggleSelect", name: key }); },
-      repaint: () => { if (pending) render(pending, true); },
+      toggle: (key) => {
+        instance?.dispatchAction({ type: "legendToggleSelect", name: key });
+      },
+      repaint: () => {
+        if (pending) render(pending, true);
+      },
       fail: interactionFailure,
     });
-    clickListener = (event) => { if (generation === current) pieLegend?.handleClick(event); };
+    clickListener = (event) => {
+      if (generation === current) pieLegend?.handleClick(event);
+    };
     instance.on?.("click", clickListener);
   }
 
   function refreshNavigatorMask(): void {
-    if (disposed || applying || !instance || !pending || !hasNavigator(pending.options)) return;
-    const window = isHistogramOptions(pending.options)
-      ? histogramNavigationWindow(pending.options, instance.getOption() as EChartsOption)
-      : xyNavigationWindow(legendOptions(pending), instance.getOption() as EChartsOption);
-    if (window) {
-      applying = true;
-      try {
-        if (window.changed) instance.dispatchAction({ type: "dataZoom", start: window.start, end: window.end });
-        instance.setOption({ yAxis: [window.yAxis, ...navigatorAxes(pending.options.yAxis).slice(1)] });
-      } finally { applying = false; }
+    if (disposed || applying || !instance || !pending || !hasNavigator(pending.options))
+      return;
+    try {
+      if (pending.projectNavigationWindow) {
+        render(pending, true);
+        return;
+      }
+      const window = isHistogramOptions(pending.options)
+        ? histogramNavigationWindow(
+            pending.options,
+            instance.getOption() as EChartsOption,
+          )
+        : xyNavigationWindow(
+            legendOptions(pending),
+            instance.getOption() as EChartsOption,
+          );
+      if (window) {
+        applying = true;
+        try {
+          if (window.changed)
+            instance.dispatchAction({
+              type: "dataZoom",
+              start: window.start,
+              end: window.end,
+            });
+          instance.setOption({
+            yAxis: [window.yAxis, ...navigatorAxes(pending.options.yAxis).slice(1)],
+          });
+        } finally {
+          applying = false;
+        }
+      }
+      const options = retainNavigatorExtent(pending.options, instance.getOption());
+      if (options.graphic) instance.setOption({ graphic: options.graphic });
+    } catch (error) {
+      interactionFailure(error);
     }
-    const options = retainNavigatorExtent(pending.options, instance.getOption());
-    if (options.graphic) instance.setOption({ graphic: options.graphic });
   }
 
   function legendOptions(request: ChartRenderRequest): EChartsOption {
     if (!request.projectLegendSelection || request.legendScope === undefined)
       return request.options;
     const legend = Array.isArray(request.options.legend)
-      ? request.options.legend[0] : request.options.legend;
+      ? request.options.legend[0]
+      : request.options.legend;
     const native = instance?.getOption();
-    const nativeLegend = Array.isArray(native?.legend) ? native.legend[0] : native?.legend;
-    const retained = appliedScope === request.legendScope && appliedRevision !== undefined;
+    const nativeLegend = Array.isArray(native?.legend)
+      ? native.legend[0]
+      : native?.legend;
+    const retained =
+      appliedScope === request.legendScope && appliedRevision !== undefined;
     const selected: Record<string, boolean> = {};
     for (const entry of legend?.data ?? []) {
       const id = typeof entry === "string" ? entry : entry.name;
@@ -152,22 +215,39 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
         selected[id] = retained ? nativeLegend?.selected?.[id] !== false : true;
     }
     const projected = request.projectLegendSelection(Object.freeze(selected));
-    const legends = Array.isArray(projected.legend) ? projected.legend : [projected.legend ?? {}];
+    const legends = Array.isArray(projected.legend)
+      ? projected.legend
+      : [projected.legend ?? {}];
     return { ...projected, legend: legends.map((item) => ({ ...item, selected })) };
   }
 
   function render(request: ChartRenderRequest, force = false): void {
     if (!instance || (!force && appliedRevision === request.revision)) return;
-    let options = legendOptions(request);
-    const sameScope = appliedScope === request.legendScope;
-    if (appliedRevision !== undefined && pending && sameScope &&
-      hasNavigator(pending.options) && hasNavigator(options))
-      options = retainNavigatorExtent(options, instance.getOption());
-    const histogramWindow = histogramNavigationWindow(options, options);
-    if (histogramWindow) options = { ...options, yAxis: [histogramWindow.yAxis, ...navigatorAxes(options.yAxis).slice(1)] };
-    options = pieLegend?.project(options, request.legendPagination, request.legendScope) ?? options;
     applying = true;
     try {
+      let options = legendOptions(request);
+      const sameScope = appliedScope === request.legendScope;
+      if (
+        appliedRevision !== undefined &&
+        pending &&
+        sameScope &&
+        hasNavigator(pending.options) &&
+        hasNavigator(options)
+      )
+        options = retainNavigatorExtent(options, instance.getOption());
+      if (request.projectNavigationWindow)
+        options = request.projectNavigationWindow(options, options);
+      const histogramWindow = request.projectNavigationWindow
+        ? undefined
+        : histogramNavigationWindow(options, options);
+      if (histogramWindow)
+        options = {
+          ...options,
+          yAxis: [histogramWindow.yAxis, ...navigatorAxes(options.yAxis).slice(1)],
+        };
+      options =
+        pieLegend?.project(options, request.legendPagination, request.legendScope) ??
+        options;
       // ECharts 6 retains a resize hover timer after notMerge disposes its tooltip view.
       instance.dispatchAction({ type: "hideTip" });
       instance.setOption(options, { notMerge: true });
@@ -180,7 +260,14 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   }
 
   function refreshLegend(): void {
-    if (disposed || applying || !sized() || !instance || !pending?.projectLegendSelection) return;
+    if (
+      disposed ||
+      applying ||
+      !sized() ||
+      !instance ||
+      !pending?.projectLegendSelection
+    )
+      return;
     const request = pending;
     try {
       render(request, true);
@@ -202,7 +289,11 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
         instance.on("datazoom", navigatorListener);
         navigatorListening = true;
       }
-      if (request.projectLegendSelection && request.legendScope !== undefined && !legendListening) {
+      if (
+        request.projectLegendSelection &&
+        request.legendScope !== undefined &&
+        !legendListening
+      ) {
         const current = generation;
         legendListener = () => {
           if (generation === current) refreshLegend();
@@ -211,7 +302,13 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
         legendListening = true;
       }
       if (resizing) instance.resize();
-      render(request, resizing && (!!request.projectLegendSelection || !!request.legendPagination));
+      render(
+        request,
+        resizing &&
+          (!!request.projectLegendSelection ||
+            !!request.legendPagination ||
+            !!request.projectNavigationWindow),
+      );
       return "applied";
     } catch (error) {
       try {

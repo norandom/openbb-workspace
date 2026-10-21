@@ -154,7 +154,9 @@ it("reports update failures and allows a newer request to recover", () => {
     expect.objectContaining({ message: "update failed" }),
   );
   act(() => root.render(<EChartsHost options={{}} revision={3} onError={onError} />));
-  expect(owners[0].update).toHaveBeenLastCalledWith(expect.objectContaining({ options: {}, revision: 3, onError }));
+  expect(owners[0].update).toHaveBeenLastCalledWith(
+    expect.objectContaining({ options: {}, revision: 3, onError }),
+  );
 });
 it("notifies positive initial and resized dimensions through the latest callback, then ignores disposal", () => {
   let width = 640;
@@ -189,9 +191,82 @@ it("notifies positive initial and resized dimensions through the latest callback
 });
 
 it("forwards scope, projection and errors atomically", () => {
-  const projectLegendSelection = vi.fn(() => ({})); const onError = vi.fn();
-  act(() => root.render(<EChartsHost options={{}} revision={1} legendScope="one" projectLegendSelection={projectLegendSelection} onError={onError} />));
-  expect(owners[0].mount).toHaveBeenCalledWith(expect.objectContaining({ legendScope: "one", projectLegendSelection, onError }));
-  act(() => root.render(<EChartsHost options={{}} revision={2} legendScope="two" projectLegendSelection={projectLegendSelection} onError={onError} />));
-  expect(owners[0].update).toHaveBeenLastCalledWith(expect.objectContaining({ revision: 2, legendScope: "two", projectLegendSelection, onError }));
+  const projectLegendSelection = vi.fn(() => ({}));
+  const onError = vi.fn();
+  act(() =>
+    root.render(
+      <EChartsHost
+        options={{}}
+        revision={1}
+        legendScope="one"
+        projectLegendSelection={projectLegendSelection}
+        onError={onError}
+      />,
+    ),
+  );
+  expect(owners[0].mount).toHaveBeenCalledWith(
+    expect.objectContaining({ legendScope: "one", projectLegendSelection, onError }),
+  );
+  act(() =>
+    root.render(
+      <EChartsHost
+        options={{}}
+        revision={2}
+        legendScope="two"
+        projectLegendSelection={projectLegendSelection}
+        onError={onError}
+      />,
+    ),
+  );
+  expect(owners[0].update).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      revision: 2,
+      legendScope: "two",
+      projectLegendSelection,
+      onError,
+    }),
+  );
+});
+
+it("forwards navigation projection on mount/update and notifies dimensions after owner resize", () => {
+  const projectNavigationWindow = vi.fn((options) => options);
+  const order: string[] = [];
+  const onResize = vi.fn(() => order.push("notify"));
+  Object.defineProperties(HTMLDivElement.prototype, {
+    clientWidth: { configurable: true, get: () => 640 },
+    clientHeight: { configurable: true, get: () => 320 },
+  });
+  act(() =>
+    root.render(
+      <EChartsHost
+        options={{}}
+        revision={1}
+        projectNavigationWindow={projectNavigationWindow}
+        onResize={onResize}
+      />,
+    ),
+  );
+  expect(owners[0].mount.mock.calls[0][0].projectNavigationWindow).toBe(
+    projectNavigationWindow,
+  );
+  owners[0].resize.mockImplementation(() => order.push("resize"));
+  order.length = 0;
+  act(() => callbacks[0]([], {} as ResizeObserver));
+  expect(order).toEqual(["resize", "notify"]);
+  expect(onResize).toHaveBeenLastCalledWith({ width: 640, height: 320 });
+  act(() =>
+    root.render(
+      <EChartsHost
+        options={{ grid: { left: 10 } }}
+        revision={2}
+        projectNavigationWindow={projectNavigationWindow}
+        onResize={onResize}
+      />,
+    ),
+  );
+  expect(owners[0].update.mock.lastCall?.[0].projectNavigationWindow).toBe(
+    projectNavigationWindow,
+  );
+  delete (HTMLDivElement.prototype as any).clientWidth;
+  delete (HTMLDivElement.prototype as any).clientHeight;
 });

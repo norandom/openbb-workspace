@@ -20,13 +20,42 @@ export interface EChartsHostProps extends ChartRenderRequest {
 /** Owns a renderer without exposing its instance or defining application menu semantics. */
 export const EChartsHost = forwardRef<EChartsHostHandle, EChartsHostProps>(
   function EChartsHost(
-    { options, revision, legendScope, legendPagination, projectLegendSelection, className, style, onError, onResize },
+    {
+      options,
+      revision,
+      legendScope,
+      legendPagination,
+      projectLegendSelection,
+      projectNavigationWindow,
+      className,
+      style,
+      onError,
+      onResize,
+    },
     ref,
   ) {
     const container = useRef<HTMLDivElement>(null);
     const owner = useRef<ChartLifecycle>();
-    const latest = useRef({ options, revision, legendScope, legendPagination, projectLegendSelection, onError, onResize });
-    latest.current = { options, revision, legendScope, legendPagination, projectLegendSelection, onError, onResize };
+    const latest = useRef({
+      options,
+      revision,
+      legendScope,
+      legendPagination,
+      projectLegendSelection,
+      projectNavigationWindow,
+      onError,
+      onResize,
+    });
+    latest.current = {
+      options,
+      revision,
+      legendScope,
+      legendPagination,
+      projectLegendSelection,
+      projectNavigationWindow,
+      onError,
+      onResize,
+    };
 
     useImperativeHandle(
       ref,
@@ -90,12 +119,28 @@ export const EChartsHost = forwardRef<EChartsHostHandle, EChartsHostProps>(
     useEffect(() => {
       if (!owner.current) return;
       try {
-        owner.current.update({ options, revision, legendScope, legendPagination, projectLegendSelection, onError });
+        owner.current.update({
+          options,
+          revision,
+          legendScope,
+          legendPagination,
+          projectLegendSelection,
+          projectNavigationWindow,
+          onError,
+        });
       } catch (error) {
         if (latest.current.onError) latest.current.onError(error);
         else throw error;
       }
-    }, [options, revision, legendScope, legendPagination, projectLegendSelection, onError]);
+    }, [
+      options,
+      revision,
+      legendScope,
+      legendPagination,
+      projectLegendSelection,
+      projectNavigationWindow,
+      onError,
+    ]);
 
     return <div ref={container} className={className} style={style} />;
   },

@@ -168,7 +168,10 @@ function shapeBox(
   const visibleIndex = enabled.findIndex(
     (f) => f.descriptor.id === field.descriptor.id,
   );
-  const span = vertical ? plot.width : plot.height;
+  const window = input.context.navigation?.window;
+  const fraction =
+    vertical && window ? Math.max(0.001, (window.end - window.start) / 100) : 1;
+  const span = (vertical ? plot.width : plot.height) / fraction;
   if (!(plot.width > 0 && plot.height > 0))
     throw Error("Box Plot renderer requires positive Cartesian spans.");
   finiteBoxGeometry(plot);

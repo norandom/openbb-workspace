@@ -1,8 +1,12 @@
+import type { EChartsOption } from "echarts";
 import { admitBoxPlot, boxDisplayText, boxFailure } from "./boxPlotAdmission";
 import { boxPlotAxes } from "./boxPlotAxes";
-import { boxPlotDomain, boxValueScale, preflightBoxDomain } from "./boxPlotDomain";
+import { boxPlotAxisLayout } from "./boxPlotAxisLayout";
+import { boxPlotDomain, preflightBoxDomain } from "./boxPlotDomain";
 import { finiteBoxGeometry, preflightBoxGeometry } from "./boxPlotGeometry";
 import { boxPlotLayout } from "./boxPlotLayout";
+import { boxVisibleFraction } from "./boxPlotNavigationWindow";
+import { boxPlotNavigator } from "./boxPlotNavigator";
 import { projectBoxPlot } from "./boxPlotProjection";
 import { boxPlotSeries } from "./boxPlotSeries";
 import { boxPlotTooltip } from "./boxPlotTooltip";
@@ -11,6 +15,7 @@ import type {
   BoxPlotProjection,
   TranslateBoxPlot,
 } from "./boxPlotTypes";
+import { planBoxValueAxis } from "./boxPlotValueAxis";
 
 function preflightDisplay(
   input: BoxPlotMappingInput,
@@ -45,32 +50,67 @@ export const translateBoxPlot: TranslateBoxPlot = (value) => {
     const { input } = admitted;
     const projection = projectBoxPlot(input);
     if ("status" in projection) return projection;
-    const domain = boxPlotDomain(input, projection);
-    const scale = boxValueScale(input, domain);
-    preflightBoxDomain(projection, scale);
-    preflightBoxGeometry(input, projection, scale);
-    preflightDisplay(
-      input,
-      projection,
-      scale.constant === undefined ? [scale.min, scale.max] : [scale.constant],
-    );
-    const options = {
-      animation: false,
-      textStyle: {
-        color: input.style.common.textColor,
-        fontFamily: input.style.common.fontFamily,
-        fontSize: input.style.common.fontSize,
-      },
-      ...boxPlotLayout(input, projection),
-      ...boxPlotAxes(input, projection, scale, domain.empty),
-      series: boxPlotSeries(input, projection, scale, domain.empty),
-      tooltip: boxPlotTooltip(input, projection, domain.empty),
-    };
-    finiteBoxGeometry(options);
-    return { status: "supported", options, projection, domain };
+    return composeBoxPlot(input, projection);
   } catch {
     return boxFailure(
       "Box Plot input could not be safely inspected or projected into finite geometry.",
     );
   }
 };
+
+export function composeBoxPlot(
+  input: BoxPlotMappingInput,
+  projection: BoxPlotProjection,
+) {
+  const domain = boxPlotDomain(input, projection);
+  const layout = boxPlotLayout(input, projection);
+  const axisLayout = boxPlotAxisLayout(input, projection, domain, layout.grid);
+  const fraction = boxVisibleFraction(input, projection, axisLayout.plan);
+  const valueAxis = planBoxValueAxis(
+    domain,
+    axisLayout.plan.span,
+    axisLayout.plan.density,
+    fraction,
+  );
+  const scale =
+    input.style.direction === "horizontal"
+      ? valueAxis.fullTransport
+      : valueAxis.transport;
+  preflightBoxDomain(projection, scale);
+  preflightBoxGeometry(input, projection, scale);
+  preflightDisplay(
+    input,
+    projection,
+    scale.constant === undefined ? [scale.min, scale.max] : [scale.constant],
+  );
+  const options = {
+    animation: false,
+    textStyle: {
+      color: input.style.common.textColor,
+      fontFamily: input.style.common.fontFamily,
+      fontSize: input.style.common.fontSize,
+    },
+    ...layout,
+    grid: axisLayout.grid,
+    ...boxPlotAxes(
+      input,
+      projection,
+      scale,
+      domain.empty,
+      valueAxis,
+      axisLayout.categorySpan,
+      axisLayout.numericRotation,
+    ),
+    series: boxPlotSeries(input, projection, scale, domain.empty),
+    tooltip: boxPlotTooltip(input, projection, domain.empty),
+  };
+  finiteBoxGeometry(options);
+  const decorated = boxPlotNavigator(input, projection, valueAxis, options);
+  return {
+    status: "supported" as const,
+    options: { ...decorated, openbbBox: { projection } } as EChartsOption,
+    projection,
+    domain,
+    valueAxis,
+  };
+}

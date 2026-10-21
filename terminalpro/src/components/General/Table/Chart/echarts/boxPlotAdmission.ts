@@ -117,6 +117,7 @@ function contextValid(
 ): boolean {
   if (!record(c) || !record(c.viewport) || !record(c.display)) return false;
   return (
+    navigationValid(c.navigation) &&
     size(c.viewport.width) &&
     c.viewport.width > 0 &&
     size(c.viewport.height) &&
@@ -136,6 +137,23 @@ function contextValid(
         Object.entries(c.legendSelection).every(
           ([id, enabled]) => ids.includes(id) && typeof enabled === "boolean",
         )))
+  );
+}
+function navigationValid(n: BoxPlotMappingInput["context"]["navigation"]): boolean {
+  if (n === undefined) return true;
+  return (
+    record(n) &&
+    typeof n.enabled === "boolean" &&
+    typeof n.mini === "boolean" &&
+    record(n.theme) &&
+    record(n.theme.colors) &&
+    (n.window === undefined ||
+      (record(n.window) &&
+        finite(n.window.start) &&
+        finite(n.window.end) &&
+        n.window.start >= 0 &&
+        n.window.end <= 100 &&
+        n.window.start <= n.window.end))
   );
 }
 export function boxDisplayText(value: unknown): string {

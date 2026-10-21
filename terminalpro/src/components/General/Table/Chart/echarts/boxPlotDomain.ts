@@ -1,9 +1,10 @@
+import { boxTickDensity } from "./boxPlotTicks";
 import type {
   BoxPlotDomain,
   BoxPlotMappingInput,
   BoxPlotProjection,
 } from "./boxPlotTypes";
-import { niceNumberExtent } from "./cartesianAxes";
+import { planBoxValueAxis } from "./boxPlotValueAxis";
 
 export interface BoxValueScale {
   readonly min: number;
@@ -32,29 +33,15 @@ export function boxPlotDomain(
   if (!Number.isFinite(high - low)) throw Error("Box Plot domain span is nonfinite.");
   return { value: [low, high], empty: false };
 }
-/** B2 transport is intentionally inactive; B3 must resolve original nice/tick policy. */
 export function boxValueScale(
   input: BoxPlotMappingInput,
   domain: BoxPlotDomain,
 ): BoxValueScale {
-  if (domain.empty || domain.value.length === 0) return { min: 0, max: 1, ticks: [] };
-  const [low, high] = domain.value;
-  if (low === high) return { min: 0, max: 1, constant: low, ticks: [0.5] };
-  const pixels =
+  const span =
     input.style.direction === "vertical"
       ? input.context.viewport.height
       : input.context.viewport.width;
-  const nice = niceNumberExtent(low, high, pixels);
-  const bounds = input.style.axes.number;
-  const min = bounds.min ?? nice.min ?? low;
-  const max = bounds.max ?? nice.max ?? high;
-  if (
-    ![min, max, max - min, nice.interval].every(Number.isFinite) ||
-    !(min < max) ||
-    !(nice.interval! > 0)
-  )
-    return { min: low, max: high };
-  return { min, max, interval: nice.interval };
+  return planBoxValueAxis(domain, span, boxTickDensity(span)).transport;
 }
 export function boxCoordinate(value: number, scale: BoxValueScale): number {
   return scale.constant === undefined ? value : 0.5;

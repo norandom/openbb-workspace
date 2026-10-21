@@ -133,9 +133,9 @@ it("preserves equal, empty and bounded semantic domains without inventing observ
   });
   expect(supported(i).domain).toEqual({ value: [5.5, 5.5], empty: false });
   expect(supported(i).options.yAxis).toMatchObject({
-    min: 0,
-    max: 1,
-    axisLabel: { customValues: [0.5] },
+    min: 5,
+    max: 6,
+    axisLabel: { customValues: [5, 5.2, 5.4, 5.6, 5.8, 6] },
   });
   i.style.axes.number.min = 6;
   expect(supported(i).domain).toEqual({ value: [], empty: true });

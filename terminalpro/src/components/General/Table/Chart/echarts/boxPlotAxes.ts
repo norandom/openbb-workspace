@@ -3,18 +3,23 @@ import type { ResolvedApplicationAxis } from "../application/appearanceModel";
 import { boxDisplayText } from "./boxPlotAdmission";
 import type { BoxValueScale } from "./boxPlotDomain";
 import type { BoxPlotMappingInput, BoxPlotProjection } from "./boxPlotTypes";
+import type { BoxValueAxisPlan } from "./boxPlotValueAxis";
 import { fontStyle } from "./cartesianDisplay";
 import { alternatingGrid } from "./cartesianGrid";
 import { measureText } from "./cartesianLayout";
 
-function rotation(input: BoxPlotMappingInput, projection: BoxPlotProjection): number {
+function rotation(
+  input: BoxPlotMappingInput,
+  projection: BoxPlotProjection,
+  usableSpan?: number,
+): number {
   const a = input.style.axes.category;
   if (a.labels.rotation !== undefined) return -a.labels.rotation;
   if (!a.labels.autoRotate) return 0;
   const horizontal = input.style.direction === "vertical";
-  const span = horizontal
-    ? input.context.viewport.width
-    : input.context.viewport.height;
+  const span =
+    usableSpan ??
+    (horizontal ? input.context.viewport.width : input.context.viewport.height);
   const overlap = projection.groups.some((g) => {
     const size = measureText(
       boxDisplayText(input.context.display.category(g.category)),
@@ -65,6 +70,7 @@ function appearance(a: ResolvedApplicationAxis) {
 function categoryAxis(
   input: BoxPlotMappingInput,
   projection: BoxPlotProjection,
+  usableSpan?: number,
 ): XAXisComponentOption {
   const a = input.style.axes.category;
   const base = appearance(a);
@@ -84,7 +90,7 @@ function categoryAxis(
     axisLabel: {
       ...base.axisLabel,
       customValues: slots,
-      rotate: rotation(input, projection),
+      rotate: rotation(input, projection, usableSpan),
       formatter: (v: number) => {
         const raw = category(v);
         return raw === undefined
@@ -143,15 +149,65 @@ function valueAxis(
     },
   };
 }
+function edgeLabels(
+  input: BoxPlotMappingInput,
+  plan: BoxValueAxisPlan,
+  rotation: number,
+) {
+  if (
+    input.style.direction !== "horizontal" ||
+    plan.rawTicks.length <= 2 ||
+    !plan.visibleExtent.length
+  )
+    return new Set<number>();
+  const extent = plan.visibleExtent;
+  const hidden = new Set<number>();
+  const radians = (rotation * Math.PI) / 180;
+  const full = extent[0] === plan.fullExtent[0] && extent[1] === plan.fullExtent[1];
+  for (const [index, value] of plan.rawTicks.entries()) {
+    if (index !== plan.rawTicks.length - 1 && !(index === 0 && full)) continue;
+    const size = measureText(
+      boxDisplayText(input.context.display.numericAxis(value)),
+      input.style.axes.number.appearance.labels,
+    );
+    const half =
+      (Math.abs(size.width * Math.cos(radians)) +
+        Math.abs(size.height * Math.sin(radians))) /
+      2;
+    const position = ((value - extent[0]) / (extent[1] - extent[0])) * plan.span;
+    if (position - half < 0 || position + half > plan.span) hidden.add(value);
+  }
+  return hidden;
+}
 export function boxPlotAxes(
   input: BoxPlotMappingInput,
   projection: BoxPlotProjection,
   scale: BoxValueScale,
   empty: boolean,
+  plan?: BoxValueAxisPlan,
+  categorySpan?: number,
+  numericRotation?: number,
 ) {
   const vertical = input.style.direction === "vertical";
-  const c = categoryAxis(input, projection);
+  const c = categoryAxis(input, projection, categorySpan);
   const n = valueAxis(input, scale, empty);
+  if (plan) {
+    const hidden = edgeLabels(input, plan, numericRotation ?? 0);
+    n.axisLabel = {
+      ...n.axisLabel,
+      rotate: -(
+        numericRotation ??
+        input.style.axes.number.appearance.labels.rotation ??
+        0
+      ),
+      formatter: (v: number) =>
+        hidden.has(v)
+          ? ""
+          : boxDisplayText(input.context.display.numericAxis(scale.constant ?? v)),
+      customValues: [...(plan.transport.ticks ?? [])],
+    };
+    n.axisTick = { ...n.axisTick, customValues: [...(plan.transport.ticks ?? [])] };
+  }
   const axes = (
     [
       ["category", input.style.axes.category],

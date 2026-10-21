@@ -287,11 +287,11 @@ it("renders constant raw-value ticks, empty and clipped recovery, zero-width box
   engine(i, (chart, option) => {
     const rect = filled(chart, "#145da0")[0];
     expect(rect.shape.height).toBe(0);
-    expect(rect.shape.y).toBe(Math.round(pixel(chart, 0, 0.5)[1]));
+    expect(rect.shape.y).toBe(Math.round(pixel(chart, 0, 5.5)[1]));
     expect(filled(chart, "#ae1234")).toHaveLength(0);
-    expect(chart.renderToSVGString()).toContain("axis:5.5");
+    expect(chart.renderToSVGString()).toContain("axis:5.4");
     expect(chart.renderToSVGString()).not.toContain("axis:0.5");
-    expect((option.yAxis as any).axisPointer.label.formatter({ value: 0.5 })).toBe(
+    expect((option.yAxis as any).axisPointer.label.formatter({ value: 5.5 })).toBe(
       "cross:5.5",
     );
     expect((option.tooltip as any).formatter({ axisValue: 0 })).toContain(
