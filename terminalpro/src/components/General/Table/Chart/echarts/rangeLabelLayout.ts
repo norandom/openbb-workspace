@@ -68,19 +68,34 @@ export function rangeLabelsFit(
   axis: RangeResolvedAxis,
   horizontal: boolean,
   rotation: number,
+  reverse = false,
 ): boolean {
   if (!axis.labels.enabled || !axis.labels.avoidCollisions || extent.length === 0)
     return true;
-  let end = Number.NEGATIVE_INFINITY;
+  const radians = (rotation * Math.PI) / 180;
+  const spacing = axis.labels.minSpacing ?? (rotation ? 0 : 10);
+  const boxes: { x: number; y: number; width: number; height: number }[] = [];
   return ticks.every((tick) => {
-    const size = rangeTextSize(tick.label, axis.labels, rotation);
-    const length = horizontal ? size.width : size.height;
-    const position =
+    const size = measureText(tick.label, axis.labels);
+    const coordinate =
       extent[0] === extent[1]
         ? span / 2
         : ((tick.coordinate - extent[0]) / (extent[1] - extent[0])) * span;
-    const fits = position - length / 2 >= end;
-    end = position + length / 2 + (axis.labels.minSpacing ?? (rotation ? 0 : 10));
+    const nativeReverse = !horizontal && axis.fields.type === "number";
+    const position = Math.floor(
+      reverse !== nativeReverse ? span - coordinate : coordinate,
+    );
+    const x = -position * (horizontal ? Math.cos(radians) : Math.sin(radians));
+    const y = position * (horizontal ? -Math.sin(radians) : Math.cos(radians));
+    const box = { x, y, width: size.width + spacing, height: size.height + spacing };
+    const fits = boxes.every(
+      (other) =>
+        x >= other.x + other.width ||
+        x + box.width <= other.x ||
+        y >= other.y + other.height ||
+        y + box.height <= other.y,
+    );
+    boxes.push(box);
     return fits;
   });
 }

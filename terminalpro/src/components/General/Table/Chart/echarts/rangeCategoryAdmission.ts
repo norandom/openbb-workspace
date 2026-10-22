@@ -43,7 +43,10 @@ function inputValid(v: unknown, kind: string): v is RangeCategoryInput {
       w[1] <= 1)
   );
 }
-export function admitCategoryStyle(value: RangeCategoryStyle): RangeCategoryStyle {
+export function admitCategoryStyle(
+  value: RangeCategoryStyle,
+  pointBands = false,
+): RangeCategoryStyle {
   const s = copyRangeData(value);
   if (
     !rangeRecord(s) ||
@@ -57,7 +60,8 @@ export function admitCategoryStyle(value: RangeCategoryStyle): RangeCategoryStyl
   if (
     !finiteCategoryNumber(b.paddingInner) ||
     b.paddingInner < 0 ||
-    b.paddingInner >= 1 ||
+    b.paddingInner > 1 ||
+    (!pointBands && b.paddingInner === 1) ||
     !finiteCategoryNumber(b.paddingOuter) ||
     b.paddingOuter < 0 ||
     b.paddingOuter > 0.5 ||

@@ -36,11 +36,12 @@ function rotation(
   extent: RangeCategoryPlan["visibleExtent"],
   span: number,
   horizontal: boolean,
+  reverse = false,
 ) {
   const current = axis.labels.rotation ?? 0;
   return axis.labels.rotation === undefined &&
     axis.labels.autoRotate &&
-    !rangeLabelsFit(ticks, extent, span, axis, horizontal, current)
+    !rangeLabelsFit(ticks, extent, span, axis, horizontal, current, reverse)
     ? -25
     : current;
 }
@@ -57,7 +58,14 @@ function ordinal(c: RangeLayoutContext, span: number) {
   const window = c.input.visibleRange ?? [0, 1];
   const low = full.length ? full[0] + (full[1] - full[0]) * window[0] : 0;
   const high = full.length ? full[0] + (full[1] - full[0]) * window[1] : 0;
-  const band = span / Math.max(1, high - low);
+  const expanded = span / (window[1] - window[0]);
+  const { paddingInner, paddingOuter } = c.appearance.band;
+  const count = c.projection.groups.length;
+  const band =
+    count === 1
+      ? expanded * (1 - 2 * paddingOuter)
+      : (expanded / Math.max(1, count - paddingInner + 2 * paddingOuter)) *
+        (1 - paddingInner);
   const limit = (c.horizontal ? c.input.viewport.width : c.input.viewport.height) * 0.3;
   let ticks = c.projection.groups
     .filter((g) => g.slot >= low && g.slot <= high)
@@ -71,12 +79,30 @@ function ordinal(c: RangeLayoutContext, span: number) {
       ),
     }));
   const extent = full.length ? ([low, high] as const) : ([] as const);
-  const degrees = rotation(axis, ticks, extent, span, !c.horizontal);
+  const degrees = rotation(
+    axis,
+    ticks,
+    extent,
+    span,
+    !c.horizontal,
+    c.appearance.categoryPolicy.reverse,
+  );
   if (axis.labels.avoidCollisions) {
     const all = ticks;
     for (let stride = 1; stride < Math.max(2, all.length * 2); stride *= 2) {
       ticks = all.filter((_, index) => index % stride === 0);
-      if (rangeLabelsFit(ticks, extent, span, axis, !c.horizontal, degrees)) break;
+      if (
+        rangeLabelsFit(
+          ticks,
+          extent,
+          span,
+          axis,
+          !c.horizontal,
+          degrees,
+          c.appearance.categoryPolicy.reverse,
+        )
+      )
+        break;
     }
   }
   const coordinates = {
@@ -133,7 +159,14 @@ function continuous(c: RangeLayoutContext, span: number) {
       labels,
       family,
     );
-    degrees = rotation(axis, plan.ticks, plan.visibleExtent, span, !c.horizontal);
+    degrees = rotation(
+      axis,
+      plan.ticks,
+      plan.visibleExtent,
+      span,
+      !c.horizontal,
+      policy.reverse,
+    );
     if (
       policy.interval.step !== undefined ||
       policy.interval.values !== undefined ||
@@ -144,6 +177,7 @@ function continuous(c: RangeLayoutContext, span: number) {
         axis,
         !c.horizontal,
         degrees,
+        policy.reverse,
       ) ||
       result.density.tickCount <= result.density.minTickCount
     )
@@ -175,11 +209,26 @@ function numeric(c: RangeLayoutContext, span: number) {
       coordinate,
       label: rangeDisplayText(c.input.display.numericAxis(coordinate)),
     }));
-    degrees = rotation(axis, ticks, plan.visibleExtent, span, c.horizontal);
+    degrees = rotation(
+      axis,
+      ticks,
+      plan.visibleExtent,
+      span,
+      c.horizontal,
+      policy.reverse,
+    );
     if (
       policy.interval.step !== undefined ||
       policy.interval.values !== undefined ||
-      rangeLabelsFit(ticks, plan.visibleExtent, span, axis, c.horizontal, degrees) ||
+      rangeLabelsFit(
+        ticks,
+        plan.visibleExtent,
+        span,
+        axis,
+        c.horizontal,
+        degrees,
+        policy.reverse,
+      ) ||
       plan.density.tickCount <= plan.density.minTickCount
     )
       break;

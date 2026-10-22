@@ -24,6 +24,7 @@ import { translateRangeBar } from "./rangeBar";
 import { copyRangeData, rangeDisplayText } from "./rangeBarAdmission";
 import { projectRangeBar } from "./rangeBarProjection";
 import type { RangeBarMappingInput } from "./rangeBarTypes";
+import { rangeLegend, rangeLegendMetrics } from "./rangeLegend";
 
 function freeze<T>(value: T): T {
   if (value && typeof value === "object" && !Object.isFrozen(value)) {
@@ -104,11 +105,28 @@ function compose(input: RangeApplicationInput): RangeApplicationResult {
   if (projected.status !== "resolved") return projected;
   const effective = { ...input, snapshot, display: displayFor(input, ids) };
   const columns = projected.projection.fields.map((f) => f.descriptor);
+  const legendMetrics =
+    series.family === "rangeArea"
+      ? rangeLegendMetrics(input, appearance, series.fields)
+      : null;
+  const layoutAppearance = legendMetrics
+    ? {
+        ...appearance.application,
+        legend: {
+          ...appearance.application.legend,
+          markerSize: legendMetrics.height,
+          itemSpacing:
+            appearance.application.legend.itemSpacing +
+            legendMetrics.width -
+            Math.max(25, legendMetrics.height),
+        },
+      }
+    : appearance.application;
   const chrome = applicationLayout(
-    appearance.application,
+    layoutAppearance,
     columns,
     effective.display,
-    input.family,
+    input.family === "rangeArea" ? "line" : input.family,
     input.viewport,
   );
   const layout = rangeAxisLayout(
@@ -196,10 +214,13 @@ function render(
     horizontal,
     valueLabels,
   );
-  const legend = {
-    ...(chrome.legend as LegendComponentOption),
-    selected: { ...selection },
-  };
+  const legend =
+    series.family === "rangeArea"
+      ? rangeLegend(chrome, appearance, series.fields, selection, input)
+      : {
+          ...(chrome.legend as LegendComponentOption),
+          selected: { ...selection },
+        };
   return {
     status: "supported",
     options: {

@@ -147,7 +147,6 @@ function styleValid(s: RangeAreaMappingInput["style"]): boolean {
     axis(s.numberAxis) &&
     scaleValid(s.valueScale) &&
     ratio(b.paddingInner) &&
-    b.paddingInner < 1 &&
     ratio(b.paddingOuter) &&
     b.paddingOuter <= 0.5 &&
     !Object.hasOwn(b, "groupPaddingInner") &&
@@ -255,7 +254,7 @@ export function admitRangeArea(
   )
     return rangeFailure("Malformed Range Area paint, scale, geometry or identities.");
   const { categoryAxis: c, numberAxis: n } = input.style;
-  admitCategoryStyle(input.style);
+  admitCategoryStyle(input.style, true);
   if (
     n.fields.type !== "number" ||
     !["top", "bottom"].includes(c.fields.position) ||

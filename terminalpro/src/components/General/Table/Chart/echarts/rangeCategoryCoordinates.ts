@@ -90,7 +90,7 @@ export function resolveRangeCategory(
   categoryLabels: readonly string[],
   family: "bar" | "area",
 ): RangeCategoryPlan {
-  const s = admitCategoryStyle(style);
+  const s = admitCategoryStyle(style, family === "area");
   const kind = s.categoryCoordinates?.kind ?? "category";
   const data = rangeCategoryData(projection, kind, family);
   admitCategoryLabels(categoryLabels, data.coordinates.length);

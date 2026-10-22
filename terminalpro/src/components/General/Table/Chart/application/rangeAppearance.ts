@@ -69,7 +69,8 @@ export function resolveRangeAppearance(
     valuePolicy: rangeNumericPolicy(rangeAxisPolicy(layers, valueAxis)),
     band: {
       paddingInner: number(
-        rangeAxisRead(layers, categoryAxis, "paddingInner") ?? 0.3,
+        rangeAxisRead(layers, categoryAxis, "paddingInner") ??
+          (input.family === "rangeArea" ? 1 : 0.3),
         0,
         1,
       ),
