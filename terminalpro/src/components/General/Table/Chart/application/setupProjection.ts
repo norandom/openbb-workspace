@@ -183,7 +183,8 @@ export function projectOrdinarySetup(
     | "xy-coordinates"
     | "histogram-observations"
     | "pie-observations"
-    | "box-observations" = "single-axis",
+    | "box-observations"
+    | "statistical-observations" = "single-axis",
 ): SetupResult<SetupProjection> {
   if (
     ![
@@ -193,10 +194,13 @@ export function projectOrdinarySetup(
       "histogram-observations",
       "pie-observations",
       "box-observations",
+      "statistical-observations",
     ].includes(axisPolicy)
   )
     return invalidSetup("Invalid setup axis policy");
-  if (axisPolicy === "box-observations" && selection.switchCategorySeries)
+  const statistical =
+    axisPolicy === "box-observations" || axisPolicy === "statistical-observations";
+  if (statistical && selection.switchCategorySeries)
     return invalidSetup("Box charts cannot switch category and series");
   if (
     axisPolicy !== "single-axis" &&
@@ -211,12 +215,7 @@ export function projectOrdinarySetup(
   const retained = retainOrdinarySetupCapture(input, policy);
   if (retained.status !== "ready") return retained;
   const source = retained.value;
-  const columns = selectedColumns(
-    source,
-    selection,
-    policy !== undefined,
-    axisPolicy === "box-observations",
-  );
+  const columns = selectedColumns(source, selection, policy !== undefined, statistical);
   if (!columns)
     return invalidSetup(
       "Selection requires captured category and unique captured numerical series",
@@ -225,17 +224,12 @@ export function projectOrdinarySetup(
   // Check effective units before transpose; counts derive their own comparable unit.
   if (axisPolicy === "single-axis" && incompatible(aggregateColumns(columns, count)))
     return invalidSetup("Known source units or scales contradict one numerical axis");
-  const grouped =
-    axisPolicy === "box-observations"
-      ? aggregateBoxSetupRows(source.rows, selection.seriesIds, selection.aggFunc)
-      : {
-          status: "ready" as const,
-          value: aggregateSetupRows(
-            source.rows,
-            selection.seriesIds,
-            selection.aggFunc,
-          ),
-        };
+  const grouped = statistical
+    ? aggregateBoxSetupRows(source.rows, selection.seriesIds, selection.aggFunc)
+    : {
+        status: "ready" as const,
+        value: aggregateSetupRows(source.rows, selection.seriesIds, selection.aggFunc),
+      };
   if (grouped.status !== "ready") return grouped;
   const groups = grouped.value;
   const output = selection.switchCategorySeries

@@ -121,7 +121,7 @@ function checkSelection(
 function checkRows(
   input: RecordValue,
   columns: Map<string, RecordValue>,
-  box: boolean,
+  statistical: boolean,
 ): void {
   if (!Array.isArray(input.rows)) failure(["rows"], "Expected ordered observations");
   const ids = new Set<string>();
@@ -132,7 +132,7 @@ function checkRows(
       failure([...path, "id"], "Expected a unique row ID");
     ids.add(row.id);
     if (
-      box &&
+      statistical &&
       (!Object.hasOwn(row, "boxPlotAggregationKey") ||
         typeof row.boxPlotAggregationKey !== "string")
     )
@@ -176,9 +176,14 @@ function validate(input: unknown, policy?: SnapshotPolicy): ChartSnapshot {
     policy === "xy-coordinates" ||
       policy === "histogram-observations" ||
       policy === "pie-observations" ||
-      policy === "box-observations",
+      policy === "box-observations" ||
+      policy === "statistical-observations",
   );
-  checkRows(copy, columns, policy === "box-observations");
+  checkRows(
+    copy,
+    columns,
+    policy === "box-observations" || policy === "statistical-observations",
+  );
   return copy as unknown as ChartSnapshot;
 }
 

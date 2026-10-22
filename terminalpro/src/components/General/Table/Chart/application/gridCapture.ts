@@ -135,7 +135,10 @@ function readCategory(
         colKey: snapshot.categoryColumnId,
         useFormatter: false,
       });
-  if (input.snapshotPolicy === "box-observations") {
+  if (
+    input.snapshotPolicy === "box-observations" ||
+    input.snapshotPolicy === "statistical-observations"
+  ) {
     const result = captureBoxCategory(raw, isDefault, index - start + 1);
     if (result.status !== "ready")
       reject({
@@ -172,8 +175,13 @@ function readValues(
       colKey: id,
       useFormatter: false,
     });
-    // Missing Box endpoints stay absent for source-compatible first/last aggregation.
-    if (input.snapshotPolicy === "box-observations" && raw === undefined) continue;
+    // Missing observations stay absent for source-compatible first/last aggregation.
+    if (
+      (input.snapshotPolicy === "box-observations" ||
+        input.snapshotPolicy === "statistical-observations") &&
+      raw === undefined
+    )
+      continue;
     const value =
       input.snapshotPolicy === "pie-observations"
         ? normalizePieObservation(raw)

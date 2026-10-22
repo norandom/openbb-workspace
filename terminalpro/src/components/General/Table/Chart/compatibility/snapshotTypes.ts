@@ -33,7 +33,7 @@ export interface SnapshotColumn {
 export interface SnapshotRow {
   readonly id: string;
   readonly category: string | number;
-  /** Transient raw grouping identity, captured before Box statistical normalization. */
+  /** Transient raw grouping identity, captured before statistical normalization. */
   readonly boxPlotAggregationKey?: string;
   /** Numeric descriptor IDs only. Absent keys are missing; own undefined is invalid. */
   readonly values: Readonly<Record<string, number | null>>;
@@ -59,7 +59,8 @@ export type SnapshotPolicy =
   | "xy-coordinates"
   | "histogram-observations"
   | "pie-observations"
-  | "box-observations";
+  | "box-observations"
+  | "statistical-observations";
 export type ValidateSnapshot = (
   input: unknown,
   policy?: SnapshotPolicy,
