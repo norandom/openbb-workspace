@@ -5,6 +5,7 @@ import type {
   RangeAreaTranslationResult,
 } from "./rangeAreaTypes";
 import { copyRangeData } from "./rangeBarAdmission";
+import { admitCategoryStyle } from "./rangeCategoryAdmission";
 
 type Failure = Exclude<RangeAreaTranslationResult, { status: "supported" }>;
 export const rangeRecord = (v: unknown): v is Record<string, unknown> =>
@@ -253,8 +254,8 @@ export function admitRangeArea(
   )
     return rangeFailure("Malformed Range Area paint, scale, geometry or identities.");
   const { categoryAxis: c, numberAxis: n } = input.style;
+  admitCategoryStyle(input.style);
   if (
-    c.fields.type !== "category" ||
     n.fields.type !== "number" ||
     !["top", "bottom"].includes(c.fields.position) ||
     !["left", "right"].includes(n.fields.position) ||

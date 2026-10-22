@@ -3,17 +3,24 @@ import { rangeCoordinate } from "./rangeAreaAxes";
 import type { RangeAreaMappingInput } from "./rangeAreaTypes";
 import { rangeDisplayText } from "./rangeBarAdmission";
 import type { RangeBarProjection, RangeBarText } from "./rangeBarTypes";
+import { rangeCategoryExactSlot } from "./rangeCategoryCoordinates";
+import type { RangeCategoryData, RangeCategoryPlan } from "./rangeCategoryTypes";
 
 export function prepareRangeText(
   input: RangeAreaMappingInput,
   projection: RangeBarProjection,
+  category: RangeCategoryData,
 ): RangeBarText {
   const d = input.context.display;
   const categories = projection.groups.map((g) =>
-    rangeDisplayText(d.category(g.category)),
+    category.coordinates[g.slot] === null
+      ? ""
+      : rangeDisplayText(d.category(g.category)),
   );
   const pointers = projection.groups.map((g) =>
-    rangeDisplayText(d.crosshair(g.category)),
+    category.coordinates[g.slot] === null
+      ? ""
+      : rangeDisplayText(d.crosshair(g.category)),
   );
   const ticks = new Map(
     (input.style.valueScale?.ticks ?? []).map((v) => [
@@ -25,6 +32,7 @@ export function prepareRangeText(
     field.data.map((datum) => {
       if (
         !input.style.valueScale ||
+        category.coordinates[datum.groupSlot] === null ||
         !field.enabled ||
         !datum.summary ||
         !input.style.fields[field.descriptor.id].label.enabled
@@ -40,6 +48,7 @@ export function prepareRangeText(
     field.data.map((datum) => {
       if (
         !input.style.valueScale ||
+        category.coordinates[datum.groupSlot] === null ||
         !input.style.tooltip.enabled ||
         !field.enabled ||
         !datum.summary
@@ -62,11 +71,18 @@ type Parameter = {
     readonly metadata?: { readonly fieldId?: unknown; readonly groupSlot?: unknown };
   };
 };
-function identity(value: unknown): { slot: number; fieldId?: string } | undefined {
+function identity(
+  value: unknown,
+  category: RangeCategoryPlan,
+): { slot: number; fieldId?: string } | undefined {
   if (!value || typeof value !== "object") return;
   const p = value as Parameter;
   const m = p.data?.metadata;
-  const slot = m?.groupSlot ?? p.axisValue;
+  const slot =
+    m?.groupSlot ??
+    (typeof p.axisValue === "number"
+      ? rangeCategoryExactSlot(category, p.axisValue)
+      : null);
   if (typeof slot !== "number" || !Number.isInteger(slot) || slot < 0) return;
   return { slot, fieldId: typeof m?.fieldId === "string" ? m.fieldId : undefined };
 }
@@ -74,6 +90,7 @@ export function rangeAreaTooltip(
   input: RangeAreaMappingInput,
   projection: RangeBarProjection,
   text: RangeBarText,
+  category: RangeCategoryPlan,
 ) {
   const { mode, enabled } = input.style.tooltip;
   const headings = text.categories.map(escapeHtml);
@@ -86,7 +103,7 @@ export function rangeAreaTooltip(
     },
     formatter: (params: unknown): string => {
       if (!enabled || input.style.valueScale === null) return "";
-      const hit = identity(Array.isArray(params) ? params[0] : params);
+      const hit = identity(Array.isArray(params) ? params[0] : params, category);
       if (!hit || hit.slot >= headings.length) return "";
       const rows = projection.fields.flatMap((f, n) =>
         f.enabled &&

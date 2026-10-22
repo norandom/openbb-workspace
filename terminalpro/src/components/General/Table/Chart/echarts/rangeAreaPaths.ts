@@ -8,12 +8,15 @@ function gradients(p: readonly Point[]): number[] {
   const g = p.map((v, i) => {
     const a = p[Math.max(0, i - 1)];
     const b = p[Math.min(p.length - 1, i + 1)];
-    const fraction = (v[1] - a[1]) / (b[1] - a[1]);
-    return i > 0 &&
-      i < p.length - 1 &&
-      ((v[1] - a[1]) * (b[1] - v[1]) <= 0 || fraction <= 0.05 || fraction >= 0.95)
-      ? 0
-      : (b[1] - a[1]) / (b[0] - a[0]);
+    if (Math.sign(a[1] - v[1]) === Math.sign(b[1] - v[1])) return 0;
+    if (i > 0 && i < p.length - 1) {
+      const range = Math.abs(a[1] - b[1]);
+      const previous = Math.abs(v[1] - a[1]) / range;
+      const next = Math.abs(v[1] - b[1]) / range;
+      if (previous <= 0.05 || 1 - previous <= 0.05 || next <= 0.05 || 1 - next <= 0.05)
+        return 0;
+    }
+    return (b[1] - a[1]) / (b[0] - a[0]);
   });
   if (g.length > 1) {
     if (g[1] === 0) g[0] *= 2;
@@ -28,12 +31,13 @@ function cubic(
   current: number,
   tension: number,
 ): string {
-  const d = ((b[0] - a[0]) * tension) / 3;
+  const dx = b[0] - a[0];
+  const d = (dx * tension) / 3;
   const dy = b[1] - a[1];
   let x1 = d;
-  let y1 = d * previous;
+  let y1 = (dx * previous * tension) / 3;
   let x2 = d;
-  let y2 = d * current;
+  let y2 = (dx * current * tension) / 3;
   if (current === 0 && Math.abs(y1) > Math.abs(dy)) {
     x1 *= Math.abs(dy / y1);
     y1 = Math.sign(y1) * Math.abs(dy);
@@ -54,7 +58,7 @@ export function boundary(
   finitePoints(points);
   if (!points.length) return "";
   if (points.length === 1) return `M${points[0].join(" ")}`;
-  const g = gradients(points);
+  const g = mode.type === "smooth" ? gradients(points) : [];
   const commands = [`M${points[0].join(" ")}`];
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1];

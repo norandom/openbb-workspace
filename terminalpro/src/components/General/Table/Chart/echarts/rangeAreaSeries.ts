@@ -1,7 +1,13 @@
 import type { CustomSeriesOption, CustomSeriesRenderItemAPI } from "echarts";
 import { fontStyle } from "./cartesianDisplay";
 import { markerDimensions, markerSymbol } from "./cartesianMarkers";
-import { rangeCategoryDomain, rangeCoordinate, rangeTransport } from "./rangeAreaAxes";
+import { rangeTransport } from "./rangeAreaAxes";
+import {
+  type AreaPlot,
+  areaCategoryCoordinate,
+  areaPoint,
+  rangeAreaHit,
+} from "./rangeAreaHit";
 import { areaPaths, finitePoints, type Point, partition } from "./rangeAreaPaths";
 import type {
   RangeAreaFieldStyle,
@@ -9,20 +15,10 @@ import type {
   RangeAreaProjection,
 } from "./rangeAreaTypes";
 import type { RangeBarText } from "./rangeBarTypes";
+import { rangeCategoryTransport } from "./rangeCategoryCoordinates";
+import type { RangeCategoryPlan } from "./rangeCategoryTypes";
 
-type Plot = { x: number; y: number; width: number; height: number };
 type Coord = CustomSeriesRenderItemAPI["coord"];
-function point(
-  slot: number,
-  value: number,
-  input: RangeAreaMappingInput,
-  coord: Coord,
-): Point {
-  const p = coord([slot, rangeCoordinate(value, input)]);
-  const result: Point = [p[0], p[1]];
-  finitePoints([result]);
-  return result;
-}
 function marker(p: Point, s: RangeAreaFieldStyle) {
   const m = s.marker;
   const symbol = markerSymbol(m.shape);
@@ -83,17 +79,24 @@ function glyphs(
   projection: RangeAreaProjection,
   index: number,
   text: RangeBarText,
+  category: RangeCategoryPlan,
   coord: Coord,
 ) {
   const f = projection.fields[index];
   const s = input.style.fields[f.descriptor.id];
   const runs = partition(
-    f.data.map((d) => (d.summary ? d : null)),
+    f.data
+      .filter((d) => areaCategoryCoordinate(category, d.groupSlot) !== null)
+      .map((d) => (d.summary ? d : null)),
     s.connectMissingData,
   );
   return runs.flatMap((run) => {
-    const low = run.map((d) => point(d.groupSlot, d.summary!.min, input, coord));
-    const high = run.map((d) => point(d.groupSlot, d.summary!.max, input, coord));
+    const low = run.map((d) =>
+      areaPoint(d.groupSlot, d.summary!.min, input, category, coord),
+    );
+    const high = run.map((d) =>
+      areaPoint(d.groupSlot, d.summary!.max, input, category, coord),
+    );
     const paths = areaPaths(low, high, s.interpolation);
     const children: ReturnType<typeof labels>[number][] = [];
     const spans =
@@ -143,45 +146,11 @@ function glyphs(
     ];
   });
 }
-function hit(
-  input: RangeAreaMappingInput,
-  projection: RangeAreaProjection,
-  index: number,
-  slot: number,
-  plot: Plot,
-  coord: Coord,
-) {
-  const d = projection.fields[index].data[slot];
-  if (!d.summary) return;
-  const a = point(slot, d.summary.min, input, coord);
-  const b = point(slot, d.summary.max, input, coord);
-  const previous =
-    slot === 0 ? plot.x : (a[0] + point(slot - 1, d.summary.min, input, coord)[0]) / 2;
-  const next =
-    slot === projection.groups.length - 1
-      ? plot.x + plot.width
-      : (a[0] + point(slot + 1, d.summary.min, input, coord)[0]) / 2;
-  const lo = Math.min(a[1], b[1]);
-  const hi = Math.max(a[1], b[1]);
-  if (hi < plot.y || lo > plot.y + plot.height) return;
-  const y = Math.max(plot.y, lo === hi ? lo - 0.5 : lo);
-  const end = Math.min(plot.y + plot.height, lo === hi ? hi + 0.5 : hi);
-  return {
-    type: "rect" as const,
-    silent: false,
-    shape: {
-      x: Math.max(plot.x, previous),
-      y,
-      width: Math.min(plot.x + plot.width, next) - Math.max(plot.x, previous),
-      height: end - y,
-    },
-    style: { fill: "rgba(0,0,0,0)" },
-  };
-}
 export function rangeAreaSeries(
   input: RangeAreaMappingInput,
   projection: RangeAreaProjection,
   text: RangeBarText,
+  category: RangeCategoryPlan,
 ): CustomSeriesOption[] {
   return projection.fields.flatMap((f, index) => {
     const visible: CustomSeriesOption = {
@@ -193,7 +162,7 @@ export function rangeAreaSeries(
       tooltip: { show: false },
       renderItem: (params, api) => {
         if (!f.enabled || !input.style.valueScale) return;
-        const plot = params.coordSys as unknown as Plot;
+        const plot = params.coordSys as unknown as AreaPlot;
         if (!(plot.width > 0 && plot.height > 0))
           throw Error("Invalid Cartesian plot.");
         finitePoints([
@@ -204,7 +173,7 @@ export function rangeAreaSeries(
           type: "group",
           $mergeChildren: false,
           silent: true,
-          children: glyphs(input, projection, index, text, api.coord),
+          children: glyphs(input, projection, index, text, category, api.coord),
           clipPath: { type: "rect", shape: { ...plot } },
         };
       },
@@ -213,21 +182,31 @@ export function rangeAreaSeries(
       type: "custom",
       name: f.descriptor.label,
       clip: true,
-      dimensions: ["slot"],
+      dimensions: ["coordinate", "slot"],
       encode: { x: 0, y: -1, tooltip: [] },
-      data: [...f.data].reverse().map((d) => ({
-        value: [d.groupSlot],
-        metadata: { fieldId: f.descriptor.id, groupSlot: d.groupSlot },
-      })),
+      data: [...f.data].reverse().flatMap((d) => {
+        const coordinate = areaCategoryCoordinate(category, d.groupSlot);
+        return coordinate === null
+          ? []
+          : [
+              {
+                value: [coordinate, d.groupSlot],
+                metadata: { fieldId: f.descriptor.id, groupSlot: d.groupSlot },
+              },
+            ];
+      }),
       renderItem: (params, api) => {
         if (!f.enabled || !input.style.valueScale) return;
-        const slot = f.data.length - 1 - params.dataIndex;
-        return hit(
+        const slot = api.value(1);
+        if (typeof slot !== "number" || !Number.isInteger(slot))
+          throw Error("Invalid Range Area slot metadata.");
+        return rangeAreaHit(
           input,
           projection,
           index,
           slot,
-          params.coordSys as unknown as Plot,
+          category,
+          params.coordSys as unknown as AreaPlot,
           api.coord,
         );
       },
@@ -239,6 +218,7 @@ export function preflightRangeArea(
   input: RangeAreaMappingInput,
   projection: RangeAreaProjection,
   text: RangeBarText,
+  category: RangeCategoryPlan,
 ): void {
   const p = input.context.plot;
   for (const s of Object.values(input.style.fields))
@@ -256,9 +236,10 @@ export function preflightRangeArea(
         s.strokeWidth + p.width,
       ],
     ]);
-  if (!input.style.valueScale) return;
+  const transport = rangeCategoryTransport(category);
+  if (!input.style.valueScale || !transport) return;
   const [min, max] = rangeTransport(input);
-  const [a, b] = rangeCategoryDomain(input, projection.groups.length);
+  const [a, b] = transport;
   const coord: Coord = (data) => {
     if (!Array.isArray(data)) throw Error("Expected pair.");
     return [
@@ -267,6 +248,18 @@ export function preflightRangeArea(
     ];
   };
   projection.fields.forEach((f, i) => {
-    if (f.enabled) glyphs(input, projection, i, text, coord);
+    if (!f.enabled) return;
+    glyphs(input, projection, i, text, category, coord);
+    f.data.forEach((d) =>
+      rangeAreaHit(
+        input,
+        projection,
+        i,
+        d.groupSlot,
+        category,
+        { x: p.left, y: p.top, width: p.width, height: p.height },
+        coord,
+      ),
+    );
   });
 }
