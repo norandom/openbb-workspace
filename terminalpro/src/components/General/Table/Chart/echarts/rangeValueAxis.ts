@@ -1,9 +1,6 @@
-import {
-  type LinearTickDensity,
-  linearRawTicks,
-  linearTickDensity,
-  niceLinearExtent,
-} from "./linearTicks";
+import type { LinearTickDensity } from "./linearTicks";
+import type { RangeNumericAxisPolicy } from "./rangeApplicationTypes";
+import { planRangeNumericAxis } from "./rangeNumericAxis";
 import type { ResolvedRangeBarScale } from "./rangeBarTypes";
 
 type Extent = readonly [] | readonly [number, number];
@@ -13,6 +10,7 @@ export interface RangeValueAxisInput {
   readonly span: number;
   readonly density?: LinearTickDensity;
   readonly visibleRange?: readonly [number, number];
+  readonly policy?: RangeNumericAxisPolicy;
 }
 export interface RangeValueAxisPlan {
   readonly semanticExtent: Extent;
@@ -70,66 +68,55 @@ function semanticExtent({ dataExtent: data, bounds }: RangeValueAxisInput): Exte
   if (!Number.isFinite(high - low)) throw Error("Nonfinite Range axis domain span.");
   return [low, high];
 }
-function fullExtent(semantic: Extent, density: LinearTickDensity): Extent {
-  if (!semantic.length) return [];
-  // A raw constant stays constant; only the Range mapper owns midpoint transport.
-  const extent =
-    semantic[0] === semantic[1] ? [...semantic] : niceLinearExtent(semantic, density);
-  if (!finitePair(extent) || !Number.isFinite(extent[1] - extent[0]))
-    throw Error("Nonfinite Range axis nice extent.");
-  return extent;
-}
-function visibleExtent(full: Extent, window: readonly [number, number]): Extent {
-  if (!full.length) return [];
-  const extent = window.map((v) => full[0] + (full[1] - full[0]) * v);
-  if (!finitePair(extent) || !Number.isFinite(extent[1] - extent[0]))
-    throw Error("Nonfinite Range axis visible extent.");
-  return extent;
-}
-function ticks(
-  full: Extent,
-  visible: Extent,
-  density: LinearTickDensity,
-  span: number,
-): number[] {
-  if (!full.length || !visible.length || span === 0) return [];
-  let raw: number[];
-  try {
-    raw = linearRawTicks(full, density, visible);
-  } catch {
-    throw Error("Unsupported Range axis tick arithmetic.");
-  }
-  if (!raw.every((v, i) => Number.isFinite(v) && (i === 0 || v > raw[i - 1])))
-    throw Error("Invalid Range axis tick arithmetic.");
-  // The neutral source helper rounds crop limits; the raw Range scale admits only in-domain ticks.
-  return raw.filter((v) => v >= visible[0] && v <= visible[1]);
-}
 export function planRangeValueAxis(input: RangeValueAxisInput): RangeValueAxisPlan {
   if (input === null || typeof input !== "object")
     throw Error("Invalid Range value axis input.");
   const window =
     input.visibleRange === undefined ? ([0, 1] as const) : input.visibleRange;
   validate(input, window);
-  const baseDensity = input.density ?? linearTickDensity(input.span);
-  const semantic = semanticExtent(input);
-  const full = fullExtent(semantic, baseDensity);
-  const visible = visibleExtent(full, window);
-  const fraction = window[1] - window[0];
-  const density =
-    fraction > 0 && fraction < 1
-      ? linearTickDensity(input.span, fraction)
-      : baseDensity;
-  if (!validDensity(density)) throw Error("Nonfinite Range axis tick density.");
-  const rawTicks = ticks(full, visible, density, input.span);
+  const policy = input.policy ?? { nice: true, reverse: false, interval: {} };
+  const numeric = {
+    domain: {
+      mode: "full" as const,
+      dataExtent: input.policy ? input.dataExtent : semanticExtent(input),
+    },
+    policy: input.policy
+      ? {
+          ...policy,
+          ...(input.bounds.min === undefined ? {} : { min: input.bounds.min }),
+          ...(input.bounds.max === undefined ? {} : { max: input.bounds.max }),
+        }
+      : policy,
+    span: input.span,
+    visibleRange: [0, 1] as const,
+    density: input.density,
+    preserveConstant: true,
+  };
+  const full = planRangeNumericAxis(numeric);
+  // Navigation crops the accepted full domain; legacy custom density only chose that full domain.
+  const { min: _min, max: _max, ...windowPolicy } = numeric.policy;
+  const planned =
+    window[0] === 0 && window[1] === 1
+      ? full
+      : planRangeNumericAxis({
+          ...numeric,
+          domain: { mode: "window", fullExtent: full.fullExtent },
+          policy: windowPolicy,
+          density: undefined,
+          visibleRange: window,
+        });
+  const visible = planned.visibleExtent;
   return {
-    semanticExtent: semantic,
-    fullExtent: full,
-    visibleExtent: visible,
-    rawTicks,
-    density,
+    ...planned,
+    semanticExtent: full.semanticExtent,
     span: input.span,
     valueScale: visible.length
-      ? { min: visible[0], max: visible[1], ticks: rawTicks }
+      ? {
+          min: visible[0],
+          max: visible[1],
+          ticks: planned.rawTicks,
+          ...(input.policy === undefined ? {} : { reverse: input.policy.reverse }),
+        }
       : null,
   };
 }
