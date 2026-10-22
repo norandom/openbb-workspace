@@ -1,6 +1,7 @@
 import type { CustomSeriesRenderItem, CustomSeriesRenderItemAPI } from "echarts";
 import { fontStyle } from "./cartesianDisplay";
-import { rangeCategoryDomain, rangeCoordinate, rangeTransport } from "./rangeBarAxes";
+import { rangeCoordinate, rangeTransport } from "./rangeBarAxes";
+import { rangeBarBand, rangeBarCategoryCoordinate } from "./rangeBarBands";
 import type {
   RangeBarDatum,
   RangeBarFieldStyle,
@@ -8,6 +9,8 @@ import type {
   RangeBarProjection,
   RangeBarText,
 } from "./rangeBarTypes";
+import { rangeCategoryTransport } from "./rangeCategoryCoordinates";
+import type { RangeCategoryPlan } from "./rangeCategoryTypes";
 
 type Plot = { x: number; y: number; width: number; height: number };
 type Child =
@@ -39,40 +42,18 @@ function plotRectangle(v: unknown): Plot {
   finiteRangeGeometry(plot);
   return plot;
 }
-function categoryWidth(
-  span: number,
-  count: number,
-  input: RangeBarMappingInput,
-): number {
-  const b = input.style.band;
-  return count === 1
-    ? span * (1 - 2 * b.paddingOuter)
-    : (span / Math.max(1, count - b.paddingInner + 2 * b.paddingOuter)) *
-        (1 - b.paddingInner);
-}
-/** M12378-12411: rounding affects peer step/inset, while tiny bars retain raw bandwidth. */
-function peerBand(width: number, count: number, padding: number, index: number) {
-  const inner = count === 1 ? 0 : padding;
-  const rawStep = width / Math.max(1, count - inner);
-  const round = padding !== 0;
-  const step = round ? Math.floor(rawStep) : rawStep;
-  const rawInset = (width - step * (count - inner)) / 2;
-  const inset = round ? Math.round(rawInset) : rawInset;
-  const bandwidth = round ? Math.round(step * (1 - inner)) : step * (1 - inner);
-  return {
-    offset: Math.max(0, Math.min(width, inset + index * step)),
-    width: bandwidth >= 1 ? bandwidth : rawStep * (1 - inner),
-  };
-}
 function endpointPoints(
   input: RangeBarMappingInput,
   datum: RangeBarDatum,
   coord: CustomSeriesRenderItemAPI["coord"],
+  category: RangeCategoryPlan,
 ): number[][] {
   const vertical = input.style.direction === "vertical";
+  const c = rangeBarCategoryCoordinate(category, datum.groupSlot);
+  if (c === null) throw Error("Range Bar requires an admitted category coordinate.");
   return [datum.summary!.min, datum.summary!.max].map((value) => {
     const v = rangeCoordinate(value, input);
-    const point = coord(vertical ? [datum.groupSlot, v] : [v, datum.groupSlot]);
+    const point = coord(vertical ? [c, v] : [v, c]);
     if (
       !Array.isArray(point) ||
       point.length < 2 ||
@@ -91,26 +72,23 @@ function interval(
   fieldIndex: number,
   plot: Plot,
   coord: CustomSeriesRenderItemAPI["coord"],
+  category: RangeCategoryPlan,
 ): Plot {
   const vertical = input.style.direction === "vertical";
-  const points = endpointPoints(input, datum, coord);
+  const points = endpointPoints(input, datum, coord, category);
   const enabled = projection.fields.filter((f) => f.enabled);
   const field = projection.fields[fieldIndex];
   const visibleIndex = enabled.findIndex(
     (f) => f.descriptor.id === field.descriptor.id,
   );
-  const width = categoryWidth(
+  const peer = rangeBarBand(
     vertical ? plot.width : plot.height,
-    projection.groups.length,
+    category,
     input,
-  );
-  const peer = peerBand(
-    width,
     enabled.length,
-    input.style.band.groupPaddingInner,
     visibleIndex,
   );
-  const start = Math.round(points[0][vertical ? 0 : 1] - width / 2) + peer.offset;
+  const start = Math.round(points[0][vertical ? 0 : 1] - peer.centering) + peer.offset;
   const [low, high] = points.map((p) => Math.round(p[vertical ? 1 : 0]));
   const valueStart = Math.min(low, high);
   const extent = Math.max(
@@ -191,13 +169,24 @@ export function createRangeRenderer(
   projection: RangeBarProjection,
   fieldIndex: number,
   text: RangeBarText,
+  category: RangeCategoryPlan,
 ): CustomSeriesRenderItem {
   return (params, api) => {
     const field = projection.fields[fieldIndex];
-    const datum = field.data[params.dataIndex];
+    const slot = Number(api.value(3));
+    const datum = field.data[slot];
     if (input.style.valueScale === null || !field.enabled || !datum?.summary) return;
     const plot = plotRectangle(params.coordSys);
-    const rect = interval(input, projection, datum, fieldIndex, plot, api.coord);
+    if (rangeBarCategoryCoordinate(category, slot) === null) return;
+    const rect = interval(
+      input,
+      projection,
+      datum,
+      fieldIndex,
+      plot,
+      api.coord,
+      category,
+    );
     const vertical = input.style.direction === "vertical";
     if ((vertical ? rect.width : rect.height) === 0) return;
     return {
@@ -206,7 +195,7 @@ export function createRangeRenderer(
         rect,
         vertical,
         input.style.fields[field.descriptor.id],
-        text.endpoints[fieldIndex][params.dataIndex],
+        text.endpoints[fieldIndex][slot],
       ),
       clipPath: { type: "rect", shape: { ...plot } },
     };
@@ -214,12 +203,12 @@ export function createRangeRenderer(
 }
 function preflightCoord(
   input: RangeBarMappingInput,
-  projection: RangeBarProjection,
+  category: RangeCategoryPlan,
 ): CustomSeriesRenderItemAPI["coord"] {
   const p = input.context.plot;
   const vertical = input.style.direction === "vertical";
   const [min, max] = rangeTransport(input);
-  const [cmin, cmax] = rangeCategoryDomain(input, projection.groups.length);
+  const [cmin, cmax] = rangeCategoryTransport(category) ?? [0, 1];
   return (data) => {
     if (!Array.isArray(data)) throw Error("Range Bar requires coordinate pairs.");
     const slot = Number(data[vertical ? 0 : 1]);
@@ -236,10 +225,11 @@ export function preflightRangeGeometry(
   input: RangeBarMappingInput,
   projection: RangeBarProjection,
   text: RangeBarText,
+  category: RangeCategoryPlan,
 ): void {
   const p = input.context.plot;
   const plot = { x: p.left, y: p.top, width: p.width, height: p.height };
-  const coord = preflightCoord(input, projection);
+  const coord = preflightCoord(input, category);
   for (const s of Object.values(input.style.fields))
     finiteRangeGeometry({
       spacing: s.label.spacing + s.label.padding + p.width + p.height,
@@ -250,8 +240,11 @@ export function preflightRangeGeometry(
   projection.fields.forEach((field, index) => {
     if (field.enabled)
       for (const datum of field.data)
-        if (datum.summary) {
-          const rect = interval(input, projection, datum, index, plot, coord);
+        if (
+          datum.summary &&
+          rangeBarCategoryCoordinate(category, datum.groupSlot) !== null
+        ) {
+          const rect = interval(input, projection, datum, index, plot, coord, category);
           children(
             rect,
             input.style.direction === "vertical",

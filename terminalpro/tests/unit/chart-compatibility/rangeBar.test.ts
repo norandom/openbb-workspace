@@ -78,7 +78,7 @@ it("transports equal domains at midpoint while preserving unequal raw summaries,
   expect(
     ((options.series as CustomSeriesOption[])[0].data as unknown[])[0],
   ).toMatchObject({
-    value: [0, 0.5, 0.5],
+    value: [0, 0.5, 0.5, 0],
     metadata: { fieldId: "amount", groupSlot: 0, summary: { min: 2, max: 8 } },
   });
   const axis = options.yAxis as any;

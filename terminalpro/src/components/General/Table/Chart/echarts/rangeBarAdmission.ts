@@ -228,7 +228,8 @@ export function admitRangeBar(
   const { categoryAxis: c, numberAxis: n, direction } = input.style;
   const vertical = direction === "vertical";
   if (
-    c.fields.type !== "category" ||
+    !["category", "number", "time"].includes(c.fields.type) ||
+    (c.fields.type !== "category" && input.style.categoryCoordinates === undefined) ||
     n.fields.type !== "number" ||
     !(vertical ? ["top", "bottom"] : ["left", "right"]).includes(c.fields.position) ||
     !(vertical ? ["left", "right"] : ["top", "bottom"]).includes(n.fields.position) ||

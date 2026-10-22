@@ -5,6 +5,7 @@ import { projectRangeBar } from "./rangeBarProjection";
 import { rangeBarSeries } from "./rangeBarSeries";
 import { prepareRangeText, rangeBarTooltip } from "./rangeBarTooltip";
 import type { RangeBarMappingInput, RangeBarTranslationResult } from "./rangeBarTypes";
+import { rangeCategoryData, resolveRangeCategory } from "./rangeCategoryCoordinates";
 
 /** Inactive pure core: capture, automatic scale resolution and application lifecycle stay with callers. */
 export function translateRangeBar(
@@ -17,8 +18,19 @@ export function translateRangeBar(
     const result = projectRangeBar(input.snapshot, input.context.legendSelection);
     if (result.status !== "resolved") return result;
     const { projection } = result;
-    const text = prepareRangeText(input, projection);
-    preflightRangeGeometry(input, projection, text);
+    const data = rangeCategoryData(
+      projection,
+      input.style.categoryCoordinates?.kind ?? "category",
+      "bar",
+    );
+    const text = prepareRangeText(input, projection, data);
+    const category = resolveRangeCategory(
+      input.style,
+      projection,
+      text.categories,
+      "bar",
+    );
+    preflightRangeGeometry(input, projection, text, category);
     const p = input.context.plot;
     const options = {
       animation: false,
@@ -29,9 +41,9 @@ export function translateRangeBar(
         height: p.height,
         containLabel: false,
       },
-      ...rangeBarAxes(input, projection, text),
-      series: rangeBarSeries(input, projection, text),
-      tooltip: rangeBarTooltip(input, projection, text),
+      ...rangeBarAxes(input, text, category),
+      series: rangeBarSeries(input, projection, text, category),
+      tooltip: rangeBarTooltip(input, projection, text, category),
     };
     return { status: "supported", options, projection };
   } catch {

@@ -3,9 +3,14 @@ import { fontStyle } from "./cartesianDisplay";
 import type {
   RangeBarAxisPaint,
   RangeBarMappingInput,
-  RangeBarProjection,
   RangeBarText,
 } from "./rangeBarTypes";
+import {
+  rangeCategoryEngineCoordinate,
+  rangeCategoryExactSlot,
+  rangeCategoryTransport,
+} from "./rangeCategoryCoordinates";
+import type { RangeCategoryPlan } from "./rangeCategoryTypes";
 
 export function rangeCoordinate(value: number, input: RangeBarMappingInput): number {
   const scale = input.style.valueScale;
@@ -14,14 +19,6 @@ export function rangeCoordinate(value: number, input: RangeBarMappingInput): num
 export function rangeTransport(input: RangeBarMappingInput): readonly [number, number] {
   const s = input.style.valueScale;
   return s === null || s.min === s.max ? [0, 1] : [s.min, s.max];
-}
-export function rangeCategoryDomain(
-  input: RangeBarMappingInput,
-  count: number,
-): readonly [number, number] {
-  const b = input.style.band;
-  const c = b.paddingOuter + (1 - b.paddingInner) / 2;
-  return count > 1 ? [-c, count - 1 + c] : [-0.5, 0.5];
 }
 function appearance(a: RangeBarAxisPaint) {
   return {
@@ -50,14 +47,21 @@ function appearance(a: RangeBarAxisPaint) {
 }
 function categoryAxis(
   input: RangeBarMappingInput,
-  projection: RangeBarProjection,
   text: RangeBarText,
+  category: RangeCategoryPlan,
 ): XAXisComponentOption {
   const base = appearance(input.style.categoryAxis);
-  const [min, max] = rangeCategoryDomain(input, projection.groups.length);
-  const slots = projection.groups.map((g) => g.slot);
-  const at = (v: unknown, values: readonly string[]) =>
-    typeof v === "number" && Number.isInteger(v) ? (values[v] ?? "") : "";
+  const [min, max] = rangeCategoryTransport(category) ?? [0, 1];
+  const ticks = new Map(
+    category.ticks.map((t) => [
+      rangeCategoryEngineCoordinate(category, t.coordinate),
+      t.label,
+    ]),
+  );
+  const at = (v: unknown) => {
+    const slot = typeof v === "number" ? rangeCategoryExactSlot(category, v) : null;
+    return slot === null ? "" : text.pointers[slot];
+  };
   return {
     ...base,
     min,
@@ -65,13 +69,16 @@ function categoryAxis(
     inverse: input.style.direction === "horizontal",
     axisLabel: {
       ...base.axisLabel,
-      customValues: [...slots],
-      formatter: (v: number) => at(v, text.categories),
+      customValues: [...ticks.keys()],
+      formatter: (v: number) => ticks.get(v) ?? "",
     },
-    axisTick: { ...base.axisTick, customValues: [...slots] },
+    axisTick: { ...base.axisTick, customValues: [...ticks.keys()] },
     axisPointer: {
       snap: true,
-      label: { show: slots.length > 0, formatter: (p) => at(p.value, text.pointers) },
+      label: {
+        show: category.coordinates.some((c) => c !== null),
+        formatter: (p) => at(p.value),
+      },
     },
   };
 }
@@ -97,10 +104,10 @@ function numberAxis(
 }
 export function rangeBarAxes(
   input: RangeBarMappingInput,
-  projection: RangeBarProjection,
   text: RangeBarText,
+  category: RangeCategoryPlan,
 ) {
-  const c = categoryAxis(input, projection, text);
+  const c = categoryAxis(input, text, category);
   const n = numberAxis(input, text);
   const vertical = input.style.direction === "vertical";
   return { xAxis: vertical ? c : n, yAxis: (vertical ? n : c) as YAXisComponentOption };
