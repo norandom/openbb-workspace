@@ -21,9 +21,7 @@ export function useCallerSessionInputs() {
   const { widget, widgetFromJSON } = useWidgetContext();
   const { gridState, gridRef } = useAgGridContext();
   const mode = useShallowThemeStore((state) => state.theme);
-  const globalDecimalDigits = useShallowThemeStore(
-    (state) => state.decimalDigits,
-  );
+  const globalDecimalDigits = useShallowThemeStore((state) => state.decimalDigits);
   const themes = useAgThemes(mode);
   const api = (gridState?.gridReady ? gridRef.current?.api : undefined) as
     | GridApi<Record<string, unknown>>
@@ -87,12 +85,12 @@ export function useCallerSessionInputs() {
         stateKey,
         stateAddress: JSON.stringify([widgetId, stateKey]),
       },
-      dataRevision:
-        (gridState?.dataRevision ?? 0) + (gridState?.displayRevision ?? 0),
+      dataRevision: (gridState?.dataRevision ?? 0) + (gridState?.displayRevision ?? 0),
       theme: projectCallerTheme(
         mode,
         themes.chartThemes,
         themes.customChartThemes,
+        chartType,
       ),
       generated:
         (dataOnlyOptions(gridState?.chartThemeOverrides) as RuntimeOptions) ??

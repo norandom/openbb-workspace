@@ -1,3 +1,5 @@
+import { rangeLiveInput } from "../chart-compatibility/rangeLive.fixtures";
+import { projectRangeLiveApplication } from "../../../src/components/General/Table/Chart/echarts/rangeLiveProjection";
 import { describe, expect, it } from "vitest";
 import {
   resolveCallerChart,
@@ -204,4 +206,72 @@ it("admits declared Range time categories while retaining ordinary descriptor ad
   expect(ordinary.valid && ordinary.value.categoryColumnId).toBe(
     "AG-GRID-DEFAULT-CATEGORY",
   );
+});
+
+it.each([
+  "rangeBar",
+  "rangeArea",
+] as const)("retains integrated zoom defaults for %s without overriding saved choices", (family) => {
+  for (const mode of ["light", "dark"] as const) {
+    const theme = projectCallerTheme(
+      mode,
+      ["custom"],
+      { custom: { params: { fontSize: 14 } } },
+      family,
+    );
+    expect(theme.overrides.common).toMatchObject({
+      zoom: {
+        enabled: true,
+        anchorPointX: "pointer",
+        anchorPointY: "pointer",
+        minVisibleItems: 4,
+        autoScaling: { enabled: true },
+      },
+    });
+    const custom = projectCallerTheme(
+      mode,
+      ["custom"],
+      { custom: { overrides: { common: { zoom: { enabled: false } } } } },
+      family,
+    );
+    expect((custom.overrides.common as any).zoom.enabled).toBe(false);
+    const key = family === "rangeBar" ? "range-bar" : "range-area";
+    const disabled = projectCallerTheme(
+      mode,
+      ["custom"],
+      { custom: { overrides: { [key]: { zoom: { enabled: false } } } } },
+      family,
+    );
+    expect((disabled.overrides[key] as any).zoom.enabled).toBe(false);
+    const input = { ...rangeLiveInput(family), theme };
+    const settings = { navigatorEnabled: false, miniChartEnabled: false };
+    const live = projectRangeLiveApplication(input, settings);
+    expect(live.status).toBe("supported");
+    if (live.status !== "supported") throw Error(JSON.stringify(live));
+    expect(
+      (live.options.dataZoom as any[]).some(
+        (z) => z.type === "inside" && z.zoomOnMouseWheel && z.moveOnMouseMove,
+      ),
+    ).toBe(true);
+    for (const source of [
+      { ...input, theme: custom },
+      { ...input, theme: disabled },
+      { ...input, generated: { common: { zoom: { enabled: false } } } },
+      {
+        ...input,
+        baseline: {
+          ...input.baseline,
+          options: { [key]: { zoom: { enabled: false } } },
+        },
+      },
+    ]) {
+      const off = projectRangeLiveApplication(source, settings);
+      expect(off.status).toBe("supported");
+      if (off.status !== "supported") throw Error(JSON.stringify(off));
+      expect(off.options.dataZoom).toBeUndefined();
+    }
+  }
+  expect(
+    (projectCallerTheme("light", [], {}).overrides.common as any).zoom,
+  ).toBeUndefined();
 });

@@ -115,6 +115,7 @@ export function projectCallerTheme(
   mode: "dark" | "light",
   names: readonly string[],
   themes: Record<string, any>,
+  chartFamily?: string,
 ): ApplicationThemeInput {
   const name = names[0] ?? `openbb-${mode}`;
   const selected = themes[name] ?? {};
@@ -125,6 +126,20 @@ export function projectCallerTheme(
   const foreground = params.foregroundColor ?? (dark ? "#FFFFFF" : "#181d1f");
   const overrides = merge(
     {},
+    // Retain Workspace's integrated Range zoom defaults below explicit theme overrides.
+    chartFamily === "rangeBar" || chartFamily === "rangeArea"
+      ? {
+          common: {
+            zoom: {
+              enabled: true,
+              anchorPointX: "pointer",
+              anchorPointY: "pointer",
+              minVisibleItems: 4,
+              autoScaling: { enabled: true },
+            },
+          },
+        }
+      : {},
     parameterOptions(params),
     dataOnlyOptions(selected.overrides),
   ) as RuntimeOptions;
