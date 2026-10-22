@@ -70,7 +70,9 @@ export function resolveCommonAppearance(
       | AppearanceInput["family"]
       | import("../compatibility/xyAssignments").XyChartType
       | "histogram"
-      | "boxPlot";
+      | "boxPlot"
+      | "rangeBar"
+      | "rangeArea";
   },
   sourceLayers: RuntimeOptions[],
 ): ResolvedApplicationAppearance {
