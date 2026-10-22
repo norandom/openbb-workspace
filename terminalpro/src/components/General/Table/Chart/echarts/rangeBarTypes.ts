@@ -10,6 +10,7 @@ import type {
   SnapshotColumn,
   SnapshotDiagnostic,
 } from "../compatibility/snapshotTypes";
+import type { RangeCategoryInput } from "./rangeCategoryTypes";
 
 export interface ResolvedRangeBarScale {
   readonly min: number;
@@ -39,6 +40,7 @@ export interface RangeBarMappingInput {
   readonly style: {
     readonly direction: "vertical" | "horizontal";
     readonly categoryAxis: RangeBarAxisPaint;
+    readonly categoryCoordinates?: RangeCategoryInput;
     readonly numberAxis: RangeBarAxisPaint;
     readonly valueScale: ResolvedRangeBarScale | null;
     readonly band: {
