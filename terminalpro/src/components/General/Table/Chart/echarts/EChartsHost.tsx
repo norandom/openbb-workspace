@@ -27,6 +27,7 @@ export const EChartsHost = forwardRef<EChartsHostHandle, EChartsHostProps>(
       legendPagination,
       projectLegendSelection,
       projectNavigationWindow,
+      projectPointer,
       className,
       style,
       onError,
@@ -43,6 +44,7 @@ export const EChartsHost = forwardRef<EChartsHostHandle, EChartsHostProps>(
       legendPagination,
       projectLegendSelection,
       projectNavigationWindow,
+      projectPointer,
       onError,
       onResize,
     });
@@ -53,6 +55,7 @@ export const EChartsHost = forwardRef<EChartsHostHandle, EChartsHostProps>(
       legendPagination,
       projectLegendSelection,
       projectNavigationWindow,
+      projectPointer,
       onError,
       onResize,
     };
@@ -126,6 +129,7 @@ export const EChartsHost = forwardRef<EChartsHostHandle, EChartsHostProps>(
           legendPagination,
           projectLegendSelection,
           projectNavigationWindow,
+          projectPointer,
           onError,
         });
       } catch (error) {
@@ -139,6 +143,7 @@ export const EChartsHost = forwardRef<EChartsHostHandle, EChartsHostProps>(
       legendPagination,
       projectLegendSelection,
       projectNavigationWindow,
+      projectPointer,
       onError,
     ]);
 

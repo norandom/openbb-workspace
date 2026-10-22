@@ -5,11 +5,30 @@ import type { RangeAreaMappingInput, RangeAreaProjection } from "./rangeAreaType
 import {
   rangeCategoryCell,
   rangeCategoryEngineCoordinate,
+  rangeCategoryTransport,
 } from "./rangeCategoryCoordinates";
+import { rangeTransport } from "./rangeAreaAxes";
 import type { RangeCategoryPlan } from "./rangeCategoryTypes";
 
 export type AreaPlot = { x: number; y: number; width: number; height: number };
 type Coord = CustomSeriesRenderItemAPI["coord"];
+export function rangeAreaPreflightCoord(
+  input: RangeAreaMappingInput,
+  category: RangeCategoryPlan,
+): Coord {
+  const p = input.context.plot;
+  const [min, max] = rangeTransport(input);
+  const [a, b] = rangeCategoryTransport(category) ?? [0, 1];
+  return (data) => {
+    if (!Array.isArray(data)) throw Error("Expected pair.");
+    const x = (Number(data[0]) - a) / (b - a);
+    const y = (Number(data[1]) - min) / (max - min);
+    return [
+      p.left + (category.reverse ? 1 - x : x) * p.width,
+      p.top + (input.style.valueScale?.reverse ? y : 1 - y) * p.height,
+    ];
+  };
+}
 export function areaCategoryCoordinate(
   category: RangeCategoryPlan,
   slot: number,

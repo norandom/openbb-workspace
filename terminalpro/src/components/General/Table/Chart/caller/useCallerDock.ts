@@ -1,3 +1,4 @@
+import { isRangeChartFamily } from "../application/rangeSessionTypes";
 import { useRef, useState } from "react";
 import { useWidgetContext } from "~/components/Widget.context";
 import { getStateKey } from "../../communityState";
@@ -59,7 +60,8 @@ export function useCallerDock(
             isComboChartFamily(type) ||
             isXyChartFamily(type) ||
             type === "histogram" ||
-            type === "boxPlot")
+            type === "boxPlot" ||
+            isRangeChartFamily(type))
         )
           onSelect(type);
         else updateWidget?.((previous) => changeCallerChartType(previous, type));

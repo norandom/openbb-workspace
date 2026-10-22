@@ -3,6 +3,12 @@ import type { ComboSeriesAssignment } from "../../compatibility/comboAssignments
 import type { ComboGeometry } from "../../echarts/comboTypes";
 export type ApplicationEditorMode =
   | { kind: "ordinary" }
+  | ({
+      kind: "range";
+      onEdit: (
+        edit: import("../../application/rangeSessionTypes").RangeEditIntent["edit"],
+      ) => void;
+    } & import("../../application/rangeSessionTypes").RangeEditorProjection)
   | {
       kind: "boxPlot";
       controls: import("../../application/boxPlotSessionTypes").BoxPlotControlValues;

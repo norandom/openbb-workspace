@@ -125,6 +125,8 @@ export const mapApplicationEditorEvent: MapApplicationEditorEvent = (event, fami
       !isAreaFamily(family) &&
       !isXyChartFamily(family) &&
       family !== "histogram" &&
+      family !== "rangeBar" &&
+      family !== "rangeArea" &&
       family !== "boxPlot" &&
       !isPieChartFamily(family)
     )
@@ -149,19 +151,23 @@ export const mapApplicationEditorEvent: MapApplicationEditorEvent = (event, fami
     return {
       valid: true,
       value: {
-        [family === "boxPlot"
-          ? "box-plot"
-          : isPieChartFamily(family)
-            ? family === "pie"
-              ? "pie"
-              : "donut"
-            : isXyChartFamily(family) || family === "histogram"
-              ? family
-              : isAreaFamily(family)
-                ? "area"
-                : family === "line"
-                  ? "line"
-                  : "bar"]: eventPatch(event),
+        [family === "rangeBar"
+          ? "range-bar"
+          : family === "rangeArea"
+            ? "range-area"
+            : family === "boxPlot"
+              ? "box-plot"
+              : isPieChartFamily(family)
+                ? family === "pie"
+                  ? "pie"
+                  : "donut"
+                : isXyChartFamily(family) || family === "histogram"
+                  ? family
+                  : isAreaFamily(family)
+                    ? "area"
+                    : family === "line"
+                      ? "line"
+                      : "bar"]: eventPatch(event),
       },
     };
   } catch (error) {

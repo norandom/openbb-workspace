@@ -28,7 +28,8 @@ export function applyHistogramEditorTransaction(
   if (command.family !== "histogram" || context.inputs.family !== "histogram")
     return { status: "stale" };
   const intent = command.intent;
-  if (intent.panel === "boxPlot") return { status: "stale" };
+  if (intent.panel === "boxPlot" || intent.panel === "range")
+    return { status: "stale" };
   if (
     intent.panel === "pieLabel" ||
     intent.panel === "pieCallout" ||

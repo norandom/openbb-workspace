@@ -15,6 +15,8 @@ export type ApplicationChartFamily =
   | import("../compatibility/xyAssignments").XyChartType
   | "histogram"
   | "boxPlot"
+  | "rangeBar"
+  | "rangeArea"
   | import("../compatibility/pieAssignments").PieChartType;
 export type ComboSessionContext = ApplicationSessionContext<ComboChartType>;
 export function isComboChartFamily(value: unknown): value is ComboChartType {

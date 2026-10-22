@@ -7,6 +7,7 @@ import { HistogramBinControls } from "./histogram/HistogramBinControls";
 import { ChartLabelsPanel } from "./labels/ChartLabelsPanel";
 import { ChartMarkersPanel } from "./markers/ChartMarkersPanel";
 import { PieLabelControls } from "./pie/PieLabelControls";
+import { RangeControls } from "./range/RangeControls";
 import { ChartSeriesStylePanel } from "./series/ChartSeriesStylePanel";
 import { ChartShadowPanel } from "./shadow/ChartShadowPanel";
 import { ChartTooltipsPanel } from "./tooltips/ChartTooltipsPanel";
@@ -54,6 +55,7 @@ export function ApplicationSeriesEditor({
       {mode?.kind === "boxPlot" && (
         <BoxPlotControls value={mode.controls} onEdit={mode.onEdit} />
       )}
+      {mode?.kind === "range" && <RangeControls mode={mode} />}
       {eligibility.connectMissingData && (
         <div className="chart-caption-toggle">
           <Switch

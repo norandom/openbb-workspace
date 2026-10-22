@@ -203,6 +203,8 @@ export interface EditorSelectionInput {
     | CartesianFamily
     | import("../xyAssignments").XyChartType
     | "histogram"
+    | "rangeBar"
+    | "rangeArea"
     | "boxPlot";
   readonly model: ChartModel;
   readonly range: ResolvedRange;
@@ -220,6 +222,8 @@ export type MapApplicationEditorEvent = (
     | CartesianFamily
     | import("../xyAssignments").XyChartType
     | "histogram"
+    | "rangeBar"
+    | "rangeArea"
     | "boxPlot"
     | import("../pieAssignments").PieChartType,
 ) => ValidationResult<RuntimeOptions>;

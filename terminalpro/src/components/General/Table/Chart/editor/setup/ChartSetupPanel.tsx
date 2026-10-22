@@ -174,7 +174,8 @@ export function ChartSetupPanel({
   );
   return (
     <div className="chart-setup-panel">
-      {mode?.kind === "boxPlot" && (
+      {(mode?.kind === "boxPlot" ||
+        (mode?.kind === "range" && mode.family === "rangeBar")) && (
         <Group label="Direction">
           <Choice
             label="Direction"
@@ -270,6 +271,7 @@ export function ChartSetupPanel({
           mode?.kind !== "xy" &&
           mode?.kind !== "histogram" &&
           mode?.kind !== "boxPlot" &&
+          mode?.kind !== "range" &&
           (mode?.kind !== "pie" || mode.canSwitchCategorySeries) && (
             <div className="chart-setup-switch chart-setup-transpose">
               <Switch

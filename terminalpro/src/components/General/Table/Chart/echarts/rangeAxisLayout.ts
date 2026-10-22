@@ -51,7 +51,9 @@ function ordinal(c: RangeLayoutContext, span: number) {
   const labels = c.projection.groups.map((g) =>
     rangeDisplayText(c.input.display.category(g.category)),
   );
-  const full = resolveRangeCategory(style, c.projection, labels, family).fullExtent;
+  const full =
+    c.input.categoryFullExtent ??
+    resolveRangeCategory(style, c.projection, labels, family).fullExtent;
   const window = c.input.visibleRange ?? [0, 1];
   const low = full.length ? full[0] + (full[1] - full[0]) * window[0] : 0;
   const high = full.length ? full[0] + (full[1] - full[0]) * window[1] : 0;
@@ -161,7 +163,9 @@ function numeric(c: RangeLayoutContext, span: number) {
   let degrees = axis.labels.rotation ?? 0;
   for (let pass = 0; pass < 12; pass++) {
     plan = planRangeValueAxis({
-      dataExtent: c.projection.dataExtent,
+      dataExtent: c.input.valueDataExtent ?? c.projection.dataExtent,
+      fullExtent: c.input.valueFullExtent,
+      visibleRange: c.input.valueVisibleRange,
       bounds: {},
       span,
       density,
@@ -194,6 +198,10 @@ function plans(c: RangeLayoutContext, p: ReturnType<typeof plot>) {
 }
 export function rangeAxisLayout(c: RangeLayoutContext, chrome: Grid) {
   const a = c.appearance.application;
+  const inset = c.input.plotBottomInset ?? 0;
+  if (!Number.isFinite(inset) || inset < 0)
+    throw Error("Invalid Range navigation reservation.");
+  chrome = { ...chrome, bottom: chrome.bottom + inset };
   let grid = { ...chrome };
   let categoryFootprint = 0;
   let valueFootprint = 0;

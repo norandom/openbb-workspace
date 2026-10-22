@@ -182,3 +182,26 @@ describe("ordinary production caller inputs", () => {
     expect(appearance.valid && appearance.value.application.title.size).toBe(19);
   });
 });
+it("admits declared Range time categories while retaining ordinary descriptor admission", () => {
+  const defs = [
+    { field: "period", chartDataType: "time" },
+    { field: "income", chartDataType: "series" },
+  ];
+  const range = resolveCallerChart(
+    { id: "w", storage: { chartModel: { chartType: "rangeArea" } }, data: {} },
+    {},
+    defs as any,
+  );
+  expect(range.valid).toBe(true);
+  if (!range.valid) throw Error(range.error);
+  expect(range.value.categoryColumnId).toBe("period");
+  expect(range.value.initialAxes.categoryAxisType).toBe("time");
+  const ordinary = resolveCallerChart(
+    { id: "w", storage: {}, data: {} },
+    {},
+    defs as any,
+  );
+  expect(ordinary.valid && ordinary.value.categoryColumnId).toBe(
+    "AG-GRID-DEFAULT-CATEGORY",
+  );
+});

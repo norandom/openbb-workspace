@@ -1,3 +1,5 @@
+import { applyRangeEditorTransaction } from "./rangeEditorTransaction";
+import { isRangeChartFamily } from "./rangeSessionTypes";
 import type { WidgetT } from "../../../../types";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import type { ApplicationChartCommand } from "./applicationChartSessionTypes";
@@ -57,6 +59,15 @@ function transaction(
       intent.edit,
       recapture,
     );
+  if (isRangeChartFamily(context.inputs.family))
+    return applyRangeEditorTransaction(
+      storage,
+      context as ApplicationSessionContext<
+        import("../echarts/rangeApplicationTypes").RangeFamily
+      >,
+      command,
+    );
+  if (intent.panel === "range") return { status: "stale" as const };
   if (context.inputs.family === "boxPlot")
     return applyBoxPlotEditorTransaction(
       storage,

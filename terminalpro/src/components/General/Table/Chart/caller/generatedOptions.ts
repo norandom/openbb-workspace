@@ -1,3 +1,4 @@
+import { buildRangeGeneratedSeries } from "../application/rangeSeriesAppearanceOptions";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import { dataOnlyOptions } from "./themeInputs";
 
@@ -12,6 +13,10 @@ export function callerGeneratedOptions(
       ? { title: { fontSize: 12, spacing: 10, enabled: true, text } }
       : {};
   const category = { ...caption(view.xLabel), label: { fontSize: 11 } };
+  const rangeSeries = buildRangeGeneratedSeries(
+    (dataOnlyOptions(series) as RuntimeOptions) ?? {},
+  );
+  if (!rangeSeries.valid) throw Error(rangeSeries.error);
   return {
     common: {
       axes: {
@@ -48,6 +53,8 @@ export function callerGeneratedOptions(
         },
       ]),
     ),
+    "range-bar": { series: rangeSeries.value },
+    "range-area": { series: rangeSeries.value },
     "box-plot": { series: { ...(dataOnlyOptions(series) as RuntimeOptions) } },
     bar: {
       series: {

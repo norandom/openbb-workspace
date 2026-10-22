@@ -1,3 +1,7 @@
+import {
+  rangeCategoryModelOverride,
+  resolveRangeCategoryKind,
+} from "../compatibility/rangeCategoryProvenance";
 import { isPieChartFamily } from "../application/pieSessionTypes";
 import { restoreAxisSettings } from "../application/axisPersistence";
 import type { ColDef, ColGroupDef, GridApi } from "ag-grid-community";
@@ -26,16 +30,24 @@ export function hasCallerSeries(definitions: readonly (ColDef | ColGroupDef)[]) 
     (definition) => definition.chartDataType === "series",
   );
 }
-function descriptors(definitions: readonly (ColDef | ColGroupDef)[]): SnapshotColumn[] {
+function descriptors(
+  definitions: readonly (ColDef | ColGroupDef)[],
+  range = false,
+): SnapshotColumn[] {
   return leafChartDefinitions(definitions).flatMap((definition) => {
     const id = definition.colId ?? definition.field;
-    if (!id || !["category", "series"].includes(definition.chartDataType ?? ""))
+    if (
+      !id ||
+      !(
+        range ? ["category", "series", "time", "number"] : ["category", "series"]
+      ).includes(definition.chartDataType ?? "")
+    )
       return [];
     return [
       {
         id,
         label: definition.headerName ?? id,
-        role: definition.chartDataType === "category" ? "category" : "number",
+        role: definition.chartDataType === "series" ? "number" : "category",
       },
     ];
   });
@@ -96,9 +108,10 @@ export function resolveCallerChart(
     if (!baseline.valid) return baseline;
     const model = baseline.value.model;
     const chartType = baseline.value.chartType;
+    const isRange = chartType === "rangeBar" || chartType === "rangeArea";
     const columns: SnapshotColumn[] = [
       { id: DEFAULT_SETUP_CATEGORY, label: "(None)", role: "category" },
-      ...descriptors(definitions),
+      ...descriptors(definitions, isRange),
     ];
     const generated =
       api
@@ -132,7 +145,18 @@ export function resolveCallerChart(
       range.range.columnIds.find((id) =>
         columns.some((column) => column.id === id && column.role === "category"),
       ) ?? DEFAULT_SETUP_CATEGORY;
-    const categoryType = "category";
+    const categoryFact = leafChartDefinitions(definitions).find(
+      (d) => (d.colId ?? d.field) === category,
+    );
+    const resolvedCategory = resolveRangeCategoryKind(
+      {
+        columnChartDataType: isRange ? (categoryFact?.chartDataType ?? null) : null,
+        firstCategoryIsDate: false,
+      },
+      isRange ? rangeCategoryModelOverride(model) : undefined,
+    );
+    if (!resolvedCategory.valid) throw Error(resolvedCategory.diagnostic.message);
+    const categoryType = resolvedCategory.kind;
     const horizontal = isHorizontalCartesianFamily(chartType);
     return {
       valid: true,
@@ -204,7 +228,12 @@ export function changeCallerChartType<T extends { storage?: any; data?: any }>(
   const storage = widget.storage ?? {};
   const partition = storage[stateKey] ?? {};
   const model = { ...(partition.chartModel ?? storage.chartModel), chartType };
-  const previousFamily = partition.chartModel?.chartType ?? storage.chartModel?.chartType ?? storage.chartType ?? widget.data?.table?.chartView?.chartType ?? "groupedColumn";
+  const previousFamily =
+    partition.chartModel?.chartType ??
+    storage.chartModel?.chartType ??
+    storage.chartType ??
+    widget.data?.table?.chartView?.chartType ??
+    "groupedColumn";
   if (previousFamily !== chartType) delete model.qopenbbAxisSettings;
   return {
     ...widget,

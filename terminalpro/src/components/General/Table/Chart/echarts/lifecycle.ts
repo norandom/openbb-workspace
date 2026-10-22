@@ -1,54 +1,27 @@
+import { hasRangeNavigator, retainRangeWindows } from "./rangeNavigationWindow";
 import type { EChartsOption } from "echarts";
 import { navigatorAxes } from "./cartesianNavigatorOverview";
 import { histogramNavigationWindow } from "./histogramNavigationWindow";
 import { isHistogramOptions } from "./histogramNavigator";
 import { createPieLegendBinding, type PieLegendBinding } from "./pieLegendBinding";
-import type { PieLegendPagination } from "./pieLegendTypes";
 import { xyNavigationWindow } from "./xyNavigationWindow";
 import { isXyNavigator } from "./xyNavigator";
 
-/** Fully resolved renderer options; no storage or provider contracts depend on ECharts. */
-export interface ChartRenderRequest {
-  readonly options: EChartsOption;
-  /** Finite revision supplied by the caller. Only strictly newer revisions replace accepted work. */
-  readonly revision: number;
-  /** Paired with projectLegendSelection; stable across render revisions, reset per session/family. */
-  readonly legendScope?: string;
-  readonly legendPagination?: PieLegendPagination;
-  /** Keys equal main-series names/IDs. The callback closes over immutable current inputs. */
-  readonly projectLegendSelection?: (
-    selected: Readonly<Record<string, boolean>>,
-  ) => EChartsOption;
-  /** Interaction failures invalidate export before reaching the existing host error channel. */
-  readonly projectNavigationWindow?: (
-    projected: EChartsOption,
-    current: EChartsOption,
-  ) => EChartsOption;
-  readonly onError?: (error: unknown) => void;
-}
-export type LifecycleResult = "applied" | "deferred" | "stale" | "disposed";
-export interface ChartImageOptions {
-  readonly pixelRatio?: number;
-  readonly backgroundColor?: string;
-}
-/** Mutations after disposal return disposed. Invalid revisions and library failures throw;
- * failed initialization must release its partial instance. No ECharts instance is exposed. */
-export interface ChartLifecycle {
-  /** First mount accepts the initial request; repeated mounts follow update ordering.
-   * Zero width/height defers initialization until resize. */
-  mount(request: ChartRenderRequest): LifecycleResult;
-  /** Before mount this throws. Equal/older revisions are stale; deferred work retains
-   * only the latest accepted request. A failed update does not advance revision. */
-  update(request: ChartRenderRequest): LifecycleResult;
-  /** Recheck DOM size, initialize pending work when sized, otherwise defer. */
-  resize(): LifecycleResult;
-  /** PNG data URL; throws when unsized/unmounted/disposed or public-library export fails. */
-  exportImage(options?: ChartImageOptions, expectedRevision?: number): string;
-  /** Idempotent terminal cleanup; pending work and callbacks cannot revive this owner. */
-  dispose(): void;
-}
-/** One owner per DOM container. A remount after disposal requires a fresh owner. */
-export type CreateChartLifecycle = (container: HTMLDivElement) => ChartLifecycle;
+export type {
+  ChartRenderRequest,
+  ChartImageOptions,
+  ChartLifecycle,
+  CreateChartLifecycle,
+  LifecycleResult,
+} from "./lifecycleTypes";
+import type {
+  ChartRenderRequest,
+  ChartImageOptions,
+  CreateChartLifecycle,
+  LifecycleResult,
+} from "./lifecycleTypes";
+import { createRangePointerBinding } from "./rangePointerBinding";
+import type { ChartPointerBinding } from "./chartPointerTypes";
 
 import { type ECharts, init } from "echarts";
 import { hasNavigator, retainNavigatorExtent } from "./cartesianNavigator";
@@ -65,10 +38,11 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   let legendListener: (() => void) | undefined;
   let navigatorListener: (() => void) | undefined;
   let pieLegend: PieLegendBinding | undefined;
+  let pointer: ChartPointerBinding | undefined;
   let clickListener: ((event: unknown) => void) | undefined;
   let applying = false;
   let generation = 0;
-  const resetXy = () => {
+  const resetXy = (event: MouseEvent) => {
     if (
       disposed ||
       applying ||
@@ -82,7 +56,19 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
     )
       return;
     try {
-      instance.dispatchAction({ type: "dataZoom", start: 0, end: 100 });
+      const activeInstance = instance;
+      const activeGeneration = generation;
+      const rect = container.getBoundingClientRect();
+      if (
+        pointer?.consumeDoubleClick({
+          x: ((event.clientX - rect.left) * container.clientWidth) / rect.width,
+          y: ((event.clientY - rect.top) * container.clientHeight) / rect.height,
+        })
+      )
+        return;
+      if (disposed || instance !== activeInstance || generation !== activeGeneration)
+        return;
+      activeInstance.dispatchAction({ type: "dataZoom", start: 0, end: 100 });
     } catch (error) {
       interactionFailure(error);
     }
@@ -94,6 +80,8 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   }
 
   function release(): void {
+    pointer?.dispose();
+    pointer = undefined;
     const previous = instance;
     generation += 1;
     instance = undefined;
@@ -227,6 +215,7 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   function render(request: ChartRenderRequest, force = false): void {
     if (!instance || (!force && appliedRevision === request.revision)) return;
     applying = true;
+    pointer?.clear();
     try {
       let options = legendOptions(request);
       const sameScope = appliedScope === request.legendScope;
@@ -237,9 +226,16 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
         hasNavigator(pending.options) &&
         hasNavigator(options)
       )
-        options = retainNavigatorExtent(options, instance.getOption());
+        options = hasRangeNavigator(options)
+          ? retainRangeWindows(options, instance.getOption() as EChartsOption)
+          : retainNavigatorExtent(options, instance.getOption());
       if (request.projectNavigationWindow)
-        options = request.projectNavigationWindow(options, options);
+        options = request.projectNavigationWindow(
+          options,
+          appliedRevision !== undefined && sameScope
+            ? (instance.getOption() as EChartsOption)
+            : options,
+        );
       const histogramWindow = request.projectNavigationWindow
         ? undefined
         : histogramNavigationWindow(options, options);
@@ -254,6 +250,7 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
       // ECharts 6 retains a resize hover timer after notMerge disposes its tooltip view.
       instance.dispatchAction({ type: "hideTip" });
       instance.setOption(options, { notMerge: true });
+      pointer?.setPlan(request.projectPointer?.(options));
       pieLegend?.sync();
       appliedRevision = request.revision;
       appliedScope = request.legendScope;
@@ -280,9 +277,14 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   }
 
   function apply(request: ChartRenderRequest, resizing = false): LifecycleResult {
-    if (!sized()) return "deferred";
+    if (!sized()) {
+      pointer?.clear();
+      return "deferred";
+    }
     try {
       instance ??= init(container);
+      if (request.projectPointer)
+        pointer ??= createRangePointerBinding(container, interactionFailure);
       bindPieLegend();
       if (hasNavigator(request.options) && !navigatorListening) {
         const current = generation;
@@ -356,6 +358,7 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   }
 
   function resize(): LifecycleResult {
+    pointer?.clear();
     if (disposed) return "disposed";
     if (!pending) throw new Error("Chart is not mounted");
     return apply(pending, true);

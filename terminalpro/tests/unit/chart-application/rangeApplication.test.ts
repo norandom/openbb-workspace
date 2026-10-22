@@ -409,3 +409,54 @@ describe("Range application composition", () => {
     expect(Object.values(tiny.plot).every(Number.isFinite)).toBe(true);
   });
 });
+it("reserves navigation space before composing and crops the retained physical x value domain", () => {
+  const base = input();
+  const full = composed({
+    ...base,
+    baseline: {
+      ...base.baseline,
+      options: { "range-bar": { series: { direction: "horizontal" } } },
+    },
+  });
+  const zoomed = composed({
+    ...base,
+    baseline: {
+      ...base.baseline,
+      options: { "range-bar": { series: { direction: "horizontal" } } },
+    },
+    plotBottomInset: 70,
+    valueFullExtent: [0, 20],
+    valueVisibleRange: [0.25, 0.75],
+  });
+  expect(zoomed.valueAxis.fullExtent).toEqual([0, 20]);
+  expect(zoomed.valueAxis.visibleExtent).toEqual([5, 15]);
+  expect(zoomed.plot.top + zoomed.plot.height).toBeLessThan(
+    full.plot.top + full.plot.height - 50,
+  );
+  expect(zoomed.mapping.context.plot).toEqual(zoomed.plot);
+});
+it("drops stale physical position when Range Bar changes direction", () => {
+  const base = input();
+  const previous = {
+    ...base.axisRuntime,
+    axes: base.axisRuntime.axes.map((axis) =>
+      axis.id === "category"
+        ? {
+            ...axis,
+            position: "top" as const,
+            options: { position: "top", label: { color: "#aabbcc" } },
+          }
+        : axis,
+    ),
+  };
+  const result = composed({
+    ...base,
+    axisRuntime: previous,
+    baseline: {
+      ...base.baseline,
+      options: { "range-bar": { series: { direction: "horizontal" } } },
+    },
+  });
+  expect(result.axisRuntime.axes[0].position).toBe("left");
+  expect(result.appearance.axes.category.labels.color).toBe("#aabbcc");
+});

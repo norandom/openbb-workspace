@@ -61,7 +61,9 @@ function seriesControls(input: EditorSelectionInput) {
       : (["strokeWidth", "lineDash", "strokeOpacity", "fillOpacity"] as const);
   const labels = {
     strokeWidth:
-      input.family === "line" || isAreaFamily(input.family)
+      input.family === "line" ||
+      isAreaFamily(input.family) ||
+      input.family === "rangeArea"
         ? "Line Width"
         : "Stroke Width",
     lineDash: "Line Dash",
@@ -89,6 +91,8 @@ export const selectApplicationEditorState: SelectApplicationEditorState = (input
       !isAreaFamily(input.family) &&
       !isXyChartFamily(input.family) &&
       input.family !== "histogram" &&
+      input.family !== "rangeBar" &&
+      input.family !== "rangeArea" &&
       input.family !== "boxPlot"
     )
       throw new Error("Unsupported editor family");

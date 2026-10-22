@@ -1,3 +1,5 @@
+import { selectRangeSession } from "./rangeSessionSelection";
+import { isRangeChartFamily } from "./rangeSessionTypes";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import { selectApplicationSession } from "./applicationSessionSelection";
 import type { ApplicationSessionContext } from "./applicationSessionTypes";
@@ -22,27 +24,34 @@ export function selectApplicationSetup(
   const family = context.inputs.family;
   if (isComboChartFamily(family))
     return selectComboSession(storage, context as ComboSessionContext);
-  const value = isPieChartFamily(family)
-    ? selectPieSession(
+  const value = isRangeChartFamily(family)
+    ? selectRangeSession(
         storage,
         context as ApplicationSessionContext<
-          import("../compatibility/pieAssignments").PieChartType
+          import("../echarts/rangeApplicationTypes").RangeFamily
         >,
       )
-    : family === "boxPlot"
-      ? selectBoxPlotSession(storage, context as ApplicationSessionContext<"boxPlot">)
-      : family === "histogram"
-        ? selectHistogramSession(
-            storage,
-            context as ApplicationSessionContext<"histogram">,
-          )
-        : isXyChartFamily(family)
-          ? selectXySession(
+    : isPieChartFamily(family)
+      ? selectPieSession(
+          storage,
+          context as ApplicationSessionContext<
+            import("../compatibility/pieAssignments").PieChartType
+          >,
+        )
+      : family === "boxPlot"
+        ? selectBoxPlotSession(storage, context as ApplicationSessionContext<"boxPlot">)
+        : family === "histogram"
+          ? selectHistogramSession(
               storage,
-              context as ApplicationSessionContext<
-                import("../compatibility/xyAssignments").XyChartType
-              >,
+              context as ApplicationSessionContext<"histogram">,
             )
-          : selectApplicationSession(storage, context as ApplicationSessionContext);
+          : isXyChartFamily(family)
+            ? selectXySession(
+                storage,
+                context as ApplicationSessionContext<
+                  import("../compatibility/xyAssignments").XyChartType
+                >,
+              )
+            : selectApplicationSession(storage, context as ApplicationSessionContext);
   return { status: "ready" as const, stamp: context.local.stamp, value };
 }

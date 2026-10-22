@@ -14,8 +14,19 @@ import {
   rangeNumericPolicy,
 } from "./rangeAxisAppearance";
 
+export type RangeAppearanceInput = Pick<
+  RangeApplicationInput,
+  | "family"
+  | "baseline"
+  | "generated"
+  | "theme"
+  | "axisRuntime"
+  | "legendEnabled"
+  | "precision"
+>;
+
 export function resolveRangeAppearance(
-  input: RangeApplicationInput,
+  input: RangeAppearanceInput,
   seriesIds: readonly string[],
   kind: RangeCategoryKind,
   horizontal: boolean,

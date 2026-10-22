@@ -1,12 +1,12 @@
 import type { CustomSeriesOption, CustomSeriesRenderItemAPI } from "echarts";
 import { fontStyle } from "./cartesianDisplay";
 import { markerDimensions, markerSymbol } from "./cartesianMarkers";
-import { rangeTransport } from "./rangeAreaAxes";
 import {
   type AreaPlot,
   areaCategoryCoordinate,
   areaPoint,
   rangeAreaHit,
+  rangeAreaPreflightCoord,
 } from "./rangeAreaHit";
 import { areaPaths, finitePoints, type Point, partition } from "./rangeAreaPaths";
 import type {
@@ -249,17 +249,7 @@ export function preflightRangeArea(
     ]);
   const transport = rangeCategoryTransport(category);
   if (!input.style.valueScale || !transport) return;
-  const [min, max] = rangeTransport(input);
-  const [a, b] = transport;
-  const coord: Coord = (data) => {
-    if (!Array.isArray(data)) throw Error("Expected pair.");
-    const x = (Number(data[0]) - a) / (b - a);
-    const y = (Number(data[1]) - min) / (max - min);
-    return [
-      p.left + (category.reverse ? 1 - x : x) * p.width,
-      p.top + (input.style.valueScale?.reverse ? y : 1 - y) * p.height,
-    ];
-  };
+  const coord = rangeAreaPreflightCoord(input, category);
   projection.fields.forEach((f, i) => {
     if (!f.enabled) return;
     glyphs(input, projection, i, text, category, coord);

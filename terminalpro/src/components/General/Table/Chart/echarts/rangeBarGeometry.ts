@@ -65,7 +65,7 @@ function endpointPoints(
     return point;
   });
 }
-function interval(
+export function rangeBarInterval(
   input: RangeBarMappingInput,
   projection: RangeBarProjection,
   datum: RangeBarDatum,
@@ -180,7 +180,7 @@ export function createRangeRenderer(
     if (input.style.valueScale === null || !field.enabled || !datum?.summary) return;
     const plot = plotRectangle(params.coordSys);
     if (rangeBarCategoryCoordinate(category, slot) === null) return;
-    const rect = interval(
+    const rect = rangeBarInterval(
       input,
       projection,
       datum,
@@ -204,7 +204,7 @@ export function createRangeRenderer(
     };
   };
 }
-function preflightCoord(
+export function rangeBarPreflightCoord(
   input: RangeBarMappingInput,
   category: RangeCategoryPlan,
 ): CustomSeriesRenderItemAPI["coord"] {
@@ -236,7 +236,7 @@ export function preflightRangeGeometry(
 ): void {
   const p = input.context.plot;
   const plot = { x: p.left, y: p.top, width: p.width, height: p.height };
-  const coord = preflightCoord(input, category);
+  const coord = rangeBarPreflightCoord(input, category);
   for (const s of Object.values(input.style.fields))
     finiteRangeGeometry({
       spacing: s.label.spacing + s.label.padding + p.width + p.height,
@@ -251,7 +251,15 @@ export function preflightRangeGeometry(
           datum.summary &&
           rangeBarCategoryCoordinate(category, datum.groupSlot) !== null
         ) {
-          const rect = interval(input, projection, datum, index, plot, coord, category);
+          const rect = rangeBarInterval(
+            input,
+            projection,
+            datum,
+            index,
+            plot,
+            coord,
+            category,
+          );
           children(
             rect,
             input.style.direction === "vertical",

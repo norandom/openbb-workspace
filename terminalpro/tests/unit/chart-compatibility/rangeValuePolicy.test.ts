@@ -40,3 +40,22 @@ it("retains policy bounds when legacy optional bounds are undefined", () => {
   });
   expect(result.fullExtent).toEqual([0, 10]);
 });
+it("crops an accepted full value domain without replacing bounds or nicing again", () => {
+  const result = planRangeValueAxis({
+    dataExtent: [4, 7],
+    bounds: {},
+    span: 400,
+    fullExtent: [0, 20],
+    visibleRange: [0.25, 0.75],
+    policy: {
+      min: -100,
+      max: 100,
+      nice: true,
+      reverse: false,
+      interval: { values: [0, 5, 10, 15, 20] },
+    },
+  });
+  expect(result.fullExtent).toEqual([0, 20]);
+  expect(result.visibleExtent).toEqual([5, 15]);
+  expect(result.rawTicks).toEqual([5, 10, 15]);
+});

@@ -862,3 +862,127 @@ it("uses actual Box configured legend defaults, retained native choices and new 
   ]);
   owner.dispose();
 });
+it("uses the final projected pointer plan and expires hit targets on resize and disposal", () => {
+  let width = 400;
+  const container = document.createElement("div");
+  document.body.append(container);
+  Object.defineProperties(container, {
+    clientWidth: { get: () => width },
+    clientHeight: { get: () => 200 },
+  });
+  container.getBoundingClientRect = () => ({
+    left: 0,
+    top: 0,
+    width,
+    height: 200,
+    right: width,
+    bottom: 200,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  });
+  const chart = {
+    setOption: vi.fn(),
+    resize: vi.fn(),
+    dispose: vi.fn(),
+    getDataURL: vi.fn(),
+    dispatchAction: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+    getOption: () => ({}),
+  };
+  mocks.init.mockReturnValue(chart);
+  const pick = vi.fn(() => ({ distance: 0, matches: [{ key: "field:0" }] }));
+  const requestFor = (revision: number, viewportWidth: number) => ({
+    revision,
+    legendScope: "range",
+    options: { legend: { data: ["field"] } },
+    projectLegendSelection: () => ({ title: { text: "legend" } }),
+    projectNavigationWindow: () => ({ title: { text: "window" } }),
+    projectPointer: (options: unknown) => {
+      expect(options).toMatchObject({ title: { text: "window" } });
+      return {
+        viewport: { width: viewportWidth, height: 200 },
+        plot: { left: 0, top: 0, width: viewportWidth, height: 200 },
+        pagination: false,
+        pick,
+        present: () => ({ html: "<b>Range endpoint</b>", anchor: { x: 100, y: 50 } }),
+      };
+    },
+  });
+  const owner = createChartLifecycle(container);
+  owner.mount(requestFor(1, 400));
+  container.dispatchEvent(new MouseEvent("pointermove", { clientX: 100, clientY: 50 }));
+  expect(container.textContent).toContain("Range endpoint");
+  width = 500;
+  owner.resize();
+  pick.mockClear();
+  container.dispatchEvent(new MouseEvent("pointermove", { clientX: 100, clientY: 50 }));
+  expect(pick).not.toHaveBeenCalled();
+  expect(
+    (container.querySelector("[data-openbb-range-pointer]") as HTMLElement).style
+      .display,
+  ).toBe("none");
+  owner.update(requestFor(2, 500));
+  container.dispatchEvent(new MouseEvent("pointermove", { clientX: 100, clientY: 50 }));
+  expect(pick).toHaveBeenCalledTimes(1);
+  owner.dispose();
+  pick.mockClear();
+  container.dispatchEvent(new MouseEvent("pointermove", { clientX: 100, clientY: 50 }));
+  expect(pick).not.toHaveBeenCalled();
+  container.remove();
+});
+
+it("reports a double-click picker failure once and invalidates export", () => {
+  const container = document.createElement("div");
+  Object.defineProperties(container, {
+    clientWidth: { value: 400 },
+    clientHeight: { value: 200 },
+  });
+  container.getBoundingClientRect = () => ({
+    left: 0,
+    top: 0,
+    width: 400,
+    height: 200,
+    right: 400,
+    bottom: 200,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  });
+  const chart = {
+    setOption: vi.fn(),
+    resize: vi.fn(),
+    dispose: vi.fn(),
+    getDataURL: vi.fn(),
+    dispatchAction: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+    getOption: () => ({}),
+  };
+  mocks.init.mockReturnValue(chart);
+  const failure = Error("pointer picker failed");
+  const onError = vi.fn();
+  const owner = createChartLifecycle(container);
+  owner.mount({
+    revision: 1,
+    options: {},
+    onError,
+    projectNavigationWindow: (options) => options,
+    projectPointer: () => ({
+      viewport: { width: 400, height: 200 },
+      plot: { left: 0, top: 0, width: 400, height: 200 },
+      pagination: true,
+      pick: () => {
+        throw failure;
+      },
+      present: () => undefined,
+    }),
+  });
+  chart.dispatchAction.mockClear();
+  container.dispatchEvent(new MouseEvent("dblclick", { clientX: 100, clientY: 50 }));
+  expect(onError).toHaveBeenCalledExactlyOnceWith(failure);
+  expect(chart.dispatchAction).not.toHaveBeenCalled();
+  expect(() => owner.exportImage()).toThrow("unavailable");
+  owner.dispose();
+});

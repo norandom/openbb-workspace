@@ -99,6 +99,10 @@ export interface RangeApplicationInput {
   readonly visibleRange?: Window;
   // A navigation re-projection retains this accepted full-domain plan.
   readonly categoryFullExtent?: Extent;
+  readonly valueFullExtent?: Extent;
+  readonly valueVisibleRange?: Window;
+  readonly valueDataExtent?: Extent;
+  readonly plotBottomInset?: number;
 }
 export type RangeApplicationResult =
   | {

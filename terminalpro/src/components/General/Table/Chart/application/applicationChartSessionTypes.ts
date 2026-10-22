@@ -10,6 +10,7 @@ import type {
 } from "./comboSessionTypes";
 import type { SessionStamp } from "./types";
 export type ApplicationChartReady =
+  | import("./rangeSessionTypes").RangeSessionReady
   | (ApplicationSessionReady & {
       readonly kind: "boxPlot";
       readonly boxPlot: import("./boxPlotSessionTypes").BoxPlotEditorProjection;
@@ -42,6 +43,7 @@ export interface ApplicationChartCommand {
   readonly geometry?: ComboGeometry;
   readonly intent:
     | ApplicationSessionCommand["intent"]
+    | import("./rangeSessionTypes").RangeEditIntent
     | import("./boxPlotSessionTypes").BoxPlotEditIntent
     | import("./pieSessionTypes").PieEditIntent
     | import("./xySessionTypes").XyEditIntent

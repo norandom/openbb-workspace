@@ -11,6 +11,7 @@ export interface RangeValueAxisInput {
   readonly density?: LinearTickDensity;
   readonly visibleRange?: readonly [number, number];
   readonly policy?: RangeNumericAxisPolicy;
+  readonly fullExtent?: Extent;
 }
 export interface RangeValueAxisPlan {
   readonly semanticExtent: Extent;
@@ -76,10 +77,13 @@ export function planRangeValueAxis(input: RangeValueAxisInput): RangeValueAxisPl
   validate(input, window);
   const policy = input.policy ?? { nice: true, reverse: false, interval: {} };
   const numeric = {
-    domain: {
-      mode: "full" as const,
-      dataExtent: input.policy ? input.dataExtent : semanticExtent(input),
-    },
+    domain:
+      input.fullExtent === undefined
+        ? {
+            mode: "full" as const,
+            dataExtent: input.policy ? input.dataExtent : semanticExtent(input),
+          }
+        : { mode: "window" as const, fullExtent: input.fullExtent },
     policy: input.policy
       ? {
           ...policy,

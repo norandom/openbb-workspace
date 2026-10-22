@@ -1,3 +1,4 @@
+import { observationSnapshotPolicy } from "./histogramCapture";
 import cloneDeep from "lodash/cloneDeep";
 import isEqual from "lodash.isequal";
 import type {
@@ -50,6 +51,7 @@ export const sessionDataKey = <F extends ApplicationChartFamily>(
     input.categoryColumnId,
     input.columns,
     input.rangePolicy,
+    input.initialAxes,
   ]);
 export const sessionAppearanceKey = <F extends ApplicationChartFamily>(
   input: ApplicationSessionInputs<F>,
@@ -197,7 +199,7 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
     isPieChartFamily(inputs.family) || inputs.family === "boxPlot"
       ? undefined
       : readAxisSettings(state.local.baseline.model);
-  const axes = isEqual(preference, previousPreference)
+  let axes = isEqual(preference, previousPreference)
     ? state.local.axes
     : preference
       ? restoreAxisSettings(baseline.model, state.local.axes)
@@ -208,9 +210,16 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
   const dataKey = sessionDataKey(inputs);
   const appearanceKey = sessionAppearanceKey(inputs);
   const actionKey = sessionActionKey(storage);
+  if (
+    (inputs.family === "rangeBar" || inputs.family === "rangeArea") &&
+    state.dataKey !== dataKey &&
+    !preference &&
+    baseline.model.categoryAxisType == null
+  )
+    axes = resetAxisSettings(inputs.initialAxes, axes);
   const dataChanged =
-    (state.sourceFamily !== inputs.family &&
-      (state.sourceFamily === "boxPlot" || inputs.family === "boxPlot")) ||
+    observationSnapshotPolicy(state.sourceFamily ?? "") !==
+      observationSnapshotPolicy(inputs.family) ||
     state.dataKey !== dataKey ||
     !isEqual(before, after) ||
     !isEqual(range, state.local.range);

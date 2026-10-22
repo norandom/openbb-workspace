@@ -1,3 +1,4 @@
+import { isRangeChartFamily } from "./application/rangeSessionTypes";
 import type { ChartModel, ColDef, CreateRangeChartParams } from "ag-grid-community";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { SetLoadingOnResize } from "~/components/DraggableCard/SetLoadingOnResize";
@@ -73,7 +74,8 @@ export function ChartViewElement() {
           isComboChartFamily(inputs.value.family) ||
           isXyChartFamily(inputs.value.family) ||
           inputs.value.family === "histogram" ||
-          inputs.value.family === "boxPlot") ? (
+          inputs.value.family === "boxPlot" ||
+          isRangeChartFamily(inputs.value.family)) ? (
           <LiveCallerChart inputs={inputs.value} />
         ) : (
           <PendingCallerChart
@@ -236,7 +238,8 @@ function LiveCallerChart({
       isPieChartFamily(inputs.family) ||
       isXyChartFamily(inputs.family) ||
       inputs.family === "histogram" ||
-      inputs.family === "boxPlot"
+      inputs.family === "boxPlot" ||
+      isRangeChartFamily(inputs.family)
     )
       return;
     updateWidget?.((previous) => ({
@@ -259,7 +262,8 @@ function LiveCallerChart({
         {(ready?.kind === "pie" ||
           ready?.kind === "xy" ||
           ready?.kind === "histogram" ||
-          ready?.kind === "boxPlot") &&
+          ready?.kind === "boxPlot" ||
+          ready?.kind === "range") &&
           !(
             Array.isArray(ready.options.series)
               ? ready.options.series
@@ -287,30 +291,32 @@ function LiveCallerChart({
           themeResetKey={inputs.theme.name}
           state={ready.editor}
           mode={
-            ready.kind === "boxPlot"
-              ? {
-                  kind: "boxPlot",
-                  controls: ready.boxPlot.controls,
-                  onEdit: session.onBoxPlot,
-                }
-              : ready.kind === "pie"
-                ? { kind: "pie", canSwitchCategorySeries: inputs.family !== "pie" }
-                : ready.kind === "histogram"
-                  ? {
-                      kind: "histogram",
-                      ...ready.histogram,
-                      onEdit: session.onHistogram,
-                    }
-                  : ready.kind === "xy"
-                    ? { kind: "xy", ...ready.xy, onEdit: session.onXy }
-                    : ready.kind === "combo"
-                      ? {
-                          kind: "combo",
-                          ...ready.combo,
-                          onAssignment: session.onComboAssignment,
-                          onGeometry: session.onComboGeometry,
-                        }
-                      : { kind: "ordinary" }
+            ready.kind === "range"
+              ? { kind: "range", ...ready.range, onEdit: session.onRange }
+              : ready.kind === "boxPlot"
+                ? {
+                    kind: "boxPlot",
+                    controls: ready.boxPlot.controls,
+                    onEdit: session.onBoxPlot,
+                  }
+                : ready.kind === "pie"
+                  ? { kind: "pie", canSwitchCategorySeries: inputs.family !== "pie" }
+                  : ready.kind === "histogram"
+                    ? {
+                        kind: "histogram",
+                        ...ready.histogram,
+                        onEdit: session.onHistogram,
+                      }
+                    : ready.kind === "xy"
+                      ? { kind: "xy", ...ready.xy, onEdit: session.onXy }
+                      : ready.kind === "combo"
+                        ? {
+                            kind: "combo",
+                            ...ready.combo,
+                            onAssignment: session.onComboAssignment,
+                            onGeometry: session.onComboGeometry,
+                          }
+                        : { kind: "ordinary" }
           }
           onIntent={session.onIntent}
           onAxisStructure={session.onAxisStructure}

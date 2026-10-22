@@ -54,12 +54,14 @@ export function rangeConcreteAxes(
     const previous = runtime.axes.find((a) => a.id === id);
     const type = id === "category" ? kind : "number";
     const defaultPosition = direction === "x" ? "bottom" : "left";
+    const options = { ...(previous?.options ?? {}) };
+    if (previous?.direction !== direction) delete options.position;
     const candidate: ApplicationConcreteAxis = {
       id,
       type,
       direction,
       position: defaultPosition,
-      options: previous?.options ?? {},
+      options,
     };
     const position =
       rangeAxisRead(layers, candidate, "position") ??

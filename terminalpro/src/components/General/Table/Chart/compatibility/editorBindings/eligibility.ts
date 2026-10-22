@@ -1,10 +1,10 @@
+import type { ApplicationAxisId } from "../../application/appearanceModel";
 import { isAreaFamily } from "../../echarts/cartesianAreaTypes";
 import type { CartesianFamily } from "../../echarts/cartesianTypes";
-import type { ApplicationAxisId } from "../../application/appearanceModel";
 import type { EditorEligibility } from "./types";
 
 export interface EditorPredicateInput {
-  readonly family: CartesianFamily;
+  readonly family: CartesianFamily | "rangeBar" | "rangeArea";
   readonly firstDatum: Readonly<Record<string, unknown>> | undefined;
   readonly dimensionIds: readonly string[];
   readonly grouping: boolean;
@@ -24,23 +24,32 @@ export function deriveEditorEligibility(
   const common = { position: true, grid: true, ticks: true };
   return {
     legend: true,
-    shadow: input.family !== "line",
+    shadow: input.family !== "line" && input.family !== "rangeBar",
     labels: true,
-    markers: input.family === "line" || isAreaFamily(input.family),
-    connectMissingData: input.family === "line",
+    markers:
+      input.family === "line" ||
+      isAreaFamily(input.family) ||
+      input.family === "rangeArea",
+    connectMissingData: input.family === "line" || input.family === "rangeArea",
     axes: {
       category: {
         ...common,
-        type: numerical && !input.grouping && !input.categorySeriesSwitched,
+        type:
+          input.family !== "rangeBar" &&
+          numerical &&
+          !input.grouping &&
+          !input.categorySeriesSwitched,
         timeFormat: category === "time",
-        tickLength: category !== "grouped-category",
+        ticks: input.family !== "rangeBar",
+        tickLength: input.family !== "rangeBar" && category !== "grouped-category",
         autoRotate: category !== "grouped-category",
       },
       number: {
         ...common,
         type: false,
         timeFormat: false,
-        tickLength: true,
+        ticks: input.family !== "rangeBar",
+        tickLength: input.family !== "rangeBar",
         autoRotate: true,
       },
     },

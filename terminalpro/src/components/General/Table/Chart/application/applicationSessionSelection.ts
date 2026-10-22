@@ -58,6 +58,8 @@ export function canSwitchCategorySeries(family: ApplicationChartFamily): boolean
     !isXyChartFamily(family) &&
     family !== "histogram" &&
     family !== "boxPlot" &&
+    family !== "rangeBar" &&
+    family !== "rangeArea" &&
     family !== "pie"
   );
 }
