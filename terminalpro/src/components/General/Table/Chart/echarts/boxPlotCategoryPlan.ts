@@ -91,25 +91,27 @@ function overlaps(
   rotation: number,
 ): boolean {
   const radians = (rotation * Math.PI) / 180;
-  const cosine = Math.abs(Math.cos(radians));
-  const sine = Math.abs(Math.sin(radians));
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
   const gap = font.minSpacing ?? (rotation ? 0 : 10);
-  let end = Number.NEGATIVE_INFINITY;
+  const previous: { x: number; y: number; width: number; height: number }[] = [];
   return slots.some((slot) => {
+    if (!labels[slot]) return false;
     const size = measureText(labels[slot], font);
-    const extent = vertical
-      ? size.width * cosine + size.height * sine
-      : size.height * cosine + size.width * sine;
-    // Rotated bottom labels end at their raw tick; long boundary text extends outward.
-    const before =
-      vertical && rotation
-        ? rotation > 0
-          ? size.width * cosine
-          : size.height * sine
-        : extent / 2;
-    const start = slot * step - before;
-    const collision = start < end;
-    end = start + extent + gap;
+    const distance = slot * step;
+    // The original compares tick anchors in label coordinates, not projected text.
+    const x = distance * (vertical ? -cosine : sine);
+    const y = distance * (vertical ? sine : cosine);
+    const width = size.width + gap;
+    const height = size.height + gap;
+    const collision = previous.some(
+      (box) =>
+        x < box.x + box.width &&
+        x + width > box.x &&
+        y < box.y + box.height &&
+        y + height > box.y,
+    );
+    previous.push({ x, y, width, height });
     return collision;
   });
 }

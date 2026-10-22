@@ -17,6 +17,7 @@ type Grid = {
   top: number;
   bottom: number;
   containLabel?: boolean;
+  outerBoundsMode?: "none";
 };
 function footprint(
   a: BoxResolvedAxis,
@@ -116,7 +117,8 @@ function mainGrid(
   numeric: number,
   reservation: number,
 ): Grid {
-  const grid = { ...chrome, containLabel: false };
+  // The Box label plan already reserves axis space; ECharts must retain that plot.
+  const grid: Grid = { ...chrome, containLabel: false, outerBoundsMode: "none" };
   grid[
     input.style.axes.category.fields.position as "left" | "right" | "top" | "bottom"
   ] += category;

@@ -49,18 +49,20 @@ function projection(labels: string[]): BoxPlotProjection {
 }
 beforeEach(() =>
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
-    measureText: (text: string) => ({ width: text.length * 6 }),
+    // ECharts uses the CJK reference glyph width as its font line height.
+    measureText: (text: string) => ({ width: text === "国" ? 11 : text.length * 6 }),
   } as any),
 );
 
-it("wraps against the actual box band, preserves failed text, rotates then thins raw slots by powers of two", () => {
-  const labels = Array.from({ length: 12 }, (_, i) => `FY ${2016 + i}`);
+it("retains both partial boundary labels in the eleven-group FMP category plan", () => {
+  const labels = Array.from({ length: 11 }, (_, i) => `FY ${2016 + i}`);
   labels[0] += " (partial: 1/4 quarters)";
-  labels[11] += " (partial: 3/4 quarters)";
+  labels[10] += " (partial: 3/4 quarters)";
   const groups = projection(labels);
-  const plan = planBoxCategoryLabels(categoryInput(), groups, 528);
-  expect(plan.bandwidth).toBeCloseTo(30.8);
+  const plan = planBoxCategoryLabels(categoryInput({ minSpacing: 5 }), groups, 528);
+  expect(plan.bandwidth).toBeCloseTo(33.6);
   expect(plan.labels[0]).toBe(labels[0]);
+  expect(plan.labels[10]).toBe(labels[10]);
   expect(plan.labels[2]).toBe("FY\n2018");
   expect(plan.rotation).toBe(25);
   expect(plan.slots).toEqual([0, 2, 4, 6, 8, 10]);
@@ -195,4 +197,95 @@ it("uses zero default collision gap after rotation and retains an explicit rotat
     planBoxCategoryLabels(categoryInput({ rotation: 45, minSpacing: 10 }), groups, 80)
       .slots,
   ).toEqual([0, 2]);
+});
+
+it.each([
+  "vertical",
+  "horizontal",
+] as const)("checks both coordinates for positive and negative explicit rotations on %s categories", (direction) => {
+  const groups = projection(["long-label", "long-label", "long-label"]);
+  for (const rotation of [-45, 45]) {
+    const source = categoryInput({ rotation, wrapping: "never", minSpacing: 0 });
+    const input = { ...source, style: { ...source.style, direction } };
+    const plan = planBoxCategoryLabels(input, groups, 60);
+    expect(plan.rotation).toBe(-rotation);
+    expect(plan.slots).toEqual([0, 1, 2]);
+    const spaced = {
+      ...input,
+      style: {
+        ...input.style,
+        axes: {
+          ...input.style.axes,
+          category: {
+            ...input.style.axes.category,
+            labels: { ...input.style.axes.category.labels, minSpacing: 5 },
+          },
+        },
+      },
+    };
+    expect(planBoxCategoryLabels(spaced, groups, 60).slots).toEqual([0, 2]);
+  }
+});
+
+it.each([
+  ["vertical", 48],
+  ["horizontal", 44],
+] as const)("permits strictly touching %s label boxes with zero spacing", (direction, span) => {
+  const source = categoryInput({ rotation: 0, wrapping: "never", minSpacing: 0 });
+  const input = { ...source, style: { ...source.style, direction } };
+  const groups = projection(["AB", "CD", "EF", "GH"]);
+  expect(planBoxCategoryLabels(input, groups, span).slots).toEqual([0, 1, 2, 3]);
+  const labels = { ...input.style.axes.category.labels, minSpacing: 0.001 };
+  const spaced = {
+    ...input,
+    style: {
+      ...input.style,
+      axes: {
+        ...input.style.axes,
+        category: { ...input.style.axes.category, labels },
+      },
+    },
+  };
+  expect(planBoxCategoryLabels(spaced, groups, span).slots).toEqual([0, 2]);
+});
+
+it("checks nonadjacent transformed boxes when the intervening label clears both neighbors", () => {
+  const groups = projection(["A\nA\nA\nA", "B", "ABCDEFGHIJ"]);
+  const input = categoryInput({ rotation: -45, wrapping: "never", minSpacing: 0 });
+  // At 45 degrees, slot 1 clears slot 0 horizontally and slot 2 vertically.
+  // Slot 2 still intersects the taller slot 0 in the original label coordinates.
+  expect(planBoxCategoryLabels(input, groups, 60).slots).toEqual([1]);
+  const disabled = categoryInput({
+    rotation: -45,
+    wrapping: "never",
+    minSpacing: 0,
+    avoidCollisions: false,
+  });
+  expect(planBoxCategoryLabels(disabled, groups, 60).slots).toEqual([0, 1, 2]);
+  expect(planBoxCategoryLabels(disabled, groups, 60).rotation).toBe(45);
+});
+
+it.each([
+  "vertical",
+  "horizontal",
+] as const)("ignores empty display labels as %s collision obstacles while retaining raw groups", (direction) => {
+  const source = categoryInput({ rotation: 0, minSpacing: 20 });
+  const input = {
+    ...source,
+    style: { ...source.style, direction },
+    context: {
+      ...source.context,
+      display: {
+        ...source.context.display,
+        category: (value: unknown) => (value === "blank" ? "" : String(value)),
+      },
+    },
+  };
+  const groups = projection(["A", "blank", "C"]);
+  const before = structuredClone(groups);
+  const plan = planBoxCategoryLabels(input, groups, 60);
+  expect(plan.labels).toEqual(["A", "", "C"]);
+  expect(plan.slots).toEqual([0, 1, 2]);
+  expect(plan.rotation).toBe(0);
+  expect(groups).toEqual(before);
 });

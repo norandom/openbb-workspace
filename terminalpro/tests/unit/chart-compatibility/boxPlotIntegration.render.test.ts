@@ -2,6 +2,7 @@ import { type EChartsOption, type EChartsType, graphic, init } from "echarts";
 import { beforeEach, expect, it, vi } from "vitest";
 import { projectCallerTheme } from "../../../src/components/General/Table/Chart/caller/themeInputs";
 import { translateBoxPlot } from "../../../src/components/General/Table/Chart/echarts/boxPlot";
+import type { BoxPlotMappingInput } from "../../../src/components/General/Table/Chart/echarts/boxPlotTypes";
 import { histogramInput } from "./histogram.fixtures";
 
 function navigable(direction: "vertical" | "horizontal" = "vertical") {
@@ -49,14 +50,15 @@ function navigable(direction: "vertical" | "horizontal" = "vertical") {
     },
   };
 }
-function supportedBox(input: ReturnType<typeof navigable>) {
+function supportedBox(input: BoxPlotMappingInput) {
   const result = translateBoxPlot(input);
   if (result.status !== "supported") throw Error(JSON.stringify(result));
   return result;
 }
 beforeEach(() =>
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
-    measureText: (s: string) => ({ width: s.length * 6 }),
+    // ECharts derives font line height from this reference glyph.
+    measureText: (s: string) => ({ width: s === "国" ? 11 : s.length * 6 }),
   } as any),
 );
 
@@ -71,12 +73,15 @@ function boxes(chart: EChartsType) {
         el instanceof graphic.Rect && el.style.fill === "#145da0",
     );
 }
-function engine(options: EChartsOption, check: (chart: EChartsType) => void) {
+function engine(
+  options: EChartsOption,
+  check: (chart: EChartsType) => void,
+  viewport = { width: 800, height: 500 },
+) {
   const chart = init(null, undefined, {
     renderer: "svg",
     ssr: true,
-    width: 800,
-    height: 500,
+    ...viewport,
   });
   try {
     chart.setOption(options);
@@ -86,6 +91,154 @@ function engine(options: EChartsOption, check: (chart: EChartsType) => void) {
     chart.dispose();
   }
 }
+function fiscalYears(): BoxPlotMappingInput {
+  const input = navigable();
+  input.context.viewport = { width: 619, height: 593 };
+  input.context.display.category = String;
+  input.context.display.numericAxis = (value) => `${value / 1e9}B`;
+  input.style.band.paddingOuter = 0.15;
+  input.style.application.title.enabled =
+    input.style.application.subtitle.enabled = false;
+  input.style.application.padding = { top: 20, bottom: 20, left: 20, right: 20 };
+  for (const axis of [input.style.axes.category, input.style.axes.number.appearance]) {
+    axis.title.enabled = false;
+    axis.ticks.enabled = false;
+    axis.labels = {
+      ...axis.labels,
+      font: "Verdana, sans-serif",
+      fontWeight: 400,
+      size: 12,
+      padding: 11,
+      rotation: undefined,
+      autoRotate: axis === input.style.axes.category,
+    };
+  }
+  input.snapshot.rows = Array.from({ length: 11 }, (_, i) =>
+    Array.from({ length: i === 0 ? 1 : i === 10 ? 3 : 4 }, (_, quarter) => ({
+      id: `fiscal-${i}-${quarter}`,
+      category: `FY ${2016 + i}${i === 0 ? " (partial: 1/4 quarters)" : i === 10 ? " (partial: 3/4 quarters)" : ""}`,
+      values: {
+        amount: (40 + i * 2 + quarter * 5) * 1e9,
+        other: (15 + i + quarter * 3) * 1e9,
+      },
+    })),
+  ).flat();
+  return {
+    ...input,
+    style: {
+      ...input.style,
+      axes: {
+        ...input.style.axes,
+        category: {
+          ...input.style.axes.category,
+          labels: { ...input.style.axes.category.labels, minSpacing: 5 },
+        },
+      },
+    },
+  };
+}
+
+it("keeps the actual 11-year main plot at its planned bounds through a wheel-sized zoom", () => {
+  const input = fiscalYears();
+  const full = supportedBox(input);
+  const zoom = boxPlotNavigationWindow(input, full.options, {
+    dataZoom: [{ id: "openbb-navigator", start: 4.3716, end: 95.2807 }],
+  });
+  const rendered = [full.options, zoom].map((options) => {
+    let observed: any;
+    engine(
+      options,
+      (chart) => {
+        const model = (chart as any).getModel();
+        const main = model.getComponent("grid", 0).coordinateSystem.getRect();
+        const mini = model.getComponent("grid", 1).coordinateSystem.getRect();
+        const grid = (options.grid as any[])[0];
+        const planned = {
+          x: grid.left,
+          y: grid.top,
+          width: input.context.viewport.width - grid.left - grid.right,
+          height: input.context.viewport.height - grid.top - grid.bottom,
+        };
+        const rects = boxes(chart);
+        const mainAxis = model.getComponent("xAxis", 0);
+        const mainAxisGroup = (chart as any).getViewOfComponentModel(mainAxis).group;
+        const categoryLabels = chart
+          .getZr()
+          .storage.getDisplayList(true)
+          .flatMap((el: any) => {
+            const text = String(el.style?.text ?? "");
+            if (el.type !== "tspan" || !text) return [];
+            let parent = el.parent;
+            while (parent && parent !== mainAxisGroup) parent = parent.parent;
+            if (parent !== mainAxisGroup) return [];
+            const bounds = el.getBoundingRect().clone();
+            if (el.transform) bounds.applyTransform(el.transform);
+            return [
+              {
+                text,
+                x: bounds.x,
+                y: bounds.y,
+                width: bounds.width,
+                height: bounds.height,
+              },
+            ];
+          });
+        observed = {
+          main: { ...main },
+          mini: { ...mini },
+          planned,
+          bodyWidth: rects[5].shape.width,
+          miniWidth: rects[16].shape.width,
+          categoryLabels,
+        };
+        for (const key of ["x", "y", "width", "height"] as const)
+          expect.soft(main[key], `actual main ${key}`).toBeCloseTo(planned[key]);
+        expect.soft(mini.x).toBeCloseTo(planned.x);
+        expect.soft(mini.width).toBeCloseTo(planned.width);
+        expect(mini.height).toBe(18);
+        const painted = chart
+          .getZr()
+          .storage.getDisplayList(true)
+          .filter(
+            (el): el is InstanceType<typeof graphic.Rect> =>
+              el instanceof graphic.Rect &&
+              ["#145da0", "#b33b32"].includes(String(el.style.fill)),
+          );
+        const intersects = (index: number) => {
+          const shape = painted[index].shape;
+          return shape.x + shape.width > main.x && shape.x < main.x + main.width;
+        };
+        expect([0, 11].some(intersects)).toBe(true);
+        expect([10, 21].some(intersects)).toBe(true);
+        expect(main.y + main.height).toBeLessThan(mini.y);
+        expect(categoryLabels.length).toBeGreaterThan(0);
+        if (options === full.options) {
+          expect(categoryLabels.some((label) => label.text.startsWith("FY 2016"))).toBe(
+            true,
+          );
+          expect(categoryLabels.some((label) => label.text.startsWith("FY 2026"))).toBe(
+            true,
+          );
+        }
+        for (const bounds of categoryLabels) {
+          // Source-compatible boundary text may clip; its visible part stays above the miniature.
+          expect(bounds.x + bounds.width).toBeGreaterThan(0);
+          expect(bounds.x).toBeLessThan(input.context.viewport.width);
+          expect(bounds.y).toBeGreaterThanOrEqual(main.y + main.height);
+          expect(bounds.y + bounds.height).toBeLessThan(mini.y);
+        }
+        expect(rects).toHaveLength(22);
+      },
+      input.context.viewport,
+    );
+    return observed;
+  });
+  console.info("Box runtime bounds", JSON.stringify(rendered));
+  expect(rendered[1].bodyWidth).toBeGreaterThan(rendered[0].bodyWidth);
+  expect(rendered[1].mini).toEqual(rendered[0].mini);
+  expect(rendered[1].miniWidth).toBe(rendered[0].miniWidth);
+  expect(full.projection.groups).toHaveLength(11);
+});
 it("native vertical crop expands actual main boxes and leaves overview geometry full size", () => {
   const input = navigable();
   const full = supportedBox(input);
@@ -126,18 +279,32 @@ it("renders planned wrapped category labels at raw slots and measures the numeri
     axis.labels.rotation = undefined;
     axis.labels.autoRotate = true;
   }
-  input.snapshot.rows = Array.from({ length: 12 }, (_, i) => ({
+  input.snapshot.rows = Array.from({ length: 11 }, (_, i) => ({
     id: `fiscal-${i}`,
-    category: `FY ${2016 + i}${i === 0 ? " (partial: 1/4 quarters)" : i === 11 ? " (partial: 3/4 quarters)" : ""}`,
+    category: `FY ${2016 + i}${i === 0 ? " (partial: 1/4 quarters)" : i === 10 ? " (partial: 3/4 quarters)" : ""}`,
     values: { amount: i + 1, other: i + 2 },
   }));
   input.context.viewport.width = 600;
-  const result = supportedBox(input);
+  input.style.band.paddingOuter = 0.15;
+  const productionCategory = {
+    ...input,
+    style: {
+      ...input.style,
+      axes: {
+        ...input.style.axes,
+        category: {
+          ...input.style.axes.category,
+          labels: { ...input.style.axes.category.labels, minSpacing: 5 },
+        },
+      },
+    },
+  };
+  const result = supportedBox(productionCategory);
   const xAxis = result.options.xAxis as any;
   expect(xAxis.axisLabel.rotate).toBe(25);
   expect(xAxis.axisLabel.customValues).toEqual([0, 2, 4, 6, 8, 10]);
   expect(xAxis.axisLabel.formatter(2)).toBe("FY\n2018");
-  expect(result.projection.groups).toHaveLength(12);
+  expect(result.projection.groups).toHaveLength(11);
   const chart = init(null, undefined, {
     renderer: "svg",
     ssr: true,
@@ -161,8 +328,8 @@ it("renders planned wrapped category labels at raw slots and measures the numeri
     chart.dispose();
   }
   const compact = supportedBox({
-    ...input,
-    context: { ...input.context, viewport: { width: 600, height: 240 } },
+    ...productionCategory,
+    context: { ...productionCategory.context, viewport: { width: 600, height: 240 } },
   });
   expect(compact.valueAxis.span).toBeLessThan(result.valueAxis.span);
   expect(compact.valueAxis.density.tickCount).toBeLessThan(

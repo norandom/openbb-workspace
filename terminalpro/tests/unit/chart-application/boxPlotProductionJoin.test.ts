@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { initialApplicationSession } from "../../../src/components/General/Table/Chart/application/applicationSessionRuntime";
+import { resolveBoxPlotAppearance } from "../../../src/components/General/Table/Chart/application/boxPlotAppearance";
 import { projectBoxPlotSession } from "../../../src/components/General/Table/Chart/application/boxPlotSessionProjection";
 import { selectBoxPlotSession } from "../../../src/components/General/Table/Chart/application/boxPlotSessionSelection";
 import { sessionFixture } from "./applicationSessionFixture";
-import { resolveBoxPlotAppearance } from "../../../src/components/General/Table/Chart/application/boxPlotAppearance";
 
 function appearance(context = boxFixture()) {
   return resolveBoxPlotAppearance({
@@ -84,10 +84,41 @@ it.each([
     resolved.style.axes.number.appearance,
   ]) {
     expect(axis.labels).toMatchObject({ enabled: true, avoidCollisions: true });
-    expect(axis.labels).not.toHaveProperty("minSpacing");
   }
+  expect(resolved.style.axes.category.labels.minSpacing).toBe(5);
+  expect(resolved.style.axes.number.appearance.labels).not.toHaveProperty("minSpacing");
   expect(resolved.style.axes.category.labels.wrapping).toBe("on-space");
   expect(resolved.style.axes.number.appearance.labels.wrapping).toBe("never");
+});
+it("restores the caller category gap above theme defaults while preserving explicit caller and saved overrides", () => {
+  const context = boxFixture();
+  context.inputs.theme = {
+    ...context.inputs.theme,
+    overrides: {
+      common: { axes: { category: { label: { minSpacing: 13 } } } },
+      "box-plot": { axes: { category: { label: { minSpacing: 17 } } } },
+    },
+  };
+  expect(appearance(context).style.axes.category.labels.minSpacing).toBe(5);
+  context.inputs.generated = {
+    common: { axes: { category: { label: { minSpacing: 0 } } } },
+  };
+  expect(appearance(context).style.axes.category.labels.minSpacing).toBe(0);
+  context.inputs.generated = {
+    common: {
+      axes: {
+        category: { label: { minSpacing: 0 }, bottom: { label: { minSpacing: 3 } } },
+      },
+    },
+  };
+  expect(appearance(context).style.axes.category.labels.minSpacing).toBe(3);
+  context.local.baseline.options = {
+    "box-plot": { axes: { category: { label: { minSpacing: 0 } } } },
+  };
+  expect(appearance(context).style.axes.category.labels.minSpacing).toBe(0);
+  expect(appearance(context).style.axes.number.appearance.labels).not.toHaveProperty(
+    "minSpacing",
+  );
 });
 it("retains explicit fill/alpha and effective generic, positional and runtime category policy", () => {
   const context = boxFixture();

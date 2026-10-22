@@ -1,8 +1,8 @@
 import merge from "lodash.merge";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import type {
-  BoxPlotMappingInput,
   BoxLabelWrapping,
+  BoxPlotMappingInput,
   BoxResolvedAxis,
   BoxStroke,
   ResolvedBoxFieldStyle,
@@ -15,8 +15,8 @@ import type {
 } from "./axisStructureTypes";
 import type { BoxPlotControlValues } from "./boxPlotSessionTypes";
 import { resolveCommonAppearance } from "./effectiveAppearance";
-import { appearanceDefaults } from "./effectiveAppearanceDefaults";
 import { mixAppearanceColor } from "./effectiveAppearanceColors";
+import { appearanceDefaults } from "./effectiveAppearanceDefaults";
 import { at, bool, dash, number, object, text } from "./effectiveAppearanceValues";
 export class BoxPlotExtensionError extends Error {}
 function inspectExtensions(effective: RuntimeOptions) {
@@ -173,7 +173,12 @@ export function resolveBoxPlotAppearance(
     defaults,
     object(input.theme.overrides.common),
     object(input.theme.overrides["box-plot"]),
-    object(composed.value.common),
+    // The original caller supplies this gap above theme defaults, below explicit options.
+    merge(
+      {},
+      { axes: { category: { label: { minSpacing: 5 } } } },
+      object(composed.value.common),
+    ),
     object(composed.value["box-plot"]),
   ];
   const effective = merge({}, ...layers);
