@@ -13,6 +13,7 @@ import type {
 import type { RangeCategoryInput } from "./rangeCategoryTypes";
 
 export interface ResolvedRangeBarScale {
+  readonly reverse?: boolean;
   readonly min: number;
   readonly max: number;
   readonly ticks: readonly number[];

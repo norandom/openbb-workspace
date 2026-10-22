@@ -46,7 +46,10 @@ export function translateRangeArea(
           containLabel: false,
         },
         ...rangeAreaAxes(input, text, category),
-        series: rangeAreaSeries(input, projection, text, category),
+        series:
+          p.width === 0 || p.height === 0
+            ? []
+            : rangeAreaSeries(input, projection, text, category),
         tooltip: rangeAreaTooltip(input, projection, text, category),
       },
     };

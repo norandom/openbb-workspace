@@ -42,7 +42,10 @@ export function translateRangeBar(
         containLabel: false,
       },
       ...rangeBarAxes(input, text, category),
-      series: rangeBarSeries(input, projection, text, category),
+      series:
+        p.width === 0 || p.height === 0
+          ? []
+          : rangeBarSeries(input, projection, text, category),
       tooltip: rangeBarTooltip(input, projection, text, category),
     };
     return { status: "supported", options, projection };

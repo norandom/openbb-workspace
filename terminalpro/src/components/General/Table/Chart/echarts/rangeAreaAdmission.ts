@@ -119,7 +119,8 @@ function scaleValid(v: unknown): boolean {
     !finite(v.min) ||
     !finite(v.max) ||
     v.min > v.max ||
-    !Array.isArray(v.ticks)
+    !Array.isArray(v.ticks) ||
+    (v.reverse !== undefined && typeof v.reverse !== "boolean")
   )
     return false;
   const { min, max } = v;
@@ -185,9 +186,9 @@ function contextValid(
     size(p.left) &&
     size(p.top) &&
     finite(p.width) &&
-    p.width > 0 &&
+    p.width >= 0 &&
     finite(p.height) &&
-    p.height > 0 &&
+    p.height >= 0 &&
     p.left + p.width <= v.width &&
     p.top + p.height <= v.height &&
     (

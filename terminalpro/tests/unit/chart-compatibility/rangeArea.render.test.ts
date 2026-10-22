@@ -381,3 +381,36 @@ it("renders exact ticks, midpoint extrema, singleton suppression and clipped hit
     chart.dispose();
   }
 });
+it("keeps Area series IDs unique when field names contain role suffixes", () => {
+  const input = areaInput();
+  input.snapshot.selectedColumnIds = input.snapshot.selectedColumnIds.map((id) =>
+    id === "other" ? "amount:targets" : id,
+  );
+  input.snapshot.columns = input.snapshot.columns.map((column) =>
+    column.id === "other" ? { ...column, id: "amount:targets" } : column,
+  );
+  input.snapshot.rows = input.snapshot.rows.map((row) => ({
+    ...row,
+    values: { amount: row.values.amount, "amount:targets": row.values.other },
+  }));
+  input.style.fields["amount:targets"] = input.style.fields.other;
+  delete input.style.fields.other;
+  const result = translateRangeArea(input);
+  if (result.status !== "supported") throw Error(JSON.stringify(result));
+  const chart = echarts.init(null, undefined, {
+    renderer: "svg",
+    ssr: true,
+    width: 600,
+    height: 500,
+  });
+  try {
+    chart.setOption(result.options);
+    const series = chart.getOption().series as { id: string; name: string }[];
+    expect(new Set(series.map((s) => s.id)).size).toBe(4);
+    expect(new Set(series.map((s) => s.name))).toEqual(
+      new Set(["amount", "amount:targets"]),
+    );
+  } finally {
+    chart.dispose();
+  }
+});

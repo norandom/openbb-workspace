@@ -30,6 +30,7 @@ export function categoryExtent(value: unknown): value is RangeCategoryExtent {
 function inputValid(v: unknown, kind: string): v is RangeCategoryInput {
   if (!rangeRecord(v) || !categoryKind(v.kind) || v.kind !== kind) return false;
   if (!categoryExtent(v.fullExtent) || !Array.isArray(v.ticks)) return false;
+  if (v.reverse !== undefined && typeof v.reverse !== "boolean") return false;
   const w = v.visibleRange;
   return (
     w === undefined ||

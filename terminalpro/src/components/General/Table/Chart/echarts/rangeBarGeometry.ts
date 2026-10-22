@@ -106,6 +106,7 @@ function labels(
   vertical: boolean,
   style: RangeBarFieldStyle,
   text: readonly [string, string],
+  reverse: boolean,
 ): Child[] {
   const l = style.label;
   const outside = l.placement === "outside";
@@ -123,7 +124,7 @@ function labels(
     style: {
       ...fontStyle(l),
       fill: l.color,
-      text: text[index],
+      text: text[reverse ? 1 - index : index],
       x: p.x,
       y: p.y,
       align: vertical ? "center" : (index === 0) === outside ? "right" : "left",
@@ -140,6 +141,7 @@ function children(
   vertical: boolean,
   s: RangeBarFieldStyle,
   text: readonly [string, string] | null,
+  reverse: boolean,
 ): Child[] {
   const result: Child[] = [
     {
@@ -160,7 +162,7 @@ function children(
       },
     },
   ];
-  if (text) result.push(...labels(rect, vertical, s, text));
+  if (text) result.push(...labels(rect, vertical, s, text, reverse));
   finiteRangeGeometry(result);
   return result;
 }
@@ -196,6 +198,7 @@ export function createRangeRenderer(
         vertical,
         input.style.fields[field.descriptor.id],
         text.endpoints[fieldIndex][slot],
+        input.style.valueScale?.reverse ?? false,
       ),
       clipPath: { type: "rect", shape: { ...plot } },
     };
@@ -213,8 +216,12 @@ function preflightCoord(
     if (!Array.isArray(data)) throw Error("Range Bar requires coordinate pairs.");
     const slot = Number(data[vertical ? 0 : 1]);
     const value = Number(data[vertical ? 1 : 0]);
-    const normalized = (value - min) / (max - min);
-    const band = (slot - cmin) / (cmax - cmin);
+    const valueFraction = (value - min) / (max - min);
+    const categoryFraction = (slot - cmin) / (cmax - cmin);
+    const normalized = input.style.valueScale?.reverse
+      ? 1 - valueFraction
+      : valueFraction;
+    const band = category.reverse ? 1 - categoryFraction : categoryFraction;
     return vertical
       ? [p.left + band * p.width, p.top + (1 - normalized) * p.height]
       : [p.left + normalized * p.width, p.top + band * p.height];
@@ -250,6 +257,7 @@ export function preflightRangeGeometry(
             input.style.direction === "vertical",
             input.style.fields[field.descriptor.id],
             text.endpoints[index][datum.groupSlot],
+            input.style.valueScale?.reverse ?? false,
           );
         }
   });

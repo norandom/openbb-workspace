@@ -6,6 +6,7 @@ export interface RangeCategoryTick {
 }
 export interface RangeCategoryInput {
   readonly kind: RangeCategoryKind;
+  readonly reverse?: boolean;
   readonly fullExtent: RangeCategoryExtent;
   readonly visibleRange?: readonly [number, number];
   readonly ticks: readonly RangeCategoryTick[];
@@ -23,6 +24,7 @@ export interface RangeCategoryData {
 }
 export interface RangeCategoryPlan extends RangeCategoryData {
   readonly kind: RangeCategoryKind;
+  readonly reverse?: boolean;
   readonly fullExtent: RangeCategoryExtent;
   readonly visibleExtent: RangeCategoryExtent;
   readonly visibleFraction: number;

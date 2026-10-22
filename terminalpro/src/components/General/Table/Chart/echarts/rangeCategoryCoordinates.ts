@@ -111,6 +111,9 @@ export function resolveRangeCategory(
     fullExtent,
     visibleExtent: visible,
     visibleFraction: finiteCategoryResult(window[1] - window[0]),
+    ...(s.categoryCoordinates?.reverse === undefined
+      ? {}
+      : { reverse: s.categoryCoordinates.reverse }),
     ticks,
   };
 }

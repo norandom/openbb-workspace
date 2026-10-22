@@ -61,7 +61,7 @@ function categoryAxis(
     ...base,
     min,
     max,
-    inverse: false,
+    inverse: category.reverse ?? false,
     axisLabel: {
       ...base.axisLabel,
       customValues: [...ticks.keys()],
@@ -100,6 +100,7 @@ function numberAxis(
       formatter: (v: number) => text.ticks.get(v) ?? "",
     },
     axisTick: { ...base.axisTick, customValues: [...ticks] },
+    inverse: input.style.valueScale?.reverse ?? false,
     axisPointer: { label: { show: false } },
   };
 }

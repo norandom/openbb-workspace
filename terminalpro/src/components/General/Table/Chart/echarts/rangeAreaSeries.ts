@@ -56,6 +56,7 @@ function labels(
   points: readonly Point[],
   s: RangeAreaFieldStyle,
   text: readonly [string, string] | null,
+  reverse: boolean,
 ) {
   if (!text) return [];
   const outside = s.label.placement === "outside";
@@ -68,9 +69,10 @@ function labels(
       fill: s.label.color,
       text: text[i],
       x: p[0],
-      y: p[1] + (i === 0 ? d : -d),
+      y: p[1] + ((i === 0) !== reverse ? d : -d),
       align: "center" as const,
-      verticalAlign: (i === 0) === outside ? ("top" as const) : ("bottom" as const),
+      verticalAlign:
+        ((i === 0) !== reverse) === outside ? ("top" as const) : ("bottom" as const),
     },
   }));
 }
@@ -134,7 +136,12 @@ function glyphs(
         : [];
     run.forEach((d, i) =>
       children.push(
-        ...labels([low[i], high[i]], s, text.endpoints[index][d.groupSlot]),
+        ...labels(
+          [low[i], high[i]],
+          s,
+          text.endpoints[index][d.groupSlot],
+          input.style.valueScale?.reverse ?? false,
+        ),
       ),
     );
     return [
@@ -154,6 +161,9 @@ export function rangeAreaSeries(
 ): CustomSeriesOption[] {
   return projection.fields.flatMap((f, index) => {
     const visible: CustomSeriesOption = {
+      id: JSON.stringify([f.descriptor.id, "visible"]),
+      name: f.descriptor.id,
+      itemStyle: { color: input.style.fields[f.descriptor.id].fill },
       type: "custom",
       silent: true,
       clip: true,
@@ -180,7 +190,8 @@ export function rangeAreaSeries(
     };
     const targets: CustomSeriesOption = {
       type: "custom",
-      name: f.descriptor.label,
+      id: JSON.stringify([f.descriptor.id, "targets"]),
+      name: f.descriptor.id,
       clip: true,
       dimensions: ["coordinate", "slot"],
       encode: { x: 0, y: -1, tooltip: [] },
@@ -242,9 +253,11 @@ export function preflightRangeArea(
   const [a, b] = transport;
   const coord: Coord = (data) => {
     if (!Array.isArray(data)) throw Error("Expected pair.");
+    const x = (Number(data[0]) - a) / (b - a);
+    const y = (Number(data[1]) - min) / (max - min);
     return [
-      p.left + ((Number(data[0]) - a) / (b - a)) * p.width,
-      p.top + (1 - (Number(data[1]) - min) / (max - min)) * p.height,
+      p.left + (category.reverse ? 1 - x : x) * p.width,
+      p.top + (input.style.valueScale?.reverse ? y : 1 - y) * p.height,
     ];
   };
   projection.fields.forEach((f, i) => {

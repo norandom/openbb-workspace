@@ -49,10 +49,9 @@ function categoryPixels(
   if (!cell) return null;
   if (category.visibleExtent[0] === category.visibleExtent[1])
     return [plot.x, plot.x + plot.width];
-  return cell.map((v) => coord([rangeCategoryEngineCoordinate(category, v), 0])[0]) as [
-    number,
-    number,
-  ];
+  return cell
+    .map((v) => coord([rangeCategoryEngineCoordinate(category, v), 0])[0])
+    .sort((a, b) => a - b) as [number, number];
 }
 export function rangeAreaHit(
   input: RangeAreaMappingInput,
