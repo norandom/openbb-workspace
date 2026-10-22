@@ -1,4 +1,5 @@
 import type { JsonValue } from "./legacyTypes";
+import type { RangeCategoryProvenance } from "./rangeCategoryProvenance";
 
 /** Reuses the persisted JSON vocabulary without permitting nested mutation. */
 export type DeepReadonly<T> = T extends readonly (infer V)[]
@@ -49,6 +50,7 @@ export interface ResolvedSnapshotInput {
   readonly columns: readonly SnapshotColumn[];
   readonly rows: readonly SnapshotRow[];
   readonly selectedRange: SnapshotJson;
+  readonly rangeCategory?: RangeCategoryProvenance;
 }
 /** Validated copy: finite numbers, unique identities, category association and valid JSON. */
 export type ChartSnapshot = ResolvedSnapshotInput;

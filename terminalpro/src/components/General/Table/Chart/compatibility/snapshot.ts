@@ -1,3 +1,4 @@
+import { checkRangeCategoryProvenance } from "./rangeCategoryProvenance";
 import type {
   ChartSnapshot,
   DiagnosticPath,
@@ -184,6 +185,8 @@ function validate(input: unknown, policy?: SnapshotPolicy): ChartSnapshot {
     columns,
     policy === "box-observations" || policy === "statistical-observations",
   );
+  const categoryDiagnostic = checkRangeCategoryProvenance(copy);
+  if (categoryDiagnostic) failure(categoryDiagnostic.path, categoryDiagnostic.message);
   return copy as unknown as ChartSnapshot;
 }
 

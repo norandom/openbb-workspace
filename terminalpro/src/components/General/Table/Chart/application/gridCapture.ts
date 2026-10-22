@@ -1,4 +1,8 @@
-import type { GridApi, IRowNode } from "ag-grid-community";
+import type { IRowNode } from "ag-grid-community";
+import {
+  rangeCategoryModelOverride,
+  resolveRangeCategoryKind,
+} from "../compatibility/rangeCategoryProvenance";
 import { validateSnapshot } from "../compatibility/snapshot";
 import type {
   DiagnosticPath,
@@ -64,7 +68,8 @@ function inspectInput(input: GridCaptureInput): ResolvedSnapshotInput {
   if (!result.valid) reject({ status: "invalid", diagnostics: result.diagnostics });
   return result.snapshot;
 }
-function checkModel(api: GridApi<Record<string, unknown>>): void {
+function checkModel(input: GridCaptureInput): string | null {
+  const { api } = input;
   const mode = api.getGridOption("rowModelType");
   if (mode !== undefined && mode !== "clientSide")
     fail(
@@ -80,8 +85,17 @@ function checkModel(api: GridApi<Record<string, unknown>>): void {
   }
   if (api.getPinnedTopRowCount() || api.getPinnedBottomRowCount())
     fail("unresolved", ["api"], "Pinned rows require another capture path");
+  const rangeCategory =
+    input.snapshotPolicy === "statistical-observations" &&
+    input.categoryColumnId !== DEFAULT_SETUP_CATEGORY;
+  let found = false;
+  let chartDataType: unknown = null;
   for (const column of api.getColumns() ?? []) {
     const definition = column.getColDef();
+    if (rangeCategory && column.getColId() === input.categoryColumnId) {
+      found = true;
+      chartDataType = definition.chartDataType ?? null;
+    }
     if (
       column.isRowGroupActive() ||
       column.isPivotActive() ||
@@ -96,6 +110,19 @@ function checkModel(api: GridApi<Record<string, unknown>>): void {
         "Grouped or pivot columns require another capture path",
       );
   }
+  if (rangeCategory && !found)
+    fail(
+      "unresolved",
+      ["rangeCategory", "categoryColumnId"],
+      "Selected category column is unavailable in the Grid",
+    );
+  if (chartDataType !== null && typeof chartDataType !== "string")
+    fail(
+      "unresolved",
+      ["rangeCategory", "columnChartDataType"],
+      "Expected string or null Grid chart metadata",
+    );
+  return chartDataType;
 }
 function bounds(input: GridCaptureInput, count: number): [number, number] {
   const { rowStartIndex: start, rowEndIndex: end } = input.range;
@@ -126,7 +153,9 @@ function readCategory(
   node: IRowNode<Record<string, unknown>>,
   index: number,
   start: number,
-): Pick<SnapshotRow, "category" | "boxPlotAggregationKey"> {
+): Pick<SnapshotRow, "category" | "boxPlotAggregationKey"> & {
+  firstCategoryIsDate: boolean;
+} {
   const isDefault = input.categoryColumnId === DEFAULT_SETUP_CATEGORY;
   const raw: unknown = isDefault
     ? undefined
@@ -151,6 +180,13 @@ function readCategory(
     return {
       category: result.value.category,
       boxPlotAggregationKey: result.value.aggregationKey,
+      // Successful object admission above establishes an ordinary finite native Date.
+      firstCategoryIsDate:
+        input.snapshotPolicy === "statistical-observations" &&
+        index === start &&
+        !isDefault &&
+        typeof raw === "object" &&
+        raw !== null,
     };
   }
   // Original ordinary charts number the selected displayed range from one.
@@ -160,7 +196,7 @@ function readCategory(
     !(typeof category === "number" && Number.isFinite(category))
   )
     fail("unresolved", ["rows", index, "category"], "Unsupported category value");
-  return { category: category as string | number };
+  return { category: category as string | number, firstCategoryIsDate: false };
 }
 function readValues(
   input: GridCaptureInput,
@@ -199,8 +235,9 @@ function readRows(
   snapshot: ResolvedSnapshotInput,
   start: number,
   end: number,
-): SnapshotRow[] {
+): { rows: SnapshotRow[]; firstCategoryIsDate: boolean } {
   const rows: SnapshotRow[] = [];
+  let firstCategoryIsDate = false;
   const ids = new Set<string>();
   const numeric = snapshot.selectedColumnIds.filter(
     (id) => id !== snapshot.categoryColumnId,
@@ -213,31 +250,55 @@ function readRows(
     if (typeof node.id !== "string" || node.id.length === 0 || ids.has(node.id))
       fail("unresolved", [...path, "id"], "Expected a unique stable row ID");
     ids.add(node.id);
-    const category = readCategory(input, snapshot, node, index, start);
+    const { firstCategoryIsDate: isDate, ...category } = readCategory(
+      input,
+      snapshot,
+      node,
+      index,
+      start,
+    );
+    if (index === start) firstCategoryIsDate = isDate;
     rows.push({
       id: node.id,
       ...category,
       values: readValues(input, node, numeric, index),
     });
   }
-  return rows;
+  return { rows, firstCategoryIsDate };
 }
 /** Caller owns current-stamp arbitration and transformed/transpose metadata. */
 export const captureDisplayedChart: CaptureDisplayedChart = (input) => {
   try {
     const template = inspectInput(input);
     if (input.api.isDestroyed()) return { status: "waiting" };
-    checkModel(input.api);
+    const columnChartDataType = checkModel(input);
     if (!Array.isArray(input.api.getGridOption("rowData")))
       return { status: "waiting" };
     const count = input.api.getDisplayedRowCount();
     if (!Number.isSafeInteger(count) || count < 0)
       fail("unresolved", ["api", "displayedRowCount"], "Invalid displayed row count");
     const [start, end] = bounds(input, count);
+    const { rows, firstCategoryIsDate } = readRows(input, template, start, end);
+    let rangeCategory: ResolvedSnapshotInput["rangeCategory"];
+    if (input.snapshotPolicy === "statistical-observations") {
+      const facts = {
+        categoryColumnId: template.categoryColumnId,
+        columnChartDataType,
+        firstCategoryIsDate,
+      };
+      const resolved = resolveRangeCategoryKind(
+        facts,
+        rangeCategoryModelOverride(template.originalModel),
+      );
+      if (!resolved.valid)
+        reject({ status: "unresolved", diagnostics: [resolved.diagnostic] });
+      rangeCategory = { ...facts, kind: resolved.kind };
+    }
     const result = validateSnapshot(
       {
         ...template,
-        rows: readRows(input, template, start, end),
+        rows,
+        ...(rangeCategory === undefined ? {} : { rangeCategory }),
       },
       input.snapshotPolicy,
     );
