@@ -1,9 +1,12 @@
 import type { EChartsOption, GridComponentOption } from "echarts";
+import type { RangeResolvedAxis } from "../application/rangeAxisAppearance";
 import type { RangeApplicationInput, Window } from "./rangeApplicationTypes";
+import { rangeDisplayText } from "./rangeBarAdmission";
 import { cartesianNavigator } from "./cartesianNavigator";
 import { rangedNavigatorMask } from "./cartesianNavigatorMask";
 import { navigatorAxes } from "./cartesianNavigatorOverview";
 import type { RangeComposed, RangeLiveSettings } from "./rangeLiveTypes";
+import { rangeAxisFootprint } from "./rangeLabelLayout";
 import { rangeNavigatorOverview } from "./rangeNavigatorOverview";
 import { rangeNavigationPolicy } from "./rangeNavigationPolicy";
 
@@ -16,6 +19,34 @@ export function rangeNavigatorInset(
     ? 50 + Math.ceil((input.theme.navigatorFont?.fontSize ?? 10) * 1.2) + 5
     : 28;
 }
+function bottomAxisFootprint(composed: RangeComposed) {
+  const style = composed.mapping.style;
+  // Range composition retains these resolved label flags before exposing the
+  // shared application appearance type; mapping axes retain final rotations.
+  const category = composed.appearance.axes.category as RangeResolvedAxis;
+  const numeric = composed.appearance.axes.number as RangeResolvedAxis;
+  const display = composed.mapping.context.display;
+  return (
+    (category.fields.position === "bottom"
+      ? rangeAxisFootprint(
+          category,
+          composed.category.ticks.map((tick) => tick.label),
+          true,
+          style.categoryAxis.labels.rotation ?? 0,
+        )
+      : 0) +
+    (numeric.fields.position === "bottom"
+      ? rangeAxisFootprint(
+          numeric,
+          composed.valueAxis.rawTicks.map((value) =>
+            rangeDisplayText(display.numericAxis(value)),
+          ),
+          true,
+          style.numberAxis.labels.rotation ?? 0,
+        )
+      : 0)
+  );
+}
 function geometry(
   input: RangeApplicationInput,
   composed: RangeComposed,
@@ -25,15 +56,19 @@ function geometry(
   const label = settings.miniChartEnabled
     ? Math.ceil((input.theme.navigatorFont?.fontSize ?? 10) * 1.2) + 5
     : 0;
+  const style = composed.mapping.style;
+  const horizontal = "direction" in style && style.direction === "horizontal";
+  const miniAxis = horizontal ? style.numberAxis : style.categoryAxis;
+  const labelTop = miniAxis.fields.position === "top" ? label : 0;
+  // The main plot already excludes navigation and measured axes. Place the
+  // navigator after the actual bottom axis, without shrinking that plot again.
+  const top = p.top + p.height + bottomAxisFootprint(composed) + 10 + labelTop;
+  const height = settings.miniChartEnabled ? 40 : 18;
   return {
     left: p.left,
     right: Math.max(0, input.viewport.width - p.left - p.width),
-    bottom:
-      Math.max(
-        0,
-        input.viewport.height - p.top - p.height - rangeNavigatorInset(input, settings),
-      ) + label,
-    height: settings.miniChartEnabled ? 40 : 18,
+    bottom: input.viewport.height - top - height,
+    height,
     containLabel: false,
     outerBoundsMode: "none",
   };
