@@ -209,6 +209,28 @@ async function navigation(page: Page, widget: Locator, source: Source) {
     bounds.x + cropped[0].rectangle.x + cropped[0].rectangle.width / 2,
     bounds.y + cropped[0].rectangle.y + cropped[0].rectangle.height / 2,
   );
+  const retainedDrawing = await currentBox(page, widget);
+  const retained = matchWaterfall(retainedDrawing, source.movements, "vertical", false);
+  expect(
+    retained.map((row) => row.category),
+    "original exact-node double-click preserves the cropped bridge",
+  ).toEqual(cropped.map((row) => row.category));
+  const topTick = Math.min(
+    ...retainedDrawing.text
+      .filter((text) => /^[-\d,.]+\s*[KMBT]?$/.test(text.text.trim()))
+      .map((text) => text.y),
+  );
+  const topBar = Math.min(...retained.map((row) => row.rectangle.y));
+  expect(
+    topBar - topTick,
+    "visible blank plot above every cropped bar",
+  ).toBeGreaterThan(10);
+  const resetBounds = await widget.locator("canvas").first().boundingBox();
+  if (!resetBounds) throw Error("Visible Waterfall reset canvas required");
+  await page.mouse.dblclick(
+    resetBounds.x + retained[0].rectangle.x + retained[0].rectangle.width / 2,
+    resetBounds.y + (topTick + topBar) / 2,
+  );
   await waterfallGeometry(page, widget, source.movements, "vertical");
   await quick(page, widget, "Hide mini chart");
   await waterfallGeometry(page, widget, source.movements, "vertical");
