@@ -248,6 +248,11 @@ async function controls(page: Page, widget: Locator) {
   await toggle(
     editor.getByRole("group", { name: "Legend", exact: true }),
     "Enabled",
+    false,
+  );
+  await toggle(
+    editor.getByRole("group", { name: "Legend", exact: true }),
+    "Enabled",
     true,
   );
   await expand(editor, "Series");
