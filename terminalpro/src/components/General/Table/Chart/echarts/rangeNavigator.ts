@@ -114,7 +114,11 @@ export function rangeNavigator(
   if (!settings.navigatorEnabled && !settings.miniChartEnabled && !policy.zoom.enabled)
     return composed.options;
   const nav = geometry(input, composed, settings);
-  const overview = rangeNavigatorOverview(fullMini, nav, input.viewport);
+  // Hidden navigators reserve no viewport space. Only a visible miniature needs
+  // translated overview geometry; zoom carriers still use the full main domain.
+  const overview = settings.miniChartEnabled
+    ? rangeNavigatorOverview(fullMini, nav, input.viewport)
+    : composed.options;
   const mainGrid = composed.options.grid;
   const synthetic = {
     ...composed.options,

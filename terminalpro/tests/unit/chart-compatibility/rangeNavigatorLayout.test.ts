@@ -12,6 +12,51 @@ beforeEach(() =>
   } as unknown as CanvasRenderingContext2D),
 );
 const settings = { navigatorEnabled: true, miniChartEnabled: true };
+it.each([
+  "rangeBar",
+  "rangeArea",
+] as const)("keeps %s available with zoom enabled and both navigator controls off", (family) => {
+  const base = rangeLiveInput(family);
+  const result = projectRangeLiveApplication(
+    {
+      ...base,
+      theme: {
+        ...base.theme,
+        overrides: {
+          common: { legend: { position: "top" }, zoom: { enabled: true } },
+        },
+      },
+    },
+    { navigatorEnabled: false, miniChartEnabled: false },
+  );
+  expect(result.status, JSON.stringify(result)).toBe("supported");
+  if (result.status !== "supported") throw Error(JSON.stringify(result));
+  const zoom = result.options.dataZoom as {
+    id?: string;
+    show?: boolean;
+    zoomOnMouseWheel?: boolean;
+    moveOnMouseMove?: boolean;
+  }[];
+  expect(zoom.find((item) => item.id === "openbb-navigator")?.show).toBe(false);
+  expect(zoom.map((item) => item.id)).toContain("openbb-range-x-inside");
+  expect(zoom.map((item) => item.id)).toContain("openbb-range-inside");
+  expect(zoom.find((item) => item.id === "openbb-range-x-inside")).toMatchObject({
+    zoomOnMouseWheel: true,
+    moveOnMouseMove: true,
+  });
+  expect(result.options.grid).toEqual(result.composed.options.grid);
+  const chart = init(null, undefined, {
+    renderer: "svg",
+    ssr: true,
+    ...base.viewport,
+  });
+  try {
+    chart.setOption(result.options);
+    expect(chart.renderToSVGString()).not.toMatch(/NaN|Infinity/);
+  } finally {
+    chart.dispose();
+  }
+});
 const cases = [
   ["rangeArea", false, "bottom"],
   ["rangeArea", false, "top"],
