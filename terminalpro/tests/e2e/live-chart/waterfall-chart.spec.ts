@@ -358,6 +358,10 @@ test("retained AAPL Waterfall raw movements, prefix navigation, controls and fre
     source.movements,
     "vertical",
   );
+  expect(
+    [...new Set(defaultDrawing.drawing.text.map((text) => text.text))],
+    "default mixed-sign legend survives removing and re-adding the sole value field",
+  ).toEqual(expect.arrayContaining(["Positive", "Negative"]));
   await capturePie(page, widget, info, "waterfall-fmp-default-light");
   await growPieWidget(page, widget, info);
   const navigated = await navigation(page, widget, source);

@@ -3,6 +3,12 @@ import type { GridApi } from "ag-grid-community";
 import get from "lodash/get";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  initialApplicationSession,
+  synchronizeApplicationSession,
+} from "../../../src/components/General/Table/Chart/application/applicationSessionRuntime";
+import type { ApplicationSessionInputs } from "../../../src/components/General/Table/Chart/application/applicationSessionTypes";
+import type { ApplicationChartFamily } from "../../../src/components/General/Table/Chart/application/comboSessionTypes";
 import { useApplicationChartSession } from "../../../src/components/General/Table/Chart/application/useApplicationChartSession";
 import { projectCallerTheme } from "../../../src/components/General/Table/Chart/caller/themeInputs";
 import type { ChartStorageOutput } from "../../../src/components/General/Table/Chart/compatibility/legacyTypes";
@@ -209,5 +215,155 @@ it("captures a saved empty selection, refreshes it and adds current raw observat
   ).toEqual([
     [0, 15, 15],
     [15, 11, -4],
+  ]);
+});
+
+it.each([
+  "default",
+  "local-disabled",
+  "saved-disabled",
+] as const)("preserves %s sign legend through last-field removal, re-add and source synchronization", (mode) => {
+  const storage: ChartStorageOutput =
+    mode === "saved-disabled"
+      ? {
+          partition: {
+            chartModel: {
+              chartType: "waterfall",
+              chartOptions: { waterfall: { legend: { enabled: false } } },
+            },
+          },
+        }
+      : {};
+  const test = fixture(["revenue"], storage);
+  const inputs: ApplicationSessionInputs<ApplicationChartFamily> = test.inputs;
+  const { result, rerender } = renderHook(useApplicationChartSession, {
+    initialProps: inputs,
+    wrapper: test.wrapper,
+  });
+  act(() => result.current.hostProps.onResize({ width: 620, height: 420 }));
+  if (mode === "local-disabled")
+    act(() =>
+      result.current.onIntent({
+        panel: "legend",
+        edit: { field: "enabled", value: false },
+      }),
+    );
+  expect(ready(result.current).options.legend).toMatchObject({
+    show: mode === "default",
+    selectedMode: false,
+  });
+  act(() => result.current.onSetup({ kind: "series-remove", id: "revenue" }));
+  expect(ready(result.current).options.series).toEqual([]);
+  act(() => result.current.onSetup({ kind: "series-add", id: "revenue" }));
+  rerender({ ...test.inputs, dataRevision: 1 });
+  const restored = ready(result.current);
+  expect(restored.options.legend).toMatchObject({
+    show: mode === "default",
+    selectedMode: false,
+  });
+  expect(restored.editor.legend.value.enabled).toBe(mode === "default");
+  expect(restored.snapshot.rows.map((row) => row.values.revenue)).toEqual([10, -3]);
+  expect(
+    (restored.options.series as any[])[0].data.map((row: { value: number[] }) =>
+      row.value.slice(1, 3),
+    ),
+  ).toEqual([
+    [0, 10],
+    [10, 7],
+  ]);
+  expect(
+    get(
+      test.owner().widget.storage,
+      "partition.chartModel.chartOptions.waterfall.legend.enabled",
+    ),
+  ).toBe(mode === "default" ? undefined : false);
+  if (mode === "local-disabled") {
+    act(() => result.current.onChartType("groupedColumn"));
+    rerender({
+      ...inputs,
+      family: "groupedColumn",
+      theme: projectCallerTheme("light", [], {}, "groupedColumn"),
+      dataRevision: 1,
+    });
+    expect(result.current.projection.status).toBe("ready");
+    act(() => result.current.onChartType("waterfall"));
+    rerender({ ...inputs, dataRevision: 2 });
+    expect(ready(result.current).options.legend).toMatchObject({
+      show: false,
+      selectedMode: false,
+    });
+    expect(
+      get(
+        test.owner().widget.storage,
+        "partition.chartModel.chartOptions.waterfall.legend.enabled",
+      ),
+    ).toBe(false);
+  }
+});
+
+it("retains the ordinary one-series visibility reset on data synchronization", () => {
+  const source = sessionFixture();
+  const inputs = {
+    ...source.inputs,
+    range: {
+      columnIds: ["period", "revenue"],
+      originalRange: { columns: ["period", "revenue"] },
+    },
+  };
+  const before = initialApplicationSession({}, inputs, 1);
+  const synchronized = synchronizeApplicationSession(
+    {},
+    { ...inputs, dataRevision: 1 },
+    { ...before, local: { ...before.local, legendEnabled: true } },
+  );
+  expect(synchronized.local.legendEnabled).toBe(false);
+});
+
+it.each([
+  false,
+  true,
+])("resolves Waterfall's own legend default after an ordinary single-series family transition, saved disabled=%s", (disabled) => {
+  const storage: ChartStorageOutput = {
+    partition: {
+      chartModel: {
+        chartType: "groupedColumn",
+        ...(disabled
+          ? { chartOptions: { waterfall: { legend: { enabled: false } } } }
+          : {}),
+      },
+    },
+  };
+  const test = fixture(["revenue"], storage);
+  const initial: ApplicationSessionInputs<ApplicationChartFamily> = {
+    ...test.inputs,
+    family: "groupedColumn",
+    theme: projectCallerTheme("light", [], {}, "groupedColumn"),
+  };
+  const { result, rerender } = renderHook(useApplicationChartSession, {
+    initialProps: initial,
+    wrapper: test.wrapper,
+  });
+  act(() => result.current.hostProps.onResize({ width: 620, height: 420 }));
+  rerender({ ...initial, dataRevision: 1 });
+  const ordinary = result.current.projection;
+  expect(ordinary.status).toBe("ready");
+  if (ordinary.status !== "ready") return;
+  expect(ordinary.value.editor.legend.value.enabled).toBe(false);
+  act(() => result.current.onChartType("waterfall"));
+  const waterfall = {
+    ...initial,
+    family: "waterfall" as const,
+    theme: test.inputs.theme,
+    dataRevision: 1,
+  };
+  rerender(waterfall);
+  expect(ready(result.current).options.legend).toMatchObject({
+    show: !disabled,
+    selectedMode: false,
+  });
+  rerender({ ...waterfall, dataRevision: 2 });
+  expect(ready(result.current).editor.legend.value.enabled).toBe(!disabled);
+  expect(ready(result.current).snapshot.rows.map((row) => row.values.revenue)).toEqual([
+    10, -3,
   ]);
 });

@@ -1,4 +1,3 @@
-import { observationSnapshotPolicy } from "./histogramCapture";
 import cloneDeep from "lodash/cloneDeep";
 import isEqual from "lodash.isequal";
 import type {
@@ -31,6 +30,7 @@ import {
   type ComboSessionContext,
   isComboChartFamily,
 } from "./comboSessionTypes";
+import { observationSnapshotPolicy } from "./histogramCapture";
 import { isPieChartFamily } from "./pieSessionTypes";
 import { advanceSessionStamp } from "./sessionState";
 
@@ -256,7 +256,14 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
       range,
       stamp: nextSessionStamp(state.local.stamp, dataChanged ? "data" : "render"),
       ...(dataChanged || modelChanged
-        ? { legendEnabled: after.seriesIds.length > 1 }
+        ? {
+            legendEnabled:
+              inputs.family === "waterfall"
+                ? state.sourceFamily === "waterfall"
+                  ? state.local.legendEnabled
+                  : undefined
+                : after.seriesIds.length > 1,
+          }
         : {}),
     },
   };
