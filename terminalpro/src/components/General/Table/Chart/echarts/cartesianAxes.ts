@@ -11,7 +11,7 @@ import { isHorizontalCartesianFamily } from "./cartesianTypes";
 
 export function ordinalLineCategory(
   axis: ResolvedApplicationAxis,
-  family: CartesianFamily,
+  family: CartesianFamily | "waterfall",
 ): boolean {
   return (family === "line" || isAreaFamily(family)) && axis.fields.type === "category";
 }
@@ -112,7 +112,7 @@ function axisOptions(
   display: ChartDisplayPolicy,
   category: boolean,
   viewport: NonNullable<CartesianMappingContext["viewport"]>,
-  family: CartesianFamily,
+  family: CartesianFamily | "waterfall",
 ): XAXisComponentOption {
   const continuous = !category || continuousCategory(axis);
   const ordinal = category && ordinalLineCategory(axis, family);
@@ -134,7 +134,7 @@ function axisOptions(
     position: axis.fields.position as "top" | "bottom",
     // Original horizontal bars preserve displayed input order from top to bottom.
     ...(category &&
-    isHorizontalCartesianFamily(family) &&
+    (isHorizontalCartesianFamily(family) || family === "waterfall") &&
     ["left", "right"].includes(axis.fields.position)
       ? { inverse: true }
       : {}),
@@ -211,7 +211,7 @@ export function applicationAxes(
   snapshot: ChartSnapshot,
   display: ChartDisplayPolicy,
   viewport: NonNullable<CartesianMappingContext["viewport"]>,
-  family: CartesianFamily,
+  family: CartesianFamily | "waterfall",
   extent: { min?: number; max?: number; interval?: number } = {},
 ): { xAxis: XAXisComponentOption; yAxis: YAXisComponentOption } {
   const c = axisOptions(category, snapshot, display, true, viewport, family);

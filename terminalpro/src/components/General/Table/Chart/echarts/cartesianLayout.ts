@@ -52,7 +52,7 @@ function legendExtent(
   columns: readonly SnapshotColumn[],
   display: ChartDisplayPolicy,
   width: number,
-  family: CartesianFamily | "rangeBar" | "rangeArea",
+  family: CartesianFamily | "rangeBar" | "rangeArea" | "waterfall",
 ) {
   const legend = a.legend;
   const sizes = columns.map((c) =>
@@ -86,7 +86,7 @@ function legendOptions(
   a: ResolvedApplicationAppearance,
   columns: readonly SnapshotColumn[],
   display: ChartDisplayPolicy,
-  family: CartesianFamily | "rangeBar" | "rangeArea",
+  family: CartesianFamily | "rangeBar" | "rangeArea" | "waterfall",
   captionSpace: number,
 ): LegendComponentOption {
   const l = a.legend;
@@ -130,7 +130,7 @@ function legendOptions(
 }
 function legendWidth(
   a: ResolvedApplicationAppearance,
-  family: CartesianFamily | "rangeBar" | "rangeArea",
+  family: CartesianFamily | "rangeBar" | "rangeArea" | "waterfall",
 ): number {
   // Original line legends include a 25px series sample, even with markers hidden.
   return family === "line" ? Math.max(25, a.legend.markerSize) : a.legend.markerSize;
@@ -139,7 +139,7 @@ export function applicationLayout(
   a: ResolvedApplicationAppearance,
   columns: readonly SnapshotColumn[],
   display: ChartDisplayPolicy,
-  family: CartesianFamily | "rangeBar" | "rangeArea",
+  family: CartesianFamily | "rangeBar" | "rangeArea" | "waterfall",
   viewport: NonNullable<CartesianMappingContext["viewport"]>,
 ): Pick<EChartsOption, "title" | "legend" | "grid" | "backgroundColor"> {
   const titleHeight = captionHeight(a.title);
