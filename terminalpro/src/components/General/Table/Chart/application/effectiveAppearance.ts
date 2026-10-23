@@ -72,7 +72,8 @@ export function resolveCommonAppearance(
       | "histogram"
       | "boxPlot"
       | "rangeBar"
-      | "rangeArea";
+      | "rangeArea"
+      | "waterfall";
   },
   sourceLayers: RuntimeOptions[],
 ): ResolvedApplicationAppearance {
