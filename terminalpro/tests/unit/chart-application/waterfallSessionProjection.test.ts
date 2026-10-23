@@ -4,9 +4,11 @@ import type { ApplicationChartCommand } from "../../../src/components/General/Ta
 import { executeApplicationChartCommand } from "../../../src/components/General/Table/Chart/application/applicationSessionDispatch";
 import { initialApplicationSession } from "../../../src/components/General/Table/Chart/application/applicationSessionRuntime";
 import type { ApplicationSessionState } from "../../../src/components/General/Table/Chart/application/applicationSessionTypes";
+import { projectOrdinarySetup } from "../../../src/components/General/Table/Chart/application/setupProjection";
 import { projectWaterfallSession } from "../../../src/components/General/Table/Chart/application/waterfallSessionProjection";
 import { projectCallerTheme } from "../../../src/components/General/Table/Chart/caller/themeInputs";
 import type { ChartStorageOutput } from "../../../src/components/General/Table/Chart/compatibility/legacyTypes";
+import { validateSnapshot } from "../../../src/components/General/Table/Chart/compatibility/snapshot";
 import type { WidgetT } from "../../../src/components/types";
 import { engine } from "../chart-compatibility/waterfall.fixtures";
 import { sessionFixture } from "./applicationSessionFixture";
@@ -95,6 +97,46 @@ function edit(
     fixture: { inputs: fixture.inputs, state: changed.value },
   };
 }
+
+it("allows empty Waterfall snapshots while retaining ordinary defaults, unit admission and malformed-value rejection", () => {
+  const capture = source().state.capture!;
+  const empty = {
+    ...capture,
+    selectedColumnIds: ["period"],
+    columns: capture.columns.filter((column) => column.role === "category"),
+    rows: capture.rows.map((row) => ({ ...row, values: {} })),
+  };
+  expect(validateSnapshot(empty).valid).toBe(false);
+  expect(validateSnapshot(empty, "waterfall-observations").valid).toBe(true);
+  const selection = {
+    categoryId: "period",
+    seriesIds: [],
+    switchCategorySeries: false,
+  };
+  expect(projectOrdinarySetup(capture, selection).status).toBe("invalid");
+  expect(
+    projectOrdinarySetup(capture, selection, "waterfall-observations").status,
+  ).toBe("ready");
+  expect(
+    projectOrdinarySetup(
+      capture,
+      { ...selection, seriesIds: ["revenue", "income"] },
+      "waterfall-observations",
+    ).status,
+  ).toBe("invalid");
+  const malformed = {
+    ...capture,
+    rows: [{ ...capture.rows[0], values: { revenue: Number.POSITIVE_INFINITY } }],
+  };
+  expect(validateSnapshot(malformed, "waterfall-observations").valid).toBe(false);
+  expect(
+    projectOrdinarySetup(
+      malformed,
+      { ...selection, seriesIds: ["revenue"] },
+      "waterfall-observations",
+    ).status,
+  ).toBe("invalid");
+});
 
 it("joins initialized mixed-unit selection to raw cumulative bars, caller paint and generated appearance", () => {
   const fixture = source();

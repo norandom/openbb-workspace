@@ -31,7 +31,11 @@ export function selectWaterfallSession(
   const range = sessionRange(storage, context);
   const setup = sessionSetup(baseline.model, range, context);
   const effective = waterfallSelection(setup);
-  const projected = projectOrdinarySetup(context.capture, effective);
+  const projected = projectOrdinarySetup(
+    context.capture,
+    effective,
+    "waterfall-observations",
+  );
   if (projected.status !== "ready") throw Error(projected.diagnostics[0].message);
   const paint = context.inputs.theme.waterfallPaint;
   if (!paint) throw Error("Missing original Waterfall theme paint");
@@ -80,6 +84,6 @@ export function selectWaterfallSession(
     selection,
     bindings,
     editor: editor.value,
-    fieldId: effective.seriesIds[0],
+    fieldId: effective.seriesIds.length ? effective.seriesIds[0] : undefined,
   };
 }

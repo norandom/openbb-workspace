@@ -175,6 +175,7 @@ function validate(input: unknown, policy?: SnapshotPolicy): ChartSnapshot {
     copy,
     columns,
     policy === "xy-coordinates" ||
+      policy === "waterfall-observations" ||
       policy === "histogram-observations" ||
       policy === "pie-observations" ||
       policy === "box-observations" ||

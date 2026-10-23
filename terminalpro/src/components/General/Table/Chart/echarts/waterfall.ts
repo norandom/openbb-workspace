@@ -194,7 +194,8 @@ function admitted(input: WaterfallRenderInput): WaterfallRenderResult {
   const fields = input.snapshot.columns.filter(
     (c) => c.role === "number" && input.snapshot.selectedColumnIds.includes(c.id),
   );
-  if (fields.length !== 1 || fields[0].id !== input.fieldId)
+  const empty = fields.length === 0 && input.fieldId === undefined;
+  if (!empty && (fields.length !== 1 || fields[0].id !== input.fieldId))
     return {
       status: "unsupported",
       diagnostics: [
@@ -240,8 +241,14 @@ function admitted(input: WaterfallRenderInput): WaterfallRenderResult {
         },
       ],
     };
+  if (empty)
+    return {
+      status: "supported",
+      options: { ...compose(input, [], [], [0, 0]), series: [] },
+    };
+  const fieldId = fields[0].id;
   const totals = projectWaterfallTotals(
-    input.snapshot.rows.map((row) => row.values[input.fieldId]),
+    input.snapshot.rows.map((row) => row.values[fieldId]),
   );
   if (totals.status !== "resolved") return totals;
   return project(input, totals.points, totals.extent);

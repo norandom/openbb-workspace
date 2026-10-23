@@ -58,6 +58,7 @@ export type SnapshotValidationResult =
   | { readonly valid: true; readonly snapshot: ChartSnapshot }
   | { readonly valid: false; readonly diagnostics: readonly SnapshotDiagnostic[] };
 export type SnapshotPolicy =
+  | "waterfall-observations"
   | "xy-coordinates"
   | "histogram-observations"
   | "pie-observations"

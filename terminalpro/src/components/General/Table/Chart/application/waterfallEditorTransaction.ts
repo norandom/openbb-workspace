@@ -216,7 +216,7 @@ export function applyWaterfallEditorTransaction(
       axis?.model ?? selected.baseline.model,
       selected.baseline.options,
       patch,
-      1,
+      selected.fieldId === undefined ? 0 : 1,
     );
     local = {
       ...local,

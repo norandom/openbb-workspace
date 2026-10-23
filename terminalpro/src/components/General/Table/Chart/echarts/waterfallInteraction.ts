@@ -9,12 +9,14 @@ export function waterfallPointer(
   input: WaterfallRenderInput,
   geometry: WaterfallGeometry,
 ): ChartPointerPlan | undefined {
-  if (!geometry.plot) return;
+  const fieldId = input.fieldId;
+  if (!geometry.plot || fieldId === undefined) return;
   const candidates = geometry.candidates;
   const matches = new Map(candidates.map((c) => [c.key, c]));
   const policy = input.navigation;
   const display = input.context.display;
-  const column = input.snapshot.columns.find((c) => c.id === input.fieldId)!;
+  const column = input.snapshot.columns.find((c) => c.id === fieldId);
+  if (!column) return;
   const horizontal = input.appearance.series.direction === "horizontal";
   const exact = rangeExactPickers([candidates], input.context.viewport);
   const appearance = input.appearance.application;
@@ -46,7 +48,7 @@ export function waterfallPointer(
       const candidate = matches.get(match.key);
       if (!candidate) return;
       const row = input.snapshot.rows[candidate.groupSlot];
-      const delta = row.values[input.fieldId];
+      const delta = row.values[fieldId];
       return {
         html:
           input.appearance.series.tooltipEnabled && appearance.tooltip.enabled

@@ -77,9 +77,7 @@ it.each([
 });
 it("renders the retained five FMP movements to independently known endpoints", () => {
   // Captured AAPL FY2026 Q3 movements; browser verification checks raw FMP provenance.
-  const values = [
-    109417000000, -54647000000, -19075000000, 572000000, -6478000000,
-  ];
+  const values = [109417000000, -54647000000, -19075000000, 572000000, -6478000000];
   const input = waterfallInput(values);
   const data: any = projected(input).options.series;
   expect(data[0].data.map((d: any) => d.value.slice(1, 3))).toEqual([
@@ -103,6 +101,28 @@ it("rejects absent observations, extra effective fields, and missing aggregation
   expect(projectWaterfall(grouped).status).toBe("unsupported");
   grouped.context.setupProjection = { kind: "ordinary-aggregate", aggFunc: "sum" };
   expect(projectWaterfall(grouped).status).toBe("supported");
+});
+it("supports a genuinely unbound empty selection without fabricated movement series or pointer state", () => {
+  const input = waterfallInput();
+  const empty = {
+    ...input,
+    fieldId: undefined,
+    snapshot: {
+      ...input.snapshot,
+      selectedColumnIds: ["period"],
+      columns: input.snapshot.columns.filter((column) => column.role === "category"),
+      rows: input.snapshot.rows.map((row) => ({ ...row, values: {} })),
+    },
+  };
+  const result = projectWaterfall(empty);
+  expect(result.status, JSON.stringify(result)).toBe("supported");
+  if (result.status !== "supported") return;
+  expect(result.options.series).toEqual([]);
+  expect(result.projectPointer?.(result.options)).toBeUndefined();
+  expect(result.projectNavigationWindow).toBeUndefined();
+  engine(result.options, (chart) => expect(bars(chart)).toHaveLength(0));
+  expect(projectWaterfall({ ...empty, fieldId: "revenue" }).status).toBe("unsupported");
+  expect(projectWaterfall({ ...input, fieldId: undefined }).status).toBe("unsupported");
 });
 it.each([
   "number",

@@ -2,6 +2,7 @@ import { validateSnapshot } from "../compatibility/snapshot";
 import type {
   ChartSnapshot,
   SnapshotColumn,
+  SnapshotPolicy,
   SnapshotRow,
 } from "../compatibility/snapshotTypes";
 import { aggregateBoxSetupRows } from "./boxPlotSetupProjection";
@@ -177,19 +178,13 @@ function inverted(
 export function projectOrdinarySetup(
   input: ChartSnapshot,
   selection: SetupSelection,
-  axisPolicy:
-    | "single-axis"
-    | "combo-per-axis"
-    | "xy-coordinates"
-    | "histogram-observations"
-    | "pie-observations"
-    | "box-observations"
-    | "statistical-observations" = "single-axis",
+  axisPolicy: "single-axis" | "combo-per-axis" | SnapshotPolicy = "single-axis",
 ): SetupResult<SetupProjection> {
   if (
     ![
       "single-axis",
       "combo-per-axis",
+      "waterfall-observations",
       "xy-coordinates",
       "histogram-observations",
       "pie-observations",
@@ -221,8 +216,10 @@ export function projectOrdinarySetup(
       "Selection requires captured category and unique captured numerical series",
     );
   const count = selection.aggFunc === "count";
+  const singleAxis =
+    axisPolicy === "single-axis" || axisPolicy === "waterfall-observations";
   // Check effective units before transpose; counts derive their own comparable unit.
-  if (axisPolicy === "single-axis" && incompatible(aggregateColumns(columns, count)))
+  if (singleAxis && incompatible(aggregateColumns(columns, count)))
     return invalidSetup("Known source units or scales contradict one numerical axis");
   const grouped = statistical
     ? aggregateBoxSetupRows(source.rows, selection.seriesIds, selection.aggFunc)
@@ -267,14 +264,13 @@ export function projectOrdinarySetup(
       ...(setupProjection ? { setupProjection } : {}),
       valueOrigins: output.valueOrigins,
       observationKind: count ? "count" : "raw-observations",
-      axisUnits:
-        axisPolicy !== "single-axis"
-          ? "deferred"
-          : aggregateColumns(columns, count).every(
-                (c) => c.unit !== undefined && c.scale !== undefined,
-              )
-            ? "consistent"
-            : "unknown",
+      axisUnits: !singleAxis
+        ? "deferred"
+        : aggregateColumns(columns, count).every(
+              (c) => c.unit !== undefined && c.scale !== undefined,
+            )
+          ? "consistent"
+          : "unknown",
     },
   };
 }

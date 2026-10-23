@@ -136,7 +136,7 @@ export interface WaterfallNavigationPolicy {
 
 export interface WaterfallRenderInput {
   readonly snapshot: ChartSnapshot;
-  readonly fieldId: string;
+  readonly fieldId: string | undefined;
   readonly appearance: WaterfallResolvedAppearance;
   readonly context: CartesianMappingContext & {
     readonly viewport: { readonly width: number; readonly height: number };
