@@ -125,8 +125,12 @@ async function navigation(page: Page, widget: Locator, source: Source) {
   const x = box.x + point.x + point.width / 2;
   const y = box.y + point.y + point.height / 2;
   const initial = await stablePie(page, widget);
-  await page.mouse.move(x, y);
-  await page.mouse.wheel(0, -640);
+  // Categorical windows crop whole rows; one wheel gesture can retain all five.
+  for (let step = 0; step < 4; step++) {
+    await page.mouse.move(x, y);
+    await page.mouse.wheel(0, -640);
+    await stablePie(page, widget);
+  }
   await expect
     .poll(async () => (await stablePie(page, widget)).equals(initial), {
       timeout: 20000,

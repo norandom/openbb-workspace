@@ -205,6 +205,36 @@ function actualStrokeWidth(rectangle: Rectangle) {
     : 0;
 }
 
+function categoryLabel(drawing: BoxDrawing, category: string) {
+  const normalize = (value: string) => value.trim().replace(/\s+/g, " ");
+  const expected = normalize(category);
+  const ordered = drawing.text.slice().sort((a, b) => a.y - b.y);
+  for (const first of ordered) {
+    let joined = normalize(first.text);
+    if (joined === expected) return first;
+    if (!expected.startsWith(`${joined} `)) continue;
+    const fontSize = Number(first.font.match(/([\d.]+)px/)?.[1] ?? 12);
+    let last = first;
+    // Reassemble only consecutive painted lines on one category anchor, never words from neighboring labels.
+    for (const next of ordered.filter(
+      (text) =>
+        text.y > first.y &&
+        Math.abs(text.x - first.x) < 1.1 &&
+        text.font === first.font &&
+        text.fill === first.fill,
+    )) {
+      const gap = next.y - last.y;
+      if (gap < fontSize * 0.7) continue;
+      if (gap > fontSize * 1.8) break;
+      joined += ` ${normalize(next.text)}`;
+      if (joined === expected) return { ...first, y: (first.y + next.y) / 2 };
+      if (!expected.startsWith(`${joined} `)) break;
+      last = next;
+    }
+  }
+  return undefined;
+}
+
 export function matchWaterfall(
   drawing: BoxDrawing,
   movements: Movement[],
@@ -230,9 +260,7 @@ export function matchWaterfall(
   for (const row of movements) {
     const low = Math.min(a.pixel(row.start), a.pixel(row.end));
     const high = Math.max(a.pixel(row.start), a.pixel(row.end));
-    const category = drawing.text
-      .filter((t) => t.text === row.category)
-      .sort((x, y) => x.y - y.y)[0];
+    const category = categoryLabel(drawing, row.category);
     const fontSize = Number(category?.font.match(/([\d.]+)px/)?.[1] ?? 12);
     const alignmentTolerance =
       direction === "vertical" ? 1.1 : Math.max(1.1, fontSize * 0.6);
