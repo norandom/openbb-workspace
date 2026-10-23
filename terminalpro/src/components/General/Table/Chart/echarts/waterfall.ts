@@ -24,6 +24,7 @@ import {
   waterfallContinuous,
 } from "./waterfallCategory";
 import { waterfallPointer } from "./waterfallInteraction";
+import { retainWaterfallMetadata, waterfallMetadata } from "./waterfallMetadata";
 import {
   type WaterfallWindow,
   waterfallNavigator,
@@ -165,7 +166,6 @@ function project(
   full: readonly WaterfallPoint[],
   extent: WaterfallWindow,
 ): WaterfallRenderResult {
-  const geometries = new WeakMap<EChartsOption, WaterfallGeometry>();
   const overview = waterfallAxisLabels(
     compose(input, full, full, extent),
     input,
@@ -185,8 +185,7 @@ function project(
       { rows: points.map((point) => input.snapshot.rows[point.index]) },
     );
     geometry.plot = waterfallPlot(result, input);
-    geometries.set(result, geometry);
-    return result;
+    return retainWaterfallMetadata(result, geometry);
   };
   return {
     status: "supported",
@@ -194,7 +193,7 @@ function project(
     projectNavigationWindow: (_projected, current) =>
       options(waterfallWindow(current), waterfallWindow(current, true)),
     projectPointer: (applied) => {
-      const geometry = geometries.get(applied);
+      const geometry = waterfallMetadata(applied);
       return geometry ? waterfallPointer(input, geometry) : undefined;
     },
   };

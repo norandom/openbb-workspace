@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { createPieLegendBinding } from "../../../src/components/General/Table/Chart/echarts/pieLegendBinding";
 import { bars, engine, projected, waterfallInput } from "./waterfall.fixtures";
 
 it("captures immutable source identities and consumes outsideMinor for cropped numeric visibility", () => {
@@ -101,4 +102,62 @@ it.each([
       disabled.projectPointer!(disabled.options)!.present({ key: "source-0" })!.html,
     ).toBe(""),
   );
+});
+
+it.each([
+  "vertical",
+  "horizontal",
+] as const)("retains %s native pointer geometry through the lifecycle legend projection", (direction) => {
+  const input = waterfallInput([10, -3, 2, -1]);
+  input.appearance.series.direction = direction;
+  if (direction === "horizontal") {
+    input.appearance.application.axes.category.fields.position = "left";
+    input.appearance.application.axes.number.fields.position = "bottom";
+  }
+  const result = projected(input);
+  const binding = createPieLegendBinding({
+    container: document.createElement("div"),
+    isActive: () => true,
+    readSelected: () => ({}),
+    toggle: () => {},
+    repaint: () => {},
+    fail: (error) => {
+      throw error;
+    },
+  });
+  try {
+    for (const cropped of [false, true]) {
+      const options = cropped
+        ? result.projectNavigationWindow!(result.options, {
+            dataZoom: [{ id: "openbb-navigator", start: 50, end: 100 }],
+          })
+        : result.options;
+      const applied = binding.project(options, undefined, undefined);
+      expect(applied).not.toBe(options);
+      engine(applied, (chart) => {
+        let plan = result.projectPointer!(applied);
+        expect(plan).toBeDefined();
+        for (const resize of [false, true]) {
+          if (resize) {
+            chart.resize({ width: 800, height: 500 });
+            plan = result.projectPointer!(applied);
+          }
+          const box = bars(chart)[0].shape;
+          const pick = plan!.pick(
+            { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+            "hover",
+          );
+          expect(pick?.matches[0].key).toBe(cropped ? "source-2" : "source-0");
+          const tooltip = plan!.present(pick!.matches[0]);
+          expect(tooltip?.html).toContain(cropped ? "number:2" : "number:10");
+          expect(tooltip?.anchor).toEqual({
+            x: box.x + box.width / 2,
+            y: box.y + box.height / 2,
+          });
+        }
+      });
+    }
+  } finally {
+    binding.dispose();
+  }
 });
