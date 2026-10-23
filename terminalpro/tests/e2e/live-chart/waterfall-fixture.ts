@@ -198,6 +198,13 @@ function visibleFinancialPaint(rectangle: Rectangle) {
   );
 }
 
+function actualStrokeWidth(rectangle: Rectangle) {
+  // A fill can inherit the preceding connector's canvas lineWidth without ever stroking its own path.
+  return rectangle.strokeAlpha !== undefined && rectangle.strokeAlpha > 0
+    ? rectangle.lineWidth
+    : 0;
+}
+
 export function matchWaterfall(
   drawing: BoxDrawing,
   movements: Movement[],
@@ -238,7 +245,7 @@ export function matchWaterfall(
         r[band] > 2 &&
         r.y < numericBottom - 3 &&
         Math.abs(r[a.along] - low) < 1.1 &&
-        Math.abs(r[span] - Math.max(r.lineWidth, high - low)) < 1.1,
+        Math.abs(r[span] - Math.max(actualStrokeWidth(r), high - low)) < 1.1,
     );
     candidates.sort((x, y) =>
       category

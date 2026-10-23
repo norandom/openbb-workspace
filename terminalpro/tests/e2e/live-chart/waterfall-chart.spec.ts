@@ -261,6 +261,14 @@ function expectStyle(
     [-6478000000, "-6 B"],
   ]);
   for (const row of matches) {
+    expect(
+      row.rectangle.strokeAlpha,
+      `${row.category}: sign-specific border has an actual native stroke witness`,
+    ).toBeDefined();
+    expect(
+      row.rectangle.strokeAlpha!,
+      `${row.category}: sign-specific border stroke is visible`,
+    ).toBeGreaterThan(0);
     expect(row.rectangle.lineWidth, `${row.category} sign-specific border`).toBe(
       row.delta >= 0 ? 2 : 4,
     );
