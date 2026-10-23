@@ -354,6 +354,31 @@ async function miniature(
   ).toHaveLength(family === "rangeBar" ? 22 : 44);
   return items.map((item) => JSON.stringify(item)).sort();
 }
+function expectMiniature(
+  actual: string[],
+  expected: string[],
+  family: Family,
+  track: Rectangle,
+) {
+  if (family === "rangeBar") {
+    expect(actual).toEqual(expected);
+    return;
+  }
+  expect(actual).toHaveLength(expected.length);
+  for (let index = 0; index < expected.length; index++) {
+    const point = JSON.parse(actual[index]) as number[];
+    const original = JSON.parse(expected[index]) as number[];
+    expect(point).toHaveLength(original.length);
+    expect(point[0], "miniature category ordering remains exact").toBe(original[0]);
+    expect(point[2], "miniature marker diameter remains exact").toBe(original[2]);
+    // Six-decimal normalized coordinates can straddle a rounding boundary when
+    // canvas transforms change. Bound the actual displacement below 0.001 CSSpx.
+    expect(
+      Math.abs(point[1] - original[1]) * track.height,
+      "miniature endpoint position remains within 0.001 CSSpx",
+    ).toBeLessThanOrEqual(0.001);
+  }
+}
 async function navigation(
   page: Page,
   widget: Locator,
@@ -396,7 +421,12 @@ async function navigation(
     .toBe(false);
   const afterSlider = await currentBox(page, widget);
   const sliderTrack = navigatorTrack(afterSlider, box.width, box.height);
-  expect(await miniature(page, afterSlider, sliderTrack, family)).toEqual(overview);
+  expectMiniature(
+    await miniature(page, afterSlider, sliderTrack, family),
+    overview,
+    family,
+    sliderTrack,
+  );
   const cropped = await stablePie(page, widget);
   await page.mouse.move(x, y);
   await page.mouse.wheel(0, -240);
@@ -413,7 +443,12 @@ async function navigation(
     .toBe(false);
   const afterPan = await currentBox(page, widget);
   const panTrack = navigatorTrack(afterPan, box.width, box.height);
-  expect(await miniature(page, afterPan, panTrack, family)).toEqual(overview);
+  expectMiniature(
+    await miniature(page, afterPan, panTrack, family),
+    overview,
+    family,
+    panTrack,
+  );
   await page.mouse.dblclick(x, y);
   const reset = await geometry(page, widget, expected, family, direction);
   expect(reset.map((item) => item.point)).toEqual(full.map((item) => item.point));
