@@ -17,6 +17,7 @@ import {
 import { applicationAxes, niceNumberExtent } from "./cartesianAxes";
 import { cartesianGrid } from "./cartesianGrid";
 import { applicationLayout } from "./cartesianLayout";
+import { waterfallAxisLabels } from "./waterfallAxisLabels";
 import {
   cropWaterfall,
   waterfallCategoryWindow,
@@ -165,7 +166,11 @@ function project(
   extent: WaterfallWindow,
 ): WaterfallRenderResult {
   const geometries = new WeakMap<EChartsOption, WaterfallGeometry>();
-  const overview = compose(input, full, full, extent);
+  const overview = waterfallAxisLabels(
+    compose(input, full, full, extent),
+    input,
+    input.snapshot,
+  );
   const options = (
     window: WaterfallWindow,
     numeric: WaterfallWindow,
@@ -174,7 +179,11 @@ function project(
     const geometry: WaterfallGeometry = { candidates: [] };
     const visibleExtent = cumulativeExtent(input, points, extent, window, numeric);
     const main = compose(input, points, full, visibleExtent, geometry, window);
-    const result = waterfallNavigator(input, main, overview, extent, window, numeric);
+    const result = waterfallAxisLabels(
+      waterfallNavigator(input, main, overview, extent, window, numeric),
+      input,
+      { rows: points.map((point) => input.snapshot.rows[point.index]) },
+    );
     geometry.plot = waterfallPlot(result, input);
     geometries.set(result, geometry);
     return result;
@@ -244,7 +253,10 @@ function admitted(input: WaterfallRenderInput): WaterfallRenderResult {
   if (empty)
     return {
       status: "supported",
-      options: { ...compose(input, [], [], [0, 0]), series: [] },
+      options: {
+        ...waterfallAxisLabels(compose(input, [], [], [0, 0]), input, { rows: [] }),
+        series: [],
+      },
     };
   const fieldId = fields[0].id;
   const totals = projectWaterfallTotals(

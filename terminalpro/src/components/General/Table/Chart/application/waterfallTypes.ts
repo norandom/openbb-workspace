@@ -14,6 +14,7 @@ import type {
   ResolvedFontStyle,
 } from "./appearanceModel";
 import type { ApplicationAxisRuntime } from "./axisStructureTypes";
+import type { RangeResolvedAxis } from "./rangeAxisAppearance";
 
 export type WaterfallSign = "positive" | "negative";
 export type WaterfallDirection = "vertical" | "horizontal";
@@ -55,7 +56,9 @@ export interface WaterfallSeriesStyle {
   };
 }
 export interface WaterfallResolvedAppearance {
-  readonly application: ResolvedApplicationAppearance;
+  readonly application: Omit<ResolvedApplicationAppearance, "axes"> & {
+    readonly axes: Readonly<Record<"category" | "number", RangeResolvedAxis>>;
+  };
   readonly axisRuntime: ApplicationAxisRuntime;
   readonly series: WaterfallSeriesStyle;
 }

@@ -1,13 +1,19 @@
 import { type EChartsOption, type EChartsType, graphic, init } from "echarts";
 import { beforeEach, expect, vi } from "vitest";
+import type { ResolvedApplicationAxis } from "../../../src/components/General/Table/Chart/application/appearanceModel";
+import type { RangeResolvedAxis } from "../../../src/components/General/Table/Chart/application/rangeAxisAppearance";
 import type { WaterfallRenderInput } from "../../../src/components/General/Table/Chart/application/waterfallTypes";
 import { projectWaterfall } from "../../../src/components/General/Table/Chart/echarts/waterfall";
 import { applicationStyle, mappingContext } from "./cartesian.application.fixtures";
 import { validSnapshotInput } from "./snapshot.fixtures";
 
-type Mutable<T> = {
-  -readonly [K in keyof T]: T[K] extends object ? Mutable<T[K]> : T[K];
-};
+type Mutable<T> = T extends (...args: never[]) => unknown
+  ? T
+  : T extends readonly (infer Value)[]
+    ? Mutable<Value>[]
+    : T extends object
+      ? { -readonly [K in keyof T]: Mutable<T[K]> }
+      : T;
 beforeEach(() =>
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
     measureText: (s: string) => ({ width: s.length * 6 }),
@@ -43,7 +49,16 @@ export function waterfallInput(
       spacing: 0,
     },
   });
-  return {
+  const policyAxis = (axis: ResolvedApplicationAxis): RangeResolvedAxis => ({
+    ...axis,
+    labels: {
+      ...axis.labels,
+      enabled: true,
+      avoidCollisions: true,
+      wrapping: axis.fields.type === "category" ? "on-space" : "never",
+    },
+  });
+  const input: WaterfallRenderInput = {
     snapshot: {
       ...structuredClone(validSnapshotInput),
       selectedColumnIds: ["period", "revenue"],
@@ -55,7 +70,13 @@ export function waterfallInput(
     },
     fieldId: "revenue",
     appearance: {
-      application,
+      application: {
+        ...application,
+        axes: {
+          category: policyAxis(application.axes.category),
+          number: policyAxis(application.axes.number),
+        },
+      },
       axisRuntime: {} as WaterfallRenderInput["appearance"]["axisRuntime"],
       series: {
         direction: "vertical",
@@ -80,6 +101,8 @@ export function waterfallInput(
     theme: {
       name: "synthetic",
       mode: "light",
+      overrides: {},
+      palette: application.palette,
       colors: {
         base: "ag-default",
         foregroundColor: "#ffffff",
@@ -106,6 +129,7 @@ export function waterfallInput(
       autoScale: { enabled: true, padding: 0, minVisibleItems: 1 },
     },
   };
+  return input as Mutable<WaterfallRenderInput>;
 }
 export function projected(input: WaterfallRenderInput) {
   const result = projectWaterfall(input);

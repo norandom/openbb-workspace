@@ -15,11 +15,13 @@ import {
   object,
   text,
 } from "./effectiveAppearanceValues";
+import { rangeAxisLabelPolicy } from "./rangeAxisAppearance";
 import { prepareWaterfallAppearance } from "./waterfallAppearanceOptions";
 import type {
   WaterfallAppearanceInput,
   WaterfallAppearanceResult,
   WaterfallItemStyle,
+  WaterfallResolvedAppearance,
   WaterfallSeriesStyle,
 } from "./waterfallTypes";
 
@@ -175,15 +177,19 @@ export function resolveWaterfallAppearance(
     const axes = Object.fromEntries(
       axisRuntime.axes.map((axis) => [
         axis.id,
-        resolveAppearanceAxis(
-          [
-            ...prepared.layers,
-            { axes: { [axis.type]: { [axis.position]: axis.options } } },
-          ],
+        rangeAxisLabelPolicy(
+          prepared.layers,
           axis,
+          resolveAppearanceAxis(
+            [
+              ...prepared.layers,
+              { axes: { [axis.type]: { [axis.position]: axis.options } } },
+            ],
+            axis,
+          ),
         ),
       ]),
-    ) as typeof common.axes;
+    ) as WaterfallResolvedAppearance["application"]["axes"];
     return {
       status: "resolved",
       value: {
