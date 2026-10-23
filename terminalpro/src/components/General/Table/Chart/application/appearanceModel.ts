@@ -68,6 +68,7 @@ export interface ResolvedApplicationAppearance {
   };
 }
 export interface ApplicationThemeInput {
+  readonly waterfallPaint?: import("./waterfallTypes").WaterfallThemePaint;
   readonly name: string;
   readonly mode: "light" | "dark";
   readonly navigatorBorderColor?: string;

@@ -1,10 +1,10 @@
 import cloneDeep from "lodash/cloneDeep";
 import get from "lodash/get";
 import set from "lodash/set";
-import { isCartesianFamily } from "../echarts/cartesianTypes";
-import { isAreaFamily } from "../echarts/cartesianAreaTypes";
-import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import { keys, record } from "../compatibility/editorBindings/validation";
+import type { RuntimeOptions } from "../compatibility/legacyTypes";
+import { isAreaFamily } from "../echarts/cartesianAreaTypes";
+import { isCartesianFamily } from "../echarts/cartesianTypes";
 import type {
   ApplicationConcreteAxis,
   AxisStructureInput,
@@ -14,7 +14,7 @@ import type {
 
 const types = ["number", "category", "time", "grouped-category"];
 function selectedAxis(input: AxisStructureInput): ApplicationConcreteAxis {
-  if (!isCartesianFamily(input.family))
+  if (!isCartesianFamily(input.family) && input.family !== "waterfall")
     throw new Error("Invalid Cartesian family");
   const event = record(input.event);
   keys(event, ["panel", "axis", "edit"]);
@@ -44,7 +44,14 @@ function transfer(
   input: AxisStructureInput,
   axis: ApplicationConcreteAxis,
 ): RuntimeOptions {
-  const family = isAreaFamily(input.family) ? "area" : input.family === "line" ? "line" : "bar";
+  const family =
+    input.family === "waterfall"
+      ? "waterfall"
+      : isAreaFamily(input.family)
+        ? "area"
+        : input.family === "line"
+          ? "line"
+          : "bar";
   const source = get(input.savedOptions, [family, "axes", axis.type]);
   const patch: RuntimeOptions = {};
   // Original crosshair suffixes follow crosshair, never the axis position.

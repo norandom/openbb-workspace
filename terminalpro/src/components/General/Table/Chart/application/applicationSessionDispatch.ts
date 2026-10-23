@@ -1,5 +1,3 @@
-import { applyRangeEditorTransaction } from "./rangeEditorTransaction";
-import { isRangeChartFamily } from "./rangeSessionTypes";
 import type { WidgetT } from "../../../../types";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import type { ApplicationChartCommand } from "./applicationChartSessionTypes";
@@ -34,6 +32,9 @@ import {
 import { applyHistogramEditorTransaction } from "./histogramEditorTransaction";
 import { applyPieEditorTransaction } from "./pieEditorTransaction";
 import { isPieChartFamily } from "./pieSessionTypes";
+import { applyRangeEditorTransaction } from "./rangeEditorTransaction";
+import { isRangeChartFamily } from "./rangeSessionTypes";
+import { applyWaterfallEditorTransaction } from "./waterfallEditorTransaction";
 import { applyXyEditorTransaction } from "./xyEditorTransaction";
 import { isXyChartFamily } from "./xySessionTypes";
 
@@ -59,6 +60,13 @@ function transaction(
       intent.edit,
       recapture,
     );
+  if (context.inputs.family === "waterfall")
+    return applyWaterfallEditorTransaction(
+      storage,
+      context as ApplicationSessionContext<"waterfall">,
+      command,
+    );
+  if (intent.panel === "waterfall") return { status: "stale" as const };
   if (isRangeChartFamily(context.inputs.family))
     return applyRangeEditorTransaction(
       storage,

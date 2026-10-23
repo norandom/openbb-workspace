@@ -56,6 +56,7 @@ export function callerGeneratedOptions(
     "range-bar": { series: rangeSeries.value },
     "range-area": { series: rangeSeries.value },
     "box-plot": { series: { ...(dataOnlyOptions(series) as RuntimeOptions) } },
+    waterfall: { series: { ...(dataOnlyOptions(series) as RuntimeOptions) } },
     bar: {
       series: {
         label: { enabled: false, placement: "outside-end" },

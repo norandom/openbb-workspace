@@ -60,6 +60,7 @@ export function canSwitchCategorySeries(family: ApplicationChartFamily): boolean
     family !== "boxPlot" &&
     family !== "rangeBar" &&
     family !== "rangeArea" &&
+    family !== "waterfall" &&
     family !== "pie"
   );
 }

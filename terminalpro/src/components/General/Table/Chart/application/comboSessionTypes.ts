@@ -17,6 +17,7 @@ export type ApplicationChartFamily =
   | "boxPlot"
   | "rangeBar"
   | "rangeArea"
+  | "waterfall"
   | import("../compatibility/pieAssignments").PieChartType;
 export type ComboSessionContext = ApplicationSessionContext<ComboChartType>;
 export function isComboChartFamily(value: unknown): value is ComboChartType {

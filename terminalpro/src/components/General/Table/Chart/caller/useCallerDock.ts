@@ -1,4 +1,3 @@
-import { isRangeChartFamily } from "../application/rangeSessionTypes";
 import { useRef, useState } from "react";
 import { useWidgetContext } from "~/components/Widget.context";
 import { getStateKey } from "../../communityState";
@@ -7,6 +6,7 @@ import {
   isComboChartFamily,
 } from "../application/comboSessionTypes";
 import { isPieChartFamily } from "../application/pieSessionTypes";
+import { isRangeChartFamily } from "../application/rangeSessionTypes";
 import { isXyChartFamily } from "../application/xySessionTypes";
 import { isCartesianFamily } from "../echarts/cartesianTypes";
 import type { ChartEditorTab } from "../editor/ChartEditorDock";
@@ -61,6 +61,7 @@ export function useCallerDock(
             isXyChartFamily(type) ||
             type === "histogram" ||
             type === "boxPlot" ||
+            type === "waterfall" ||
             isRangeChartFamily(type))
         )
           onSelect(type);

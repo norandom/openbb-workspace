@@ -1,4 +1,5 @@
 import { canSwitchCategorySeries, selectApplicationSetup } from "./applicationSetupSelection";
+import { waterfallSelection } from "./waterfallSessionSelection";
 import { observationSnapshotPolicy } from "./histogramCapture";
 import {
   isComboChartFamily,
@@ -80,7 +81,7 @@ export function applyApplicationSetupTransaction(
     if (transition.selection.seriesIds.length) {
       const projection = projectOrdinarySetup(
         capture,
-        transition.selection,
+        context.inputs.family === "waterfall" ? waterfallSelection(transition.selection) : transition.selection,
         observationSnapshotPolicy(context.inputs.family) ?? (combo ? "combo-per-axis" : "single-axis"),
       );
       if (projection.status !== "ready") return projection;
@@ -98,7 +99,7 @@ export function applyApplicationSetupTransaction(
       transition.model,
       selected.baseline.options,
       {},
-      transition.selection.seriesIds.length,
+      context.inputs.family === "waterfall" ? Math.min(1, transition.selection.seriesIds.length) : transition.selection.seriesIds.length,
     );
     if (transition.change === "range") {
       const ranged = applyRangeTransition({
@@ -126,7 +127,8 @@ export function applyApplicationSetupTransaction(
             ...(transition.change === "range"
               ? { rangeFrameKey: sessionRangeFrameKey(context.inputs, storage) }
               : {}),
-            legendEnabled: transition.selection.seriesIds.length > 1,
+            legendEnabled: context.inputs.family === "waterfall"
+              ? context.local.legendEnabled : transition.selection.seriesIds.length > 1,
           },
           transition.selection.categoryId,
         ),

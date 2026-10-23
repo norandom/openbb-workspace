@@ -221,3 +221,15 @@ it("displays equal-integer repair bins while retaining the saved requested count
 });
 
 
+
+it("rejects a Waterfall edit delivered to the histogram owner without mutating state", () => {
+  const context = fixture();
+  const before = structuredClone(context.local);
+  const result = applyHistogramEditorTransaction({}, context, {
+    stamp: context.local.stamp,
+    family: "histogram",
+    intent: { panel: "waterfall", edit: { kind: "direction", value: "horizontal" } },
+  });
+  expect(result.status).toBe("stale");
+  expect(context.local).toEqual(before);
+});

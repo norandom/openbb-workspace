@@ -1,5 +1,3 @@
-import { projectRangeSession } from "./rangeSessionProjection";
-import { isRangeChartFamily, type RangeEditIntent } from "./rangeSessionTypes";
 import cloneDeep from "lodash/cloneDeep";
 import { useMemo } from "react";
 import { useWidgetTransactionContext } from "../../../../WidgetTransaction.context";
@@ -43,10 +41,13 @@ import { projectHistogramSession } from "./histogramSessionProjection";
 import type { HistogramEditIntent } from "./histogramSessionTypes";
 import { projectPieSession } from "./pieSessionProjection";
 import { isPieChartFamily, type PieEditIntent } from "./pieSessionTypes";
+import { projectRangeSession } from "./rangeSessionProjection";
+import { isRangeChartFamily, type RangeEditIntent } from "./rangeSessionTypes";
 import { validateSessionStamp } from "./sessionState";
 import type { SessionResult } from "./types";
 import { useApplicationSessionFreshness } from "./useApplicationSessionFreshness";
 import { useApplicationSessionScope } from "./useApplicationSessionScope";
+import { projectWaterfallSession } from "./waterfallSessionProjection";
 import { projectXySession } from "./xySessionProjection";
 import { isXyChartFamily, type XyEditIntent } from "./xySessionTypes";
 
@@ -69,55 +70,61 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
   const projected = useMemo<SessionResult<ApplicationChartReady>>(
     () =>
       current
-        ? isRangeChartFamily(inputs.family)
-          ? projectRangeSession(
+        ? inputs.family === "waterfall"
+          ? projectWaterfallSession(
               owner.widget.storage as ChartStorageOutput,
-              inputs as ApplicationSessionInputs<
-                import("../echarts/rangeApplicationTypes").RangeFamily
-              >,
+              inputs as ApplicationSessionInputs<"waterfall">,
               current,
             )
-          : inputs.family === "boxPlot"
-            ? projectBoxPlotSession(
+          : isRangeChartFamily(inputs.family)
+            ? projectRangeSession(
                 owner.widget.storage as ChartStorageOutput,
-                inputs as ApplicationSessionInputs<"boxPlot">,
+                inputs as ApplicationSessionInputs<
+                  import("../echarts/rangeApplicationTypes").RangeFamily
+                >,
                 current,
               )
-            : isPieChartFamily(inputs.family)
-              ? projectPieSession(
+            : inputs.family === "boxPlot"
+              ? projectBoxPlotSession(
                   owner.widget.storage as ChartStorageOutput,
-                  inputs as ApplicationSessionInputs<
-                    import("../compatibility/pieAssignments").PieChartType
-                  >,
+                  inputs as ApplicationSessionInputs<"boxPlot">,
                   current,
                 )
-              : inputs.family === "histogram"
-                ? projectHistogramSession(
+              : isPieChartFamily(inputs.family)
+                ? projectPieSession(
                     owner.widget.storage as ChartStorageOutput,
-                    inputs as ApplicationSessionInputs<"histogram">,
+                    inputs as ApplicationSessionInputs<
+                      import("../compatibility/pieAssignments").PieChartType
+                    >,
                     current,
                   )
-                : isXyChartFamily(inputs.family)
-                  ? projectXySession(
+                : inputs.family === "histogram"
+                  ? projectHistogramSession(
                       owner.widget.storage as ChartStorageOutput,
-                      inputs as ApplicationSessionInputs<
-                        import("../compatibility/xyAssignments").XyChartType
-                      >,
+                      inputs as ApplicationSessionInputs<"histogram">,
                       current,
                     )
-                  : isComboChartFamily(inputs.family)
-                    ? projectComboSession(
+                  : isXyChartFamily(inputs.family)
+                    ? projectXySession(
                         owner.widget.storage as ChartStorageOutput,
-                        inputs as ApplicationSessionInputs<ComboChartType>,
+                        inputs as ApplicationSessionInputs<
+                          import("../compatibility/xyAssignments").XyChartType
+                        >,
                         current,
                       )
-                    : withCartesianKind(
-                        projectApplicationSession(
+                    : isComboChartFamily(inputs.family)
+                      ? projectComboSession(
                           owner.widget.storage as ChartStorageOutput,
-                          inputs as ApplicationSessionInputs,
+                          inputs as ApplicationSessionInputs<ComboChartType>,
                           current,
-                        ),
-                      )
+                        )
+                      : withCartesianKind(
+                          projectApplicationSession(
+                            owner.widget.storage as ChartStorageOutput,
+                            inputs as ApplicationSessionInputs,
+                            current,
+                          ),
+                        )
         : { status: "waiting" as const },
     [owner.widget.storage, current, inputs.display, inputs.family],
   );
@@ -206,7 +213,8 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
           ...previous,
           local: {
             ...previous.local,
-            legendEnabled: setup.seriesIds.length > 1,
+            legendEnabled: inputs.family === "waterfall"
+              ? previous.local.legendEnabled : setup.seriesIds.length > 1,
             stamp: nextSessionStamp(previous.local.stamp, "render"),
           },
         },
@@ -265,6 +273,10 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
       dispatch({ panel: "family", chartType }),
     onRange: (edit: RangeEditIntent["edit"]) => {
       dispatch({ panel: "range", edit });
+      if (edit.kind === "direction") notifyChartUpdate("chartModelUpdate");
+    },
+    onWaterfall: (edit: import("./waterfallTypes").WaterfallEdit) => {
+      dispatch({ panel: "waterfall", edit });
       if (edit.kind === "direction") notifyChartUpdate("chartModelUpdate");
     },
     onBoxPlot: (edit: BoxPlotEditIntent["edit"]) => {

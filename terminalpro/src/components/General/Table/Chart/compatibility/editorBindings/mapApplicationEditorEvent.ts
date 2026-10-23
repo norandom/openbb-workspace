@@ -128,10 +128,18 @@ export const mapApplicationEditorEvent: MapApplicationEditorEvent = (event, fami
       family !== "rangeBar" &&
       family !== "rangeArea" &&
       family !== "boxPlot" &&
+      family !== "waterfall" &&
       !isPieChartFamily(family)
     )
       throw new Error("Unsupported chart family");
     validateEvent(event);
+    if (
+      family === "waterfall" &&
+      ["series", "labels", "shadow", "markers", "connectMissingData", "ticks"].includes(
+        event.panel,
+      )
+    )
+      throw Error("Unsupported Waterfall control");
     if (
       isPieChartFamily(family) &&
       (![
@@ -161,7 +169,9 @@ export const mapApplicationEditorEvent: MapApplicationEditorEvent = (event, fami
                 ? family === "pie"
                   ? "pie"
                   : "donut"
-                : isXyChartFamily(family) || family === "histogram"
+                : isXyChartFamily(family) ||
+                    family === "histogram" ||
+                    family === "waterfall"
                   ? family
                   : isAreaFamily(family)
                     ? "area"

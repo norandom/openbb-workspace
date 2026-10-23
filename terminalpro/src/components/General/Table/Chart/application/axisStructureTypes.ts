@@ -1,7 +1,10 @@
+import type {
+  ApplicationAxisStructureEvent,
+  AxisBinding,
+} from "../compatibility/editorBindings/types";
 import type { RuntimeOptions, ValidationResult } from "../compatibility/legacyTypes";
-import type { ApplicationAxisId } from "./appearanceModel";
 import type { CartesianFamily } from "../echarts/cartesianTypes";
-import type { ApplicationAxisStructureEvent, AxisBinding } from "../compatibility/editorBindings/types";
+import type { ApplicationAxisId } from "./appearanceModel";
 
 export type ApplicationAxisOptionType = AxisBinding["optionType"];
 /** Concrete geometry stays transient; axisPersistence stores semantic category preferences. */
@@ -20,7 +23,7 @@ export interface ApplicationAxisRuntime {
 }
 export interface AxisStructureInput {
   readonly event: ApplicationAxisStructureEvent;
-  readonly family: CartesianFamily;
+  readonly family: CartesianFamily | "waterfall";
   /** Fresh source-equivalent runtime options, derived inside the latest-state transaction. */
   readonly runtime: ApplicationAxisRuntime;
   /** Latest original theme overrides, not generated/resolved options. */

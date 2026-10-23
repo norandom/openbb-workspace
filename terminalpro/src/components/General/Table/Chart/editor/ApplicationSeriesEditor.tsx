@@ -11,6 +11,7 @@ import { RangeControls } from "./range/RangeControls";
 import { ChartSeriesStylePanel } from "./series/ChartSeriesStylePanel";
 import { ChartShadowPanel } from "./shadow/ChartShadowPanel";
 import { ChartTooltipsPanel } from "./tooltips/ChartTooltipsPanel";
+import { WaterfallControls } from "./waterfall/WaterfallControls";
 import { XyPointControls } from "./xy/XyPointControls";
 export function ApplicationSeriesEditor({
   state,
@@ -46,6 +47,8 @@ export function ApplicationSeriesEditor({
       {mode?.kind === "histogram" && <HistogramBinControls mode={mode} />}
       {mode?.kind === "xy" ? (
         <XyPointControls mode={mode} />
+      ) : mode?.kind === "waterfall" ? (
+        <WaterfallControls value={mode.controls} onEdit={mode.onEdit} />
       ) : (
         <ChartSeriesStylePanel
           {...state.series}

@@ -10,6 +10,11 @@ import type {
 } from "./comboSessionTypes";
 import type { SessionStamp } from "./types";
 export type ApplicationChartReady =
+  | (ApplicationSessionReady & {
+      readonly kind: "waterfall";
+      readonly family: "waterfall";
+      readonly waterfall: { readonly controls: import("./waterfallTypes").WaterfallControlValues };
+    })
   | import("./rangeSessionTypes").RangeSessionReady
   | (ApplicationSessionReady & {
       readonly kind: "boxPlot";
@@ -43,6 +48,7 @@ export interface ApplicationChartCommand {
   readonly geometry?: ComboGeometry;
   readonly intent:
     | ApplicationSessionCommand["intent"]
+    | import("./waterfallTypes").WaterfallEditIntent
     | import("./rangeSessionTypes").RangeEditIntent
     | import("./boxPlotSessionTypes").BoxPlotEditIntent
     | import("./pieSessionTypes").PieEditIntent

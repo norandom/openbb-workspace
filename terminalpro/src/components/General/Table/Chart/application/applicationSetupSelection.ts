@@ -1,4 +1,5 @@
 import { selectRangeSession } from "./rangeSessionSelection";
+import { selectWaterfallSession } from "./waterfallSessionSelection";
 import { isRangeChartFamily } from "./rangeSessionTypes";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import { selectApplicationSession } from "./applicationSessionSelection";
@@ -24,7 +25,9 @@ export function selectApplicationSetup(
   const family = context.inputs.family;
   if (isComboChartFamily(family))
     return selectComboSession(storage, context as ComboSessionContext);
-  const value = isRangeChartFamily(family)
+  const value = family === "waterfall"
+    ? selectWaterfallSession(storage, context as ApplicationSessionContext<"waterfall">)
+    : isRangeChartFamily(family)
     ? selectRangeSession(
         storage,
         context as ApplicationSessionContext<

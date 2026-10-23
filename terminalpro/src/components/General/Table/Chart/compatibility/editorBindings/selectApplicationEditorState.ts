@@ -93,6 +93,7 @@ export const selectApplicationEditorState: SelectApplicationEditorState = (input
       input.family !== "histogram" &&
       input.family !== "rangeBar" &&
       input.family !== "rangeArea" &&
+      input.family !== "waterfall" &&
       input.family !== "boxPlot"
     )
       throw new Error("Unsupported editor family");

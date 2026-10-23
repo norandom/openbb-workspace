@@ -1,6 +1,7 @@
 import merge from "lodash.merge";
 import type { ApplicationThemeInput } from "../application/appearanceModel";
 import type { RuntimeOptions, RuntimeOptionValue } from "../compatibility/legacyTypes";
+import { waterfallThemePaint } from "./waterfallThemePaint";
 
 const fills = [
   "#5090dc",
@@ -126,8 +127,10 @@ export function projectCallerTheme(
   const foreground = params.foregroundColor ?? (dark ? "#FFFFFF" : "#181d1f");
   const overrides = merge(
     {},
-    // Retain Workspace's integrated Range zoom defaults below explicit theme overrides.
-    chartFamily === "rangeBar" || chartFamily === "rangeArea"
+    // Retain integrated zoom defaults below explicit theme overrides.
+    chartFamily === "rangeBar" ||
+      chartFamily === "rangeArea" ||
+      chartFamily === "waterfall"
       ? {
           common: {
             zoom: {
@@ -153,10 +156,23 @@ export function projectCallerTheme(
     "box-plot",
     "pie",
     "donut",
+    "waterfall",
   ]) {
     overrides[family] = merge(
       {},
       parameterOptions(params).common as RuntimeOptions,
+      family === "waterfall"
+        ? {
+            series: {
+              item: Object.fromEntries(
+                ["positive", "negative", "total"].map((sign) => [
+                  sign,
+                  { label: typography(params) },
+                ]),
+              ),
+            },
+          }
+        : {},
       (dataOnlyOptions(selected.overrides) as RuntimeOptions | undefined)?.common,
       (dataOnlyOptions(selected.overrides) as RuntimeOptions | undefined)?.[family],
     );
@@ -164,6 +180,9 @@ export function projectCallerTheme(
   return {
     name,
     mode,
+    ...(chartFamily === "waterfall"
+      ? { waterfallPaint: waterfallThemePaint(selected.palette, dark) }
+      : {}),
     ...(params.borderColor === undefined
       ? {}
       : { navigatorBorderColor: params.borderColor }),

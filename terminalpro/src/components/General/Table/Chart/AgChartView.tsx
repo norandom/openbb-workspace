@@ -1,4 +1,3 @@
-import { isRangeChartFamily } from "./application/rangeSessionTypes";
 import type { ChartModel, ColDef, CreateRangeChartParams } from "ag-grid-community";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { SetLoadingOnResize } from "~/components/DraggableCard/SetLoadingOnResize";
@@ -17,6 +16,7 @@ import {
   isComboChartFamily,
 } from "./application/comboSessionTypes";
 import { isPieChartFamily } from "./application/pieSessionTypes";
+import { isRangeChartFamily } from "./application/rangeSessionTypes";
 import { useApplicationChartSession } from "./application/useApplicationChartSession";
 import { isXyChartFamily } from "./application/xySessionTypes";
 import { hasCallerSeries } from "./caller/chartInputs";
@@ -75,6 +75,7 @@ export function ChartViewElement() {
           isXyChartFamily(inputs.value.family) ||
           inputs.value.family === "histogram" ||
           inputs.value.family === "boxPlot" ||
+          inputs.value.family === "waterfall" ||
           isRangeChartFamily(inputs.value.family)) ? (
           <LiveCallerChart inputs={inputs.value} />
         ) : (
@@ -239,6 +240,7 @@ function LiveCallerChart({
       isXyChartFamily(inputs.family) ||
       inputs.family === "histogram" ||
       inputs.family === "boxPlot" ||
+      inputs.family === "waterfall" ||
       isRangeChartFamily(inputs.family)
     )
       return;
@@ -263,6 +265,7 @@ function LiveCallerChart({
           ready?.kind === "xy" ||
           ready?.kind === "histogram" ||
           ready?.kind === "boxPlot" ||
+          ready?.kind === "waterfall" ||
           ready?.kind === "range") &&
           !(
             Array.isArray(ready.options.series)
@@ -293,30 +296,36 @@ function LiveCallerChart({
           mode={
             ready.kind === "range"
               ? { kind: "range", ...ready.range, onEdit: session.onRange }
-              : ready.kind === "boxPlot"
+              : ready.kind === "waterfall"
                 ? {
-                    kind: "boxPlot",
-                    controls: ready.boxPlot.controls,
-                    onEdit: session.onBoxPlot,
+                    kind: "waterfall",
+                    controls: ready.waterfall.controls,
+                    onEdit: session.onWaterfall,
                   }
-                : ready.kind === "pie"
-                  ? { kind: "pie", canSwitchCategorySeries: inputs.family !== "pie" }
-                  : ready.kind === "histogram"
-                    ? {
-                        kind: "histogram",
-                        ...ready.histogram,
-                        onEdit: session.onHistogram,
-                      }
-                    : ready.kind === "xy"
-                      ? { kind: "xy", ...ready.xy, onEdit: session.onXy }
-                      : ready.kind === "combo"
-                        ? {
-                            kind: "combo",
-                            ...ready.combo,
-                            onAssignment: session.onComboAssignment,
-                            onGeometry: session.onComboGeometry,
-                          }
-                        : { kind: "ordinary" }
+                : ready.kind === "boxPlot"
+                  ? {
+                      kind: "boxPlot",
+                      controls: ready.boxPlot.controls,
+                      onEdit: session.onBoxPlot,
+                    }
+                  : ready.kind === "pie"
+                    ? { kind: "pie", canSwitchCategorySeries: inputs.family !== "pie" }
+                    : ready.kind === "histogram"
+                      ? {
+                          kind: "histogram",
+                          ...ready.histogram,
+                          onEdit: session.onHistogram,
+                        }
+                      : ready.kind === "xy"
+                        ? { kind: "xy", ...ready.xy, onEdit: session.onXy }
+                        : ready.kind === "combo"
+                          ? {
+                              kind: "combo",
+                              ...ready.combo,
+                              onAssignment: session.onComboAssignment,
+                              onGeometry: session.onComboGeometry,
+                            }
+                          : { kind: "ordinary" }
           }
           onIntent={session.onIntent}
           onAxisStructure={session.onAxisStructure}

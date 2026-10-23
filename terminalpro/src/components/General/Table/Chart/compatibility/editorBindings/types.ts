@@ -205,6 +205,7 @@ export interface EditorSelectionInput {
     | "histogram"
     | "rangeBar"
     | "rangeArea"
+    | "waterfall"
     | "boxPlot";
   readonly model: ChartModel;
   readonly range: ResolvedRange;
@@ -224,6 +225,7 @@ export type MapApplicationEditorEvent = (
     | "histogram"
     | "rangeBar"
     | "rangeArea"
+    | "waterfall"
     | "boxPlot"
     | import("../pieAssignments").PieChartType,
 ) => ValidationResult<RuntimeOptions>;

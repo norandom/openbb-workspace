@@ -4,7 +4,7 @@ import type { CartesianFamily } from "../../echarts/cartesianTypes";
 import type { EditorEligibility } from "./types";
 
 export interface EditorPredicateInput {
-  readonly family: CartesianFamily | "rangeBar" | "rangeArea";
+  readonly family: CartesianFamily | "rangeBar" | "rangeArea" | "waterfall";
   readonly firstDatum: Readonly<Record<string, unknown>> | undefined;
   readonly dimensionIds: readonly string[];
   readonly grouping: boolean;
@@ -24,8 +24,8 @@ export function deriveEditorEligibility(
   const common = { position: true, grid: true, ticks: true };
   return {
     legend: true,
-    shadow: input.family !== "line" && input.family !== "rangeBar",
-    labels: true,
+    shadow: input.family !== "line" && input.family !== "rangeBar" && input.family !== "waterfall",
+    labels: input.family !== "waterfall",
     markers:
       input.family === "line" ||
       isAreaFamily(input.family) ||
@@ -40,16 +40,16 @@ export function deriveEditorEligibility(
           !input.grouping &&
           !input.categorySeriesSwitched,
         timeFormat: category === "time",
-        ticks: input.family !== "rangeBar",
-        tickLength: input.family !== "rangeBar" && category !== "grouped-category",
+        ticks: input.family !== "rangeBar" && input.family !== "waterfall",
+        tickLength: input.family !== "rangeBar" && input.family !== "waterfall" && category !== "grouped-category",
         autoRotate: category !== "grouped-category",
       },
       number: {
         ...common,
         type: false,
         timeFormat: false,
-        ticks: input.family !== "rangeBar",
-        tickLength: input.family !== "rangeBar",
+        ticks: input.family !== "rangeBar" && input.family !== "waterfall",
+        tickLength: input.family !== "rangeBar" && input.family !== "waterfall",
         autoRotate: true,
       },
     },
