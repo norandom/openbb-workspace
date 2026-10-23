@@ -75,10 +75,14 @@ it.each(["pie", "donut", "doughnut"] as const)("commits %s legend controls and r
     enabled: false, position: "left", font: "Legend Custom Face", size: 21, weight: "italic",
   });
   state = editPie(state.storage, state.context, { panel: "legend", edit: { field: "enabled", value: true } });
-  expect(project(state.context, state.storage).options.legend).toMatchObject({
-    show: true, orient: "vertical", left: selectPieSession(state.storage, state.context).pie.application.padding.left,
+  const legends = project(state.context, state.storage).options.legend as any[];
+  const visible = legends.filter(item => item.show);
+  expect(visible).toHaveLength(family === "pie" ? 2 : 4);
+  for (const item of visible) expect(item).toMatchObject({
+    left: selectPieSession(state.storage, state.context).pie.application.padding.left,
     textStyle: { fontFamily: "Legend Custom Face", fontSize: 21, fontWeight: "normal", fontStyle: "italic" },
   });
+  expect(visible.slice(1).every((item, index) => item.top > visible[index].top)).toBe(true);
 });
 it.each(["pie", "donut", "doughnut"] as const)("keeps %s common edits subject to stamp, family, range and setup freshness", family => {
   const context = pieFixture(family);
@@ -203,15 +207,16 @@ it("ignores retained axis preferences, defaults one-field Pie legend off and ret
   Object.assign(context.local.baseline, { model: { ...context.local.baseline.model, qopenbbAxisSettings: "invalid retained axis state" } });
   const state = initialApplicationSession({ chartModel: context.local.baseline.model } as import("../../../src/components/General/Table/Chart/compatibility/legacyTypes").ChartStorageOutput, context.inputs, 1);
   expect(state.error).toBeUndefined();
-  expect(project(context).options.legend).toMatchObject({ show: false });
+  expect(project(context).options.legend).toEqual([expect.objectContaining({ show: false })]);
   const enabled = editPie({}, context, { panel: "legend", edit: { field: "enabled", value: true } });
   const ready = project(enabled.context, enabled.storage);
-  expect(ready.options.legend).toMatchObject({ show: true });
+  expect((ready.options.legend as any[]).filter(item => item.show)).toHaveLength(2);
   const original = (ready.options.series as any[])[0].data[0];
   (ready.snapshot.rows as any)[0].values.revenue = 999;
   const next: any = ready.projectLegendSelection!({});
   expect(next.series[0].data[0].metadata.rawValue).toBe(original.metadata.rawValue);
   const hidden: any = ready.projectLegendSelection!({ [original.name]: false });
-  expect(hidden.legend).toMatchObject({ show: true, selected: { [original.name]: false } });
+  expect(hidden.legend.filter((item: any) => item.show)).toHaveLength(2);
+  for (const item of hidden.legend) expect(item.selected).toMatchObject({ [original.name]: false });
   expect(hidden.series[0].data.map((d: any) => d.value)).toEqual([0, 1]);
 });
