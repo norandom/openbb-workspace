@@ -1,6 +1,7 @@
 import type { RadialMappingInput } from "../compatibility/radialContracts";
 import { measureText } from "./cartesianLayout";
 import { linearRawTicks, niceLinearExtent } from "./linearTicks";
+import { barLegendSize, prepareBarLayout } from "./radialBarLayout";
 import {
   finite,
   radialData,
@@ -16,11 +17,13 @@ import type {
 import {
   bands,
   barDomain,
+  categoryGridRadii,
   columnTickDensity,
   columnWidth,
   connected,
   convert,
   modulo,
+  radialAxisStrokes,
   TOP,
   TURN,
 } from "./radialScale";
@@ -45,7 +48,10 @@ function padding(input: RadialMappingInput, data: RadialData) {
             ),
           ) + 30
         : app.legend.size;
-    p[side] += size + app.legend.spacing;
+    p[side] +=
+      (input.family === "radialBar"
+        ? (barLegendSize(input, data) ?? size)
+        : size) + app.legend.spacing;
   }
   return p;
 }
@@ -339,8 +345,25 @@ function validate(input: RadialMappingInput) {
 export const prepareRadialModel: PrepareRadialModel = (input) => {
   validate(input);
   const data = radialData(input);
-  const g = geometry(input, data);
-  const s = scale(input, data, g);
+  const initial = geometry(input, data);
+  const s = scale(input, data, initial);
+  const p = padding(input, data);
+  const fitted =
+    input.family === "radialBar"
+      ? prepareBarLayout(input, data, s.domain, s.ticks, {
+          x: p.left,
+          y: p.top,
+          width: Math.max(0, input.context.viewport.width - p.left - p.right),
+          height: Math.max(0, input.context.viewport.height - p.top - p.bottom),
+        })
+      : null;
+  const g = fitted
+    ? {
+        center: [...fitted.center] as [number, number],
+        radius: fitted.radius,
+        hole: fitted.hole,
+      }
+    : initial;
   return {
     center: g.center,
     outerRadius: g.radius,
@@ -353,22 +376,23 @@ export const prepareRadialModel: PrepareRadialModel = (input) => {
             .sort((a, b) => b - a)
             .map((value) => convert(value, s.domain, g.hole, g.radius))
         : [],
-    ...axisLabels(input, data, g, s),
+    categoryGridRadii:
+      input.family === "radialBar"
+        ? categoryGridRadii(
+            g.radius,
+            g.hole,
+            data.categories.length,
+            input.style.axes.category.paddingInner,
+            input.style.axes.category.paddingOuter,
+          )
+        : [],
+    ...(fitted
+      ? {
+          categoryLabels: fitted.categoryLabels,
+          numericalLabels: fitted.numericalLabels,
+        }
+      : axisLabels(input, data, g, s)),
     series: prepareSeries(input, data, g, s),
-    axisStrokes: [
-      {
-        axis: input.family === "radialColumn" ? "category" : "numerical",
-        kind: "circle",
-        radius: g.radius,
-      },
-      {
-        axis: input.family === "radialColumn" ? "numerical" : "category",
-        kind: "line",
-        x1: 0,
-        y1: -g.hole,
-        x2: 0,
-        y2: -g.radius,
-      },
-    ],
+    axisStrokes: radialAxisStrokes(input, g.radius, g.hole),
   };
 };

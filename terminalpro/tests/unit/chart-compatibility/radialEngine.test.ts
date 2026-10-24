@@ -15,6 +15,7 @@ const model: RadialPreparedModel = {
   domain: [0, 10],
   ticks: [0, 10],
   numericalGridRadii: [],
+  categoryGridRadii: [],
   axisStrokes: [
     { axis: "category", kind: "circle", radius: 100 },
     { axis: "numerical", kind: "line", x1: 0, y1: -20, x2: 0, y2: -100 },
@@ -372,3 +373,114 @@ it("paints silent alternating numerical grid circles below series and preserves 
       ).filter((g) => g.z === -1),
     ).toEqual([]);
 });
+
+for (const family of ["radialBar", "radialColumn"] as const)
+  it(`${family} renders actual native legend item and marker gaps including literal labels`, () => {
+    for (const markerGap of [0, 5, 13])
+      for (const itemGap of [32, 17]) {
+        const base = radialInput(family);
+        const input = {
+          ...base,
+          context: { ...base.context, legendSelection: { secondary: false } },
+          style: {
+            ...base.style,
+            numericalGrid: {
+              enabled: true,
+              width: 2,
+              styles: [
+                { stroke: "red", lineDash: [2, 1] },
+                { stroke: "blue", lineDash: [] },
+              ],
+            },
+            categoryGrid: {
+              enabled: true,
+              width: 2,
+              styles: [
+                { stroke: "red", lineDash: [2, 1] },
+                { stroke: "blue", lineDash: [] },
+              ],
+            },
+            application: {
+              ...base.style.application,
+              legend: {
+                ...base.style.application.legend,
+                itemSpacing: markerGap,
+                horizontalSpacing: itemGap,
+              },
+            },
+          },
+        };
+        const prepared = {
+          ...model,
+          categoryGridRadii: [20, 80, 60, 40],
+          numericalGridRadii: [20, 80, 60, 40],
+          series: model.series.map((s, i) => ({
+            ...s,
+            label: i ? "Cost | USD" : "Gross {USD}",
+          })),
+        };
+        const chart = init(null, undefined, {
+          renderer: "svg",
+          ssr: true,
+          width: 800,
+          height: 600,
+        });
+        try {
+          chart.setOption({
+            ...radialChrome(input, prepared),
+            series: radialSeries(input, prepared),
+          });
+          expect(
+            chart
+              .getZr()
+              .storage.getDisplayList()
+              .filter((el) => el.type === "circle" && el.z === -1)
+              .map((el) => el.style.stroke),
+          ).toEqual(["red", "blue", "red", "blue"]);
+          expect(
+            chart
+              .getZr()
+              .storage.getDisplayList()
+              .filter((el) => el.type === "circle" && el.z === -1)
+              .map((el) => el.shape.r),
+          ).toEqual([20, 80, 60, 40]);
+          expect(chart.getOption().legend).toMatchObject([
+            { data: ["primary", "secondary"], selected: { secondary: false } },
+          ]);
+          const legend = (chart as any).getViewOfComponentModel(
+            chart.getModel().getComponent("legend"),
+          );
+          const items = legend.getContentGroup().children();
+          const bounds = (el: any) => {
+            const r = el.getBoundingRect().clone();
+            r.applyTransform(el.getComputedTransform());
+            return r;
+          };
+          const pieces = items.map((item: any) => {
+            const children = item.children();
+            const text = children.find((c: any) => c.type === "text");
+            const icon = children.find(
+              (c: any) => c.type !== "text" && c.type !== "rect",
+            );
+            const ink = text.childrenRef()[0];
+            return {
+              icon: bounds(icon),
+              text: bounds(ink),
+              label: ink.style.text,
+            };
+          });
+          expect(pieces.map((p: any) => p.label)).toEqual([
+            "Gross {USD}",
+            "Cost | USD",
+          ]);
+          expect(
+            pieces[0].text.x - pieces[0].icon.x - pieces[0].icon.width,
+          ).toBeCloseTo(markerGap);
+          expect(
+            pieces[1].icon.x - pieces[0].text.x - pieces[0].text.width,
+          ).toBeCloseTo(itemGap);
+        } finally {
+          chart.dispose();
+        }
+      }
+  });

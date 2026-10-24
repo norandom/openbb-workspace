@@ -199,14 +199,6 @@ describe("signed, absent and bounded radial geometry", () => {
     }
     expect(model.axisStrokes).toEqual([
       { axis: "numerical", kind: "circle", radius: model.outerRadius },
-      {
-        axis: "category",
-        kind: "line",
-        x1: 0,
-        y1: -model.holeRadius,
-        x2: 0,
-        y2: -model.outerRadius,
-      },
     ]);
   });
   it("rejects duplicate row IDs, unknown assignments, malformed observations and overflow", () => {
@@ -406,4 +398,209 @@ it("uses polar density at small and zero spans independently of font size", () =
     expect(model.ticks.length).toBe(ratio === 1 ? 0 : 2);
     expect(model.numericalGridRadii.every(Number.isFinite)).toBe(true);
   }
+});
+
+import { fitRadialBarCircle } from "../../../src/components/General/Table/Chart/echarts/radialBarLayout";
+import { categoryGridRadii } from "../../../src/components/General/Table/Chart/echarts/radialScale";
+it("retains source category boundary order and singleton/empty grids", () => {
+  expect(categoryGridRadii(100, 20, 4, 0.2, 0.1)).toEqual([20, 80, 60, 40]);
+  expect(categoryGridRadii(100, 20, 0, 0.2, 0.1)).toEqual([]);
+  expect(categoryGridRadii(100, 20, 1, 0.2, 0.1)).toEqual([20]);
+  expect(
+    categoryGridRadii(100, 20, 4, 0.5, 0).map((v) => Math.round(v * 1e5) / 1e5),
+  ).toEqual([20, 82.85714, 60, 37.14286]);
+});
+it("fits measured outward Bar labels and safely returns null for valid unfit bounds", () => {
+  const input = {
+    rect: { x: 0, y: 0, width: 600, height: 500 },
+    innerRadiusRatio: 0.2,
+    angularOffset: 11,
+    angular: [
+      { value: 0, angle: -Math.PI / 2, width: 30, height: 12 },
+      { value: 20, angle: 0, width: 50, height: 12 },
+    ],
+    category: [{ value: "Q1", radiusFraction: 0.3, width: 14, height: 12 }],
+  };
+  const fitted = fitRadialBarCircle(input);
+  expect(fitted?.radius).toBe(227);
+  expect(fitted?.numericalLabels[0]).toMatchObject({
+    x: 0,
+    y: -238,
+    align: "center",
+    verticalAlign: "bottom",
+  });
+  expect(fitted?.numericalLabels[1]).toMatchObject({
+    x: 238,
+    y: 0,
+    align: "left",
+    verticalAlign: "middle",
+  });
+  expect(fitted?.categoryLabels[0]).toMatchObject({
+    x: -10,
+    y: -68.1,
+    align: "right",
+  });
+  expect(
+    fitRadialBarCircle({ ...input, rect: { x: 0, y: 0, width: 0, height: 0 } }),
+  ).toBeNull();
+  expect(
+    fitRadialBarCircle({
+      ...input,
+      category: [],
+      angular: [],
+      rect: { x: 0, y: 0, width: 0, height: 0 },
+    })?.radius,
+  ).toBe(0);
+  expect(() => fitRadialBarCircle({ ...input, angularOffset: NaN })).toThrow();
+});
+it("Bar fitting enlarges the default circle, preserves nonfixed fallback and independently disables category ray", () => {
+  const input = radialInput("radialBar");
+  const fixed = prepareRadialModel(input);
+  const nonfixed = prepareRadialModel({
+    ...input,
+    style: {
+      ...input.style,
+      axes: {
+        ...input.style.axes,
+        numerical: {
+          ...input.style.axes.numerical,
+          labels: {
+            ...input.style.axes.numerical.labels,
+            orientation: "parallel",
+          },
+        },
+      },
+    },
+  });
+  expect(fixed.outerRadius).toBeGreaterThan(nonfixed.outerRadius);
+  expect(fixed.categoryGridRadii).toHaveLength(input.snapshot.rows.length);
+  expect(fixed.axisStrokes.some((a) => a.axis === "category")).toBe(false);
+  expect(
+    prepareRadialModel({
+      ...input,
+      style: {
+        ...input.style,
+        axes: {
+          ...input.style.axes,
+          category: { ...input.style.axes.category, lineEnabled: true },
+        },
+      },
+    }).axisStrokes.some((a) => a.axis === "category"),
+  ).toBe(true);
+  expect(fixed.domain).toEqual(nonfixed.domain);
+  expect(fixed.ticks).toEqual(nonfixed.ticks);
+});
+
+it("keeps retained Bar financial amounts and angular scale unchanged", () => {
+  const input = radialInput("radialBar");
+  const values = [
+    [66025000000, 58275000000],
+    [50492000000, 44867000000],
+    [50318000000, 43718000000],
+    [54125000000, 48341000000],
+  ];
+  const model = prepareRadialModel({
+    ...input,
+    snapshot: {
+      ...input.snapshot,
+      rows: values.map(([primary, secondary], i) => ({
+        id: `q${i}`,
+        category: `Q${i + 1}`,
+        values: { primary, secondary },
+      })),
+    },
+  });
+  expect(model.domain).toEqual([0, 80000000000]);
+  expect(model.ticks).toEqual([
+    0, 10000000000, 20000000000, 30000000000, 40000000000, 50000000000,
+    60000000000, 70000000000, 80000000000,
+  ]);
+  expect(model.series.map((s) => s.marks.map((m) => m.rawValue))).toEqual([
+    values.map((v) => v[0]),
+    values.map((v) => v[1]),
+  ]);
+});
+
+it("keeps category grids independent of group padding and returns finite fallback for narrow large labels", () => {
+  const input = radialInput("radialBar");
+  const base = prepareRadialModel(input);
+  for (const groupPaddingInner of [0, 0.8])
+    expect(
+      prepareRadialModel({
+        ...input,
+        style: {
+          ...input.style,
+          axes: {
+            ...input.style.axes,
+            category: { ...input.style.axes.category, groupPaddingInner },
+          },
+        },
+      }).categoryGridRadii,
+    ).toEqual(base.categoryGridRadii);
+  for (const width of [0, 30, 800]) {
+    const model = prepareRadialModel({
+      ...input,
+      context: { ...input.context, viewport: { width, height: 200 } },
+      style: {
+        ...input.style,
+        axes: {
+          ...input.style.axes,
+          numerical: {
+            ...input.style.axes.numerical,
+            labels: { ...input.style.axes.numerical.labels, size: 40 },
+          },
+        },
+      },
+    });
+    expect(
+      [
+        model.outerRadius,
+        model.holeRadius,
+        ...model.center,
+        ...model.numericalLabels.flatMap((a) => [a.x, a.y]),
+      ].every(Number.isFinite),
+    ).toBe(true);
+  }
+});
+
+import { measureText } from "../../../src/components/General/Table/Chart/echarts/cartesianLayout";
+it("contains actual measured fixed-label boxes at narrow and large-font bounds", () => {
+  const font = radialInput("radialBar").style.axes.numerical.labels;
+  for (const width of [200, 619])
+    for (const size of [12, 40]) {
+      const box = measureText("80.00 B", { ...font, size });
+      const labels = [0, Math.PI / 2, Math.PI, -Math.PI / 2].map(
+        (angle, i) => ({ value: i, angle, ...box }),
+      );
+      const fit = fitRadialBarCircle({
+        rect: { x: 0, y: 0, width, height: 500 },
+        innerRadiusRatio: 0.2,
+        angularOffset: 11,
+        angular: labels,
+        category: [],
+      });
+      if (!fit) continue;
+      for (const anchor of fit.numericalLabels) {
+        const left =
+          fit.center[0] +
+          anchor.x -
+          (anchor.align === "right"
+            ? box.width
+            : anchor.align === "center"
+              ? box.width / 2
+              : 0);
+        const top =
+          fit.center[1] +
+          anchor.y -
+          (anchor.verticalAlign === "bottom"
+            ? box.height
+            : anchor.verticalAlign === "middle"
+              ? box.height / 2
+              : 0);
+        expect(left).toBeGreaterThanOrEqual(-1e-8);
+        expect(top).toBeGreaterThanOrEqual(-1e-8);
+        expect(left + box.width).toBeLessThanOrEqual(width + 1e-8);
+        expect(top + box.height).toBeLessThanOrEqual(500 + 1e-8);
+      }
+    }
 });

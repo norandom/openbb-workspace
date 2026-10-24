@@ -41,8 +41,8 @@ function labels(
           ? input.context.display.category(anchor.value)
           : input.context.numericAxisLabel(anchor.value),
       ),
-      align: "center",
-      verticalAlign: "middle",
+      align: anchor.align ?? "center",
+      verticalAlign: anchor.verticalAlign ?? "middle",
     },
   }));
 }
@@ -67,11 +67,18 @@ function axes(input: RadialMappingInput, model: RadialPreparedModel) {
   }));
 }
 function gridCircles(input: RadialMappingInput, model: RadialPreparedModel) {
-  const grid = input.style.numericalGrid;
-  if (input.family !== "radialColumn" || !grid?.enabled) return [];
+  const grid =
+    input.family === "radialColumn"
+      ? input.style.numericalGrid
+      : input.style.categoryGrid;
+  if (!grid?.enabled) return [];
   if (!Number.isFinite(grid.width) || grid.width < 0 || !grid.styles.length)
     throw Error("Invalid radial grid paint");
-  return model.numericalGridRadii.map((r, index) => ({
+  const radii =
+    input.family === "radialColumn"
+      ? model.numericalGridRadii
+      : model.categoryGridRadii;
+  return radii.map((r, index) => ({
     type: "circle",
     silent: true,
     z: -1,
@@ -120,17 +127,14 @@ export function radialChrome(
             model.series.find((s) => s.id === id)?.label ?? id,
           ),
         ),
+      icon: "rect",
+      align: "left",
       textStyle: {
         ...fontStyle(a.legend),
-        padding: [
-          a.legend.verticalSpacing / 2,
-          a.legend.horizontalSpacing,
-          a.legend.verticalSpacing / 2,
-          a.legend.itemSpacing - 5,
-        ],
+        padding: [0, 0, 0, a.legend.itemSpacing - 5],
       },
       padding: 0,
-      itemGap: 0,
+      itemGap: vertical ? a.legend.verticalSpacing : a.legend.horizontalSpacing,
       itemWidth: a.legend.markerSize,
       itemHeight: a.legend.markerSize,
       itemStyle: { borderWidth: a.legendMarkerStrokeWidth },

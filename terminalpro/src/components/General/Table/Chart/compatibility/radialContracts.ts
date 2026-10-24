@@ -79,6 +79,7 @@ export type RadialAxisKey =
   | "angle-number"
   | "radius-category";
 export interface ResolvedRadialAxisPaint {
+  readonly lineEnabled?: boolean;
   readonly color: string;
   readonly thickness: number;
   readonly innerRadiusRatio: number;
@@ -137,6 +138,7 @@ export type ResolvedRadialSeries = Pick<
   readonly stroke?: string;
 };
 export interface ResolvedRadialStyle {
+  readonly categoryGrid?: ResolvedRadialStyle["numericalGrid"];
   readonly numericalGrid?: {
     readonly enabled: boolean;
     readonly width: number;

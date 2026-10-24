@@ -1,9 +1,35 @@
+import type { RadialMappingInput } from "../compatibility/radialContracts";
 import {
   linearRawTicks,
   niceLinearExtent,
   type LinearTickDensity,
 } from "./linearTicks";
 import { finite } from "./radialData";
+import type { RadialAxisStroke } from "./radialModel";
+export function radialAxisStrokes(
+  input: RadialMappingInput,
+  radius: number,
+  hole: number,
+): RadialAxisStroke[] {
+  const axes: RadialAxisStroke[] = [
+    {
+      axis: input.family === "radialColumn" ? "category" : "numerical",
+      kind: "circle",
+      radius,
+    },
+    {
+      axis: input.family === "radialColumn" ? "numerical" : "category",
+      kind: "line",
+      x1: 0,
+      y1: -hole,
+      x2: 0,
+      y2: -radius,
+    },
+  ];
+  return axes.filter(
+    (axis) => input.style.axes[axis.axis].lineEnabled !== false,
+  );
+}
 export const TURN = 2 * Math.PI;
 export const TOP = -Math.PI / 2;
 /** PolarAxis uses a 20px default; Cartesian's 50px floor changes financial domains. */
@@ -68,6 +94,24 @@ export function bands(
     origin: (i: number) =>
       Math.max(Math.min(a, b), Math.min(Math.max(a, b), inset + i * step)),
   };
+}
+export function categoryGridRadii(
+  radius: number,
+  hole: number,
+  count: number,
+  paddingInner: number,
+  paddingOuter: number,
+): number[] {
+  if (count === 0) return [];
+  const band = bands(radius, hole, count, paddingInner, paddingOuter);
+  const p = count === 1 ? 0 : paddingInner;
+  const step =
+    count === 1
+      ? (hole - radius) * (1 - 2 * paddingOuter)
+      : (hole - radius) / Math.max(1, count - p + 2 * paddingOuter);
+  return Array.from({ length: count }, (_, k) =>
+    k === 0 ? hole : band.origin(0) + step * (k - 0.5) + band.width / 2,
+  );
 }
 export function columnWidth(
   start: number,

@@ -474,3 +474,93 @@ it("merges saved Column grid styles by index and rejects malformed effective pai
       JSON.stringify(gridLine),
     ).toBe(false);
 });
+
+it("resolves Bar category grid and explicit line visibility independently", () => {
+  const input = { ...radialInput(), family: "radialBar" as const };
+  const v = selected(input).mapping.style;
+  expect(v.categoryGrid).toEqual({
+    enabled: true,
+    width: 1,
+    styles: [{ stroke: "#e6e6e6", lineDash: [] }],
+  });
+  expect(v.axes.category.lineEnabled).toBe(false);
+  expect(v.axes.numerical.lineEnabled).toBe(true);
+  const next = {
+    ...input,
+    baseline: {
+      ...input.baseline,
+      options: {
+        "radial-bar": {
+          axes: {
+            "radius-category": {
+              line: { enabled: true },
+              gridLine: {
+                enabled: false,
+                style: [{ stroke: "red", lineDash: [2, 1] }],
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+  expect(selected(next).mapping.style).toMatchObject({
+    categoryGrid: {
+      enabled: false,
+      styles: [{ stroke: "red", lineDash: [2, 1] }],
+    },
+    axes: { category: { lineEnabled: true } },
+  });
+  expect(
+    prepareRadialSelection({
+      ...input,
+      generated: {
+        "radial-bar": {
+          axes: { "radius-category": { gridLine: { style: null } } },
+        },
+      },
+    }).valid,
+  ).toBe(false);
+});
+
+it("retains Bar category-grid style inheritance and selected dark/custom colors", () => {
+  const input = { ...radialInput(), family: "radialBar" as const };
+  const dark = {
+    ...input,
+    theme: {
+      ...input.theme,
+      colors: {
+        ...input.theme.colors,
+        base: "ag-default-dark" as const,
+        foregroundColor: "#ffffff",
+        backgroundColor: "#000000",
+      },
+    },
+  };
+  expect(selected(dark).mapping.style.categoryGrid?.styles[0].stroke).toBe(
+    "#424242",
+  );
+  const custom = {
+    ...input,
+    theme: {
+      ...input.theme,
+      colors: {
+        ...input.theme.colors,
+        foregroundColor: "#ff0000",
+        backgroundColor: "#000000",
+      },
+    },
+  };
+  expect(selected(custom).mapping.style.categoryGrid?.styles[0].stroke).toBe(
+    "#190000",
+  );
+  for (const style of [[], [{ lineDash: [2, 1] }]]) {
+    const v = selected({
+      ...input,
+      generated: {
+        "radial-bar": { axes: { "radius-category": { gridLine: { style } } } },
+      },
+    }).mapping.style.categoryGrid;
+    expect(v?.styles[0].stroke).toBe("#e6e6e6");
+  }
+});

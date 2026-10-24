@@ -49,7 +49,11 @@ export function radialControlTargets(family: string): RadialControlTargets {
 function defaults(input: PrepareRadialSelectionInput, userStroke: boolean) {
   const column = input.family === "radialColumn";
   const paint = {
-    line: { stroke: applicationColors(input.theme.colors).axis, width: 1 },
+    line: {
+      enabled: true,
+      stroke: applicationColors(input.theme.colors).axis,
+      width: 1,
+    },
     innerRadiusRatio: column ? 0.5 : 0.2,
     label: {
       fontFamily: "Verdana, sans-serif",
@@ -103,12 +107,29 @@ function defaults(input: PrepareRadialSelectionInput, userStroke: boolean) {
               },
             },
           }
-        : { "angle-number": angular, "radius-category": category },
+        : {
+            "angle-number": angular,
+            "radius-category": {
+              ...category,
+              line: { ...paint.line, enabled: false },
+              gridLine: {
+                enabled: true,
+                width: 1,
+                style: [
+                  {
+                    stroke: applicationColors(input.theme.colors).grid,
+                    lineDash: [],
+                  },
+                ],
+              },
+            },
+          },
     },
   );
 }
 function axisPaint(read: (path: string) => unknown, angular: boolean) {
   return {
+    lineEnabled: bool(read("line.enabled")),
     color: text(read("line.stroke")),
     thickness: number(read("line.width")),
     innerRadiusRatio: number(read("innerRadiusRatio"), 0, 1),
@@ -120,10 +141,11 @@ function axisPaint(read: (path: string) => unknown, angular: boolean) {
     },
   };
 }
-function numericalGrid(
+function axisGrid(
   effective: object,
+  axis: string,
 ): NonNullable<ResolvedRadialStyle["numericalGrid"]> {
-  const grid = object(at(effective, "axes.radius-number.gridLine"));
+  const grid = object(at(effective, `axes.${axis}.gridLine`));
   const styles = grid.style;
   if (!Array.isArray(styles) || styles.length === 0)
     throw Error("Missing radial grid styles");
@@ -136,9 +158,9 @@ function numericalGrid(
     })),
   };
 }
-function validateGridLayers(layers: readonly object[]): void {
+function validateGridLayers(layers: readonly object[], axis: string): void {
   for (const layer of layers) {
-    const style = at(layer, "axes.radius-number.gridLine.style");
+    const style = at(layer, `axes.${axis}.gridLine.style`);
     // Object-to-array merging would otherwise silently retain the default array.
     if (style !== undefined && !Array.isArray(style))
       throw Error("Radial grid styles must be an array");
@@ -192,7 +214,7 @@ export function resolveRadialAppearance(
       layers.some((layer) => at(layer, "series.stroke") !== undefined),
     ),
   );
-  if (column) validateGridLayers(layers);
+  validateGridLayers(layers, column ? "radius-number" : "radius-category");
   const effective = merge({}, ...layers);
   const read = (path: string) => at(effective, path);
   const series = {
@@ -241,9 +263,9 @@ export function resolveRadialAppearance(
               1,
             ),
           },
-          numericalGrid: numericalGrid(effective),
+          numericalGrid: axisGrid(effective, "radius-number"),
         }
-      : {}),
+      : { categoryGrid: axisGrid(effective, "radius-category") }),
     controls: {
       targets,
       value: {

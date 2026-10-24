@@ -37,6 +37,8 @@ export interface RadialPreparedSeries {
   readonly marks: readonly (RadialColumnMark | RadialBarMark)[];
 }
 export interface RadialAxisAnchor {
+  readonly align?: "left" | "center" | "right";
+  readonly verticalAlign?: "top" | "middle" | "bottom";
   readonly value: string | number;
   readonly x: number;
   readonly y: number;
@@ -65,6 +67,7 @@ export interface RadialPreparedModel {
   readonly domain: readonly [number, number];
   readonly ticks: readonly number[];
   readonly numericalGridRadii: readonly number[];
+  readonly categoryGridRadii: readonly number[];
   readonly axisStrokes: readonly RadialAxisStroke[];
   readonly categoryLabels: readonly RadialAxisAnchor[];
   readonly numericalLabels: readonly RadialAxisAnchor[];
