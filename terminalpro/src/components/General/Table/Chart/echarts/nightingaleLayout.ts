@@ -27,7 +27,7 @@ function geometry(input: NightingaleMappingInput, data: NightingaleData) {
                   .width,
             ),
           ) + 30
-        : a.legend.size + 20;
+        : a.legend.size;
     p[side] += size + a.legend.spacing;
   }
   const room = Math.max(
@@ -39,7 +39,7 @@ function geometry(input: NightingaleMappingInput, data: NightingaleData) {
           input.style.polarAxis.labels,
         ).width /
           2 +
-        12,
+        22,
     ),
   );
   const width = Math.max(0, input.context.viewport.width - p.left - p.right);
@@ -66,8 +66,8 @@ function categoryLabels(
     return {
       type: "text",
       silent: true,
-      x: g.center[0] + Math.sin(angle) * (g.radius + 12),
-      y: g.center[1] - Math.cos(angle) * (g.radius + 12),
+      x: g.center[0] + Math.sin(angle) * (g.radius + 22),
+      y: g.center[1] - Math.cos(angle) * (g.radius + 22),
       rotation,
       style: {
         text: String(input.context.display.category(category)),
@@ -78,6 +78,32 @@ function categoryLabels(
       },
     };
   });
+}
+// Native radius labels follow the category-band edge; the original labels use the top ray.
+function radialLabels(
+  input: NightingaleMappingInput,
+  g: ReturnType<typeof geometry>,
+  extent: number[],
+  ticks: number[],
+) {
+  const span = extent[1] - extent[0];
+  return ticks.map((value) => ({
+    type: "text",
+    silent: true,
+    z: 10,
+    x: g.center[0] - 10,
+    y:
+      g.center[1] -
+      g.inner -
+      (span ? ((value - extent[0]) / span) * (g.radius - g.inner) : 0),
+    style: {
+      text: String(input.context.radialAxisLabel(value)),
+      fill: input.style.polarAxis.labels.color,
+      ...fontStyle(input.style.polarAxis.labels),
+      align: "right",
+      verticalAlign: "middle",
+    },
+  }));
 }
 function chrome(
   input: NightingaleMappingInput,
@@ -159,21 +185,21 @@ export function nightingaleLayout(
       axisLabel: { show: false },
       axisLine,
       axisTick: { show: false },
-      splitLine: { show: true, lineStyle: { color: a.color, width: a.thickness } },
+      splitLine: { show: false },
     },
     radiusAxis: {
       type: "value",
       min: extent[0],
       max: extent[1],
       ...(ticks.length > 1 ? { interval: ticks[1] - ticks[0] } : {}),
-      axisLine,
+      axisLine: { show: false },
       axisTick: { show: false },
-      splitLine: { show: true, lineStyle: { color: a.color, width: a.thickness } },
-      axisLabel: {
-        ...fontStyle(a.labels),
-        formatter: (value: number) => String(input.context.radialAxisLabel(value)),
-      },
+      splitLine: { show: false },
+      axisLabel: { show: false },
     },
-    graphic: categoryLabels(input, data, g) as EChartsOption["graphic"],
+    graphic: [
+      ...categoryLabels(input, data, g),
+      ...radialLabels(input, g, extent, ticks),
+    ] as EChartsOption["graphic"],
   };
 }

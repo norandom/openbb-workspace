@@ -1,6 +1,32 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { input, options } from "./nightingale.fixtures";
 import { nightingaleData } from "../../../src/components/General/Table/Chart/echarts/nightingaleData";
+
+it("keeps the outer circle and numeric ticks on the top ray with axis styling", () => {
+  const i = input();
+  i.style.polarAxis.innerRadiusRatio = 0.2;
+  const o = options(i);
+  expect(o.angleAxis.axisLine.lineStyle).toEqual({ color: "#777777", width: 2 });
+  expect(o.angleAxis.splitLine.show).toBe(false);
+  expect(o.radiusAxis.axisLine.show).toBe(false);
+  expect(o.radiusAxis.splitLine.show).toBe(false);
+  expect(o.radiusAxis.axisLabel.show).toBe(false);
+  const labels = o.graphic.slice(i.snapshot.rows.length);
+  expect(labels.length).toBeGreaterThan(1);
+  const [cx, cy] = o.polar.center;
+  const [inner, outer] = o.polar.radius;
+  expect(inner).toBeCloseTo(outer * 0.2);
+  for (const label of labels) {
+    const ratio =
+      (Number(label.style.text) - o.radiusAxis.min) /
+      (o.radiusAxis.max - o.radiusAxis.min);
+    expect(label.x).toBe(cx - 10);
+    expect(label.y).toBeCloseTo(cy - inner - ratio * (outer - inner));
+    expect(label.style.fill).toBe(i.style.polarAxis.labels.color);
+    expect(label.style.fontSize).toBe(i.style.polarAxis.labels.size);
+  }
+  expect(o.graphic[0].y).toBe(cy - outer - 22);
+});
 beforeEach(() =>
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
     measureText: (s: string) => ({ width: s.length * 6 }),
@@ -23,7 +49,7 @@ it("preserves duplicate category identity, ordering, zero and raw label/tooltip 
   expect(
     o.tooltip.formatter({ data: o.series[0].data[1], seriesId: "primary" }),
   ).toContain("number:-5");
-  expect(o.radiusAxis.axisLabel.formatter(100)).toBe("100");
+  expect(o.graphic.some((label: any) => label.style.text === "100")).toBe(true);
 });
 it("recomputes visible signed domains and normalization, including empty and zero inputs", () => {
   const i = input("normalized");
