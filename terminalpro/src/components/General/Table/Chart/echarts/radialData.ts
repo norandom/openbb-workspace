@@ -39,16 +39,15 @@ function admit(input: RadialMappingInput): RadialDataSeries[] {
   }
   ids.clear();
   return input.assignments.map(({ colId }, paletteIndex) => {
-    if (
-      !colId ||
-      ids.has(colId) ||
-      !input.snapshot.columns.some((c) => c.id === colId && c.role === "number")
-    )
+    const column = input.snapshot.columns.find(
+      (c) => c.id === colId && c.role === "number",
+    );
+    if (!colId || ids.has(colId) || !column)
       throw Error("Invalid radial assignment.");
     ids.add(colId);
     return {
       id: colId,
-      label: colId,
+      label: column.label,
       visible: input.context.legendSelection?.[colId] !== false,
       paletteIndex,
       marks: [],

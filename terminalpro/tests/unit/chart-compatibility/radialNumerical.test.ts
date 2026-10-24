@@ -273,3 +273,51 @@ describe("frozen source band and baseline rules", () => {
   });
 });
 
+it.each(["radialColumn", "radialBar"] as const)(
+  "preserves %s display labels independently from stable IDs",
+  (family) => {
+    const input = radialInput(family);
+    const labeled: RadialMappingInput = {
+      ...input,
+      snapshot: {
+        ...input.snapshot,
+        columns: input.snapshot.columns.map((column) => ({
+          ...column,
+          label:
+            column.id === "primary"
+              ? "Cost of revenue (USD)"
+              : column.id === "secondary"
+                ? "Gross profit (USD)"
+                : column.label,
+        })),
+      },
+      context: { ...input.context, legendSelection: { primary: false } },
+    };
+    const model = prepareRadialModel(labeled);
+    expect(
+      model.series.map(({ id, label, visible, paletteIndex }) => ({
+        id,
+        label,
+        visible,
+        paletteIndex,
+      })),
+    ).toEqual([
+      {
+        id: "primary",
+        label: "Cost of revenue (USD)",
+        visible: false,
+        paletteIndex: 0,
+      },
+      {
+        id: "secondary",
+        label: "Gross profit (USD)",
+        visible: true,
+        paletteIndex: 1,
+      },
+    ]);
+    expect(model.series[0].marks).toEqual([]);
+    expect(model.series[1].marks.map((mark) => mark.rawValue)).toEqual([
+      2, 8, 18,
+    ]);
+  },
+);
