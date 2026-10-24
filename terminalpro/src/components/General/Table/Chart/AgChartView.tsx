@@ -71,6 +71,7 @@ export function ChartViewElement() {
         {inputs.valid &&
         !inputs.value.pendingReason &&
         (isRadarChartFamily(inputs.value.family) ||
+          inputs.value.family === "nightingale" ||
           isPieChartFamily(inputs.value.family) ||
           isCartesianFamily(inputs.value.family) ||
           isComboChartFamily(inputs.value.family) ||
@@ -239,6 +240,7 @@ function LiveCallerChart({
     if (
       session.seriesCount !== 0 ||
       isRadarChartFamily(inputs.family) ||
+      inputs.family === "nightingale" ||
       isPieChartFamily(inputs.family) ||
       isXyChartFamily(inputs.family) ||
       inputs.family === "histogram" ||
@@ -265,6 +267,7 @@ function LiveCallerChart({
           className="h-full w-full"
         />
         {(ready?.kind === "radar" ||
+          ready?.kind === "nightingale" ||
           ready?.kind === "pie" ||
           ready?.kind === "xy" ||
           ready?.kind === "histogram" ||
@@ -298,38 +301,51 @@ function LiveCallerChart({
           themeResetKey={inputs.theme.name}
           state={ready.editor}
           mode={
-            ready.kind === "range"
-              ? { kind: "range", ...ready.range, onEdit: session.onRange }
-              : ready.kind === "waterfall"
-                ? {
-                    kind: "waterfall",
-                    controls: ready.waterfall.controls,
-                    onEdit: session.onWaterfall,
-                  }
-                : ready.kind === "boxPlot"
+            ready.kind === "nightingale"
+              ? {
+                  kind: "nightingale",
+                  ...ready.editor.groupType,
+                  onEdit: (value) =>
+                    session.onIntent({
+                      panel: "nightingaleGroupType",
+                      edit: { value },
+                    }),
+                }
+              : ready.kind === "range"
+                ? { kind: "range", ...ready.range, onEdit: session.onRange }
+                : ready.kind === "waterfall"
                   ? {
-                      kind: "boxPlot",
-                      controls: ready.boxPlot.controls,
-                      onEdit: session.onBoxPlot,
+                      kind: "waterfall",
+                      controls: ready.waterfall.controls,
+                      onEdit: session.onWaterfall,
                     }
-                  : ready.kind === "pie"
-                    ? { kind: "pie", canSwitchCategorySeries: inputs.family !== "pie" }
-                    : ready.kind === "histogram"
+                  : ready.kind === "boxPlot"
+                    ? {
+                        kind: "boxPlot",
+                        controls: ready.boxPlot.controls,
+                        onEdit: session.onBoxPlot,
+                      }
+                    : ready.kind === "pie"
                       ? {
-                          kind: "histogram",
-                          ...ready.histogram,
-                          onEdit: session.onHistogram,
+                          kind: "pie",
+                          canSwitchCategorySeries: inputs.family !== "pie",
                         }
-                      : ready.kind === "xy"
-                        ? { kind: "xy", ...ready.xy, onEdit: session.onXy }
-                        : ready.kind === "combo"
-                          ? {
-                              kind: "combo",
-                              ...ready.combo,
-                              onAssignment: session.onComboAssignment,
-                              onGeometry: session.onComboGeometry,
-                            }
-                          : { kind: "ordinary" }
+                      : ready.kind === "histogram"
+                        ? {
+                            kind: "histogram",
+                            ...ready.histogram,
+                            onEdit: session.onHistogram,
+                          }
+                        : ready.kind === "xy"
+                          ? { kind: "xy", ...ready.xy, onEdit: session.onXy }
+                          : ready.kind === "combo"
+                            ? {
+                                kind: "combo",
+                                ...ready.combo,
+                                onAssignment: session.onComboAssignment,
+                                onGeometry: session.onComboGeometry,
+                              }
+                            : { kind: "ordinary" }
           }
           onIntent={session.onIntent}
           onAxisStructure={session.onAxisStructure}

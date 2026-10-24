@@ -348,3 +348,74 @@ it.each([
   );
   expect(caller.valid).toBe(true);
 });
+
+it.each([
+  "light",
+  "dark",
+] as const)("uses %s Nightingale palette provenance and ignores inactive axis state", async (mode) => {
+  const { callerGeneratedOptions } = await import(
+    "../../../src/components/General/Table/Chart/caller/generatedOptions"
+  );
+  const { selectNightingaleSession } = await import(
+    "../../../src/components/General/Table/Chart/application/nightingaleSessionProjection"
+  );
+  const { sessionFixture } = await import("./applicationSessionFixture");
+  for (const palette of [undefined, { fills: ["#112233"], strokes: ["#abcdef"] }]) {
+    const theme = projectCallerTheme(
+      mode,
+      ["same-name"],
+      {
+        "same-name": {
+          params: {
+            backgroundColor: "#234567",
+            axisColor: "#345678",
+            fontFamily: "Arial",
+          },
+          palette,
+        },
+      },
+      "nightingale",
+    );
+    expect(theme.palette.strokes).toEqual(palette?.strokes ?? ["#234567"]);
+    const generated = callerGeneratedOptions(
+      {},
+      { marker: { enabled: true }, connectMissingData: true, strokeWidth: 4 },
+    );
+    expect((generated.nightingale as any).series.marker).toBeUndefined();
+    const source = sessionFixture();
+    const selected = selectNightingaleSession(
+      {},
+      {
+        ...source,
+        inputs: { ...source.inputs, family: "nightingale", theme, generated },
+        local: {
+          ...source.local,
+          baseline: { ...source.local.baseline, chartType: "nightingale" },
+        },
+      },
+    );
+    expect(selected.mapping.style.application.palette.strokes).toEqual(
+      theme.palette.strokes,
+    );
+    expect(selected.mapping.style.polarAxis.color).toBe("#345678");
+    expect(selected.mapping.style.series.strokeWidth).toBe(4);
+  }
+  expect(
+    resolveCallerChart(
+      {
+        id: "w",
+        widgetId: "ordinary",
+        storage: {
+          chartModel: {
+            chartType: "nightingale",
+            qopenbbAxisSettings: { malformed: true },
+          },
+        },
+        data: {},
+      },
+      {},
+      definitions as any,
+      api as any,
+    ).valid,
+  ).toBe(true);
+});

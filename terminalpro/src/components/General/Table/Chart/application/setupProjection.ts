@@ -189,6 +189,7 @@ export function projectOrdinarySetup(
       "histogram-observations",
       "pie-observations",
       "radar-observations",
+      "nightingale-observations",
       "box-observations",
       "statistical-observations",
     ].includes(axisPolicy)
@@ -202,6 +203,7 @@ export function projectOrdinarySetup(
     axisPolicy !== "single-axis" &&
     axisPolicy !== "pie-observations" &&
     axisPolicy !== "radar-observations" &&
+    axisPolicy !== "nightingale-observations" &&
     selection.switchCategorySeries
   )
     return invalidSetup("Combination charts cannot switch category and series");
@@ -231,7 +233,7 @@ export function projectOrdinarySetup(
       };
   if (grouped.status !== "ready") return grouped;
   const groups =
-    axisPolicy === "radar-observations"
+    axisPolicy === "radar-observations" || axisPolicy === "nightingale-observations"
       ? grouped.value.map((group) => ({
           ...group,
           row: {

@@ -1,3 +1,4 @@
+import { applyNightingaleSessionTransaction } from "./nightingaleSessionProjection";
 import {
   isRadarChartFamily,
   applyRadarSessionTransaction,
@@ -64,6 +65,18 @@ function transaction(
       intent.edit,
       recapture,
     );
+  if (context.inputs.family === "nightingale")
+    return applyNightingaleSessionTransaction(
+      storage,
+      context as ApplicationSessionContext<"nightingale">,
+      command,
+    );
+  if (
+    intent.panel === "nightingaleGroupType" ||
+    intent.panel === "nightingalePolarAxis" ||
+    intent.panel === "nightingalePolarLabels"
+  )
+    return { status: "stale" as const };
   if (isRadarChartFamily(context.inputs.family))
     return applyRadarSessionTransaction(
       storage,

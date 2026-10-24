@@ -945,3 +945,78 @@ it.each([
   fireEvent.click(screen.getByRole("button", { name: "Line" }));
   await waitFor(() => expect(fixture.options.series?.[0]?.type).toBe("line"));
 });
+
+it.each([
+  false,
+  true,
+])("routes Nightingale through Table/File controls and empty recovery (file=%s)", async (file) => {
+  fixture.fileMode = file;
+  render(
+    <Owner
+      file={file}
+      family="line"
+      settingsOpen
+      storageOverride={{ chartNavigatorEnabled: true, chartMiniChartEnabled: true }}
+    />,
+  );
+  fireEvent.click(document.querySelector("#chart-view-button")!);
+  await waitFor(() => expect(fixture.options.series?.[0]?.type).toBe("line"));
+  for (const [label, family, key] of [["Nightingale", "nightingale", "nightingale"]]) {
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    await waitFor(() =>
+      expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe(family),
+    );
+    await waitFor(() => expect(fixture.options.series?.[0]?.type).toBe("bar"));
+    expect(fixture.options.series[0].data.map((d: any) => d.rawValue)).toEqual([
+      50, 100,
+    ]);
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Customize" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Thickness value" }), {
+      target: { value: "3" },
+    });
+    await waitFor(() =>
+      expect(
+        fixture.owner.widget.storage.default.chartModel.chartOptions[key].axes[
+          "radius-number"
+        ].line.width,
+      ).toBe(3),
+    );
+    expect(fixture.options.angleAxis.axisLine.lineStyle.width === 3).toBe(true);
+    expect(fixture.options.dataZoom).toBeUndefined();
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Set Up" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Group Type" }), {
+      target: { value: "normalized" },
+    });
+    await waitFor(() =>
+      expect(fixture.owner.widget.storage.default.chartModel.seriesGroupType).toBe(
+        "normalized",
+      ),
+    );
+    expect(fixture.options.radiusAxis.axisLabel.formatter(100)).toBe("100");
+    expect(
+      screen.getByRole("switch", { name: "Switch Category / Series" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Remove income" }));
+    await waitFor(() => expect(fixture.options.series).toEqual([]));
+    expect(fixture.owner.widget.storage.chartView.enabled).toBe(true);
+    fireEvent.change(screen.getByRole("combobox", { name: "Add a series" }), {
+      target: { value: "0" },
+    });
+    await waitFor(() => expect(fixture.options.series[0].data).toHaveLength(2));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Chart" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+  }
+  expect(fixture.exportFns.pngFunction).toBeTypeOf("function");
+  expect(fixture.owner.widget.storage.chartNavigatorEnabled).toBe(true);
+  expect(fixture.owner.widget.storage.chartMiniChartEnabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Line" }));
+  await waitFor(() => expect(fixture.options.series?.[0]?.type).toBe("line"));
+});

@@ -3,6 +3,7 @@ import { isPieChartFamily } from "./pieSessionTypes";
 import { isXyChartFamily } from "./xySessionTypes";
 
 export function observationSnapshotPolicy(family: string): SnapshotPolicy | undefined {
+  if (family === "nightingale") return "nightingale-observations";
   if (family === "radarLine" || family === "radarArea") return "radar-observations";
   return family === "waterfall"
     ? "waterfall-observations"

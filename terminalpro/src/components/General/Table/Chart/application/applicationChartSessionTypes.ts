@@ -11,6 +11,10 @@ import type {
 import type { SessionStamp } from "./types";
 export type ApplicationChartReady =
   | (Omit<ApplicationSessionReady, "editor"> & {
+      readonly kind: "nightingale";
+      readonly editor: import("../compatibility/nightingaleContracts").NightingaleEditorState;
+    })
+  | (Omit<ApplicationSessionReady, "editor"> & {
       readonly kind: "radar";
       readonly editor: import("../compatibility/radarContracts").RadarEditorState;
     })
@@ -53,6 +57,7 @@ export interface ApplicationChartCommand {
   readonly family: ApplicationChartFamily;
   readonly geometry?: ComboGeometry;
   readonly intent:
+    | import("../compatibility/nightingaleContracts").NightingaleEditIntent
     | import("../compatibility/radarContracts").RadarEditIntent
     | ApplicationSessionCommand["intent"]
     | import("./waterfallTypes").WaterfallEditIntent

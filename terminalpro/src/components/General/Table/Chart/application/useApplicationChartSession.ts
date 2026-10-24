@@ -1,3 +1,4 @@
+import { projectNightingaleSession } from "./nightingaleSessionProjection";
 import { isRadarChartFamily, projectRadarSession } from "./radarSessionProjection";
 import cloneDeep from "lodash/cloneDeep";
 import { useMemo } from "react";
@@ -71,69 +72,75 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
   const projected = useMemo<SessionResult<ApplicationChartReady>>(
     () =>
       current
-        ? isRadarChartFamily(inputs.family)
-          ? projectRadarSession(
+        ? inputs.family === "nightingale"
+          ? projectNightingaleSession(
               owner.widget.storage as ChartStorageOutput,
-              inputs as ApplicationSessionInputs<
-                import("../compatibility/radarContracts").RadarChartType
-              >,
+              inputs as ApplicationSessionInputs<"nightingale">,
               current,
             )
-          : inputs.family === "waterfall"
-            ? projectWaterfallSession(
+          : isRadarChartFamily(inputs.family)
+            ? projectRadarSession(
                 owner.widget.storage as ChartStorageOutput,
-                inputs as ApplicationSessionInputs<"waterfall">,
+                inputs as ApplicationSessionInputs<
+                  import("../compatibility/radarContracts").RadarChartType
+                >,
                 current,
               )
-            : isRangeChartFamily(inputs.family)
-              ? projectRangeSession(
+            : inputs.family === "waterfall"
+              ? projectWaterfallSession(
                   owner.widget.storage as ChartStorageOutput,
-                  inputs as ApplicationSessionInputs<
-                    import("../echarts/rangeApplicationTypes").RangeFamily
-                  >,
+                  inputs as ApplicationSessionInputs<"waterfall">,
                   current,
                 )
-              : inputs.family === "boxPlot"
-                ? projectBoxPlotSession(
+              : isRangeChartFamily(inputs.family)
+                ? projectRangeSession(
                     owner.widget.storage as ChartStorageOutput,
-                    inputs as ApplicationSessionInputs<"boxPlot">,
+                    inputs as ApplicationSessionInputs<
+                      import("../echarts/rangeApplicationTypes").RangeFamily
+                    >,
                     current,
                   )
-                : isPieChartFamily(inputs.family)
-                  ? projectPieSession(
+                : inputs.family === "boxPlot"
+                  ? projectBoxPlotSession(
                       owner.widget.storage as ChartStorageOutput,
-                      inputs as ApplicationSessionInputs<
-                        import("../compatibility/pieAssignments").PieChartType
-                      >,
+                      inputs as ApplicationSessionInputs<"boxPlot">,
                       current,
                     )
-                  : inputs.family === "histogram"
-                    ? projectHistogramSession(
+                  : isPieChartFamily(inputs.family)
+                    ? projectPieSession(
                         owner.widget.storage as ChartStorageOutput,
-                        inputs as ApplicationSessionInputs<"histogram">,
+                        inputs as ApplicationSessionInputs<
+                          import("../compatibility/pieAssignments").PieChartType
+                        >,
                         current,
                       )
-                    : isXyChartFamily(inputs.family)
-                      ? projectXySession(
+                    : inputs.family === "histogram"
+                      ? projectHistogramSession(
                           owner.widget.storage as ChartStorageOutput,
-                          inputs as ApplicationSessionInputs<
-                            import("../compatibility/xyAssignments").XyChartType
-                          >,
+                          inputs as ApplicationSessionInputs<"histogram">,
                           current,
                         )
-                      : isComboChartFamily(inputs.family)
-                        ? projectComboSession(
+                      : isXyChartFamily(inputs.family)
+                        ? projectXySession(
                             owner.widget.storage as ChartStorageOutput,
-                            inputs as ApplicationSessionInputs<ComboChartType>,
+                            inputs as ApplicationSessionInputs<
+                              import("../compatibility/xyAssignments").XyChartType
+                            >,
                             current,
                           )
-                        : withCartesianKind(
-                            projectApplicationSession(
+                        : isComboChartFamily(inputs.family)
+                          ? projectComboSession(
                               owner.widget.storage as ChartStorageOutput,
-                              inputs as ApplicationSessionInputs,
+                              inputs as ApplicationSessionInputs<ComboChartType>,
                               current,
-                            ),
-                          )
+                            )
+                          : withCartesianKind(
+                              projectApplicationSession(
+                                owner.widget.storage as ChartStorageOutput,
+                                inputs as ApplicationSessionInputs,
+                                current,
+                              ),
+                            )
         : { status: "waiting" as const },
     [owner.widget.storage, current, inputs.display, inputs.family],
   );
@@ -304,6 +311,7 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
     onXy: (edit: XyEditIntent["edit"]) => dispatch({ panel: "xy", edit }),
     onIntent: (
       intent:
+        | import("../compatibility/nightingaleContracts").NightingaleEditIntent
         | ApplicationEditorIntent
         | PieEditIntent
         | import("../compatibility/radarContracts").RadarEditIntent,

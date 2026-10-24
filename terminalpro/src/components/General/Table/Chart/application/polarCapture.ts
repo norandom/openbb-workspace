@@ -1,5 +1,5 @@
 /** Grid wrappers follow the original extraction order before polar engine validation. */
-export function normalizeRadarObservation(raw: unknown): number | null {
+export function normalizePolarObservation(raw: unknown): number | null {
   let value = raw;
   if (value !== null && typeof value === "object") {
     const wrapper = value as Record<string, unknown>;

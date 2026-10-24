@@ -104,3 +104,21 @@ describe("Radar displayed observation capture", () => {
     });
   });
 });
+
+it("Nightingale has its own policy with shared polar wrapper admission and empty capture", () => {
+  expect(observationSnapshotPolicy("nightingale")).toBe("nightingale-observations");
+  const result = capture(
+    [
+      { value: 12 },
+      null,
+      Number.POSITIVE_INFINITY,
+      { toNumber: () => -7 },
+      new Number(4),
+    ],
+    "nightingale",
+  );
+  expect(result.status).toBe("ready");
+  if (result.status !== "ready") throw Error(JSON.stringify(result));
+  expect(result.value.rows.map((r) => r.values.value)).toEqual([12, null, null, -7, 4]);
+  expect(capture([], "nightingale", true).status).toBe("ready");
+});

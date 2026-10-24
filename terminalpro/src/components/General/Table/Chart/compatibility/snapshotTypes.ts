@@ -63,6 +63,7 @@ export type SnapshotPolicy =
   | "histogram-observations"
   | "pie-observations"
   | "radar-observations"
+  | "nightingale-observations"
   | "box-observations"
   | "statistical-observations";
 export type ValidateSnapshot = (

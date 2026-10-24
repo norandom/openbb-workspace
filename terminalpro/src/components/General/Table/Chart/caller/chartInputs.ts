@@ -171,7 +171,11 @@ export function resolveCallerChart(
         categoryColumnId: category,
         columns,
         initialAxes: restoreAxisSettings(
-          isRadarChartFamily(chartType) || isPieChartFamily(chartType) ? {} : model,
+          chartType === "nightingale" ||
+            isRadarChartFamily(chartType) ||
+            isPieChartFamily(chartType)
+            ? {}
+            : model,
           {
             categoryAxisType: categoryType,
             axes: [

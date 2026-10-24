@@ -41,7 +41,11 @@ export const sessionAssignmentKey = (
 ) => {
   const partition = storage[address.stateKey] as RuntimeOptions | undefined;
   const model = (partition?.chartModel ?? storage.chartModel) as ChartModel | undefined;
-  return JSON.stringify(model?.seriesChartTypes ?? null);
+  return JSON.stringify([
+    model?.seriesChartTypes ?? null,
+    model ? Object.hasOwn(model, "seriesGroupType") : false,
+    model?.seriesGroupType,
+  ]);
 };
 export const sessionDataKey = <F extends ApplicationChartFamily>(
   input: ApplicationSessionInputs<F>,
@@ -115,6 +119,7 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
     if (
       !(
         isRadarChartFamily(inputs.family) ||
+        inputs.family === "nightingale" ||
         isPieChartFamily(inputs.family) ||
         inputs.family === "boxPlot"
       )
@@ -200,12 +205,14 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
     };
   const preference =
     isRadarChartFamily(inputs.family) ||
+    inputs.family === "nightingale" ||
     isPieChartFamily(inputs.family) ||
     inputs.family === "boxPlot"
       ? undefined
       : readAxisSettings(baseline.model);
   const previousPreference =
     isRadarChartFamily(inputs.family) ||
+    inputs.family === "nightingale" ||
     isPieChartFamily(inputs.family) ||
     inputs.family === "boxPlot"
       ? undefined

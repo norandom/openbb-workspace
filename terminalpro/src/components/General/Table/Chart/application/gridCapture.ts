@@ -12,7 +12,7 @@ import type {
 import { captureBoxCategory } from "./boxPlotCapture";
 import { normalizeHistogramObservation } from "./histogramCapture";
 import { normalizePieObservation } from "./pieCapture";
-import { normalizeRadarObservation } from "./radarCapture";
+import { normalizePolarObservation } from "./polarCapture";
 import { validateSessionStamp } from "./sessionState";
 import { DEFAULT_SETUP_CATEGORY } from "./setupTypes";
 import type { CaptureDisplayedChart, GridCaptureInput, SessionResult } from "./types";
@@ -220,8 +220,9 @@ function readValues(
     )
       continue;
     const value =
-      input.snapshotPolicy === "radar-observations"
-        ? normalizeRadarObservation(raw)
+      input.snapshotPolicy === "radar-observations" ||
+      input.snapshotPolicy === "nightingale-observations"
+        ? normalizePolarObservation(raw)
         : input.snapshotPolicy === "pie-observations"
           ? normalizePieObservation(raw)
           : input.snapshotPolicy === "histogram-observations"

@@ -18,7 +18,7 @@ export function ApplicationSeriesEditor({
   onIntent,
   mode,
 }: ApplicationCustomizeEditorProps) {
-  if ("kind" in state && state.kind === "radar")
+  if ("kind" in state && (state.kind === "radar" || state.kind === "nightingale"))
     return (
       <ApplicationEditorGroup label="Series">
         <ChartTooltipsPanel
@@ -29,10 +29,12 @@ export function ApplicationSeriesEditor({
           {...state.series}
           onEdit={(edit) => onIntent({ panel: "series", edit })}
         />
-        <ChartMarkersPanel
-          {...state.markers}
-          onEdit={(edit) => onIntent({ panel: "markers", edit })}
-        />
+        {state.kind === "radar" && (
+          <ChartMarkersPanel
+            {...state.markers}
+            onEdit={(edit) => onIntent({ panel: "markers", edit })}
+          />
+        )}
         <ChartLabelsPanel
           {...state.labels}
           onEdit={(edit) => onIntent({ panel: "labels", edit })}

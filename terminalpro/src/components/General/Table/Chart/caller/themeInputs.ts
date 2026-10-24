@@ -165,6 +165,7 @@ export function projectCallerTheme(
     "donut",
     "radar-line",
     "radar-area",
+    "nightingale",
     "waterfall",
   ]) {
     overrides[family] = merge(
@@ -212,9 +213,11 @@ export function projectCallerTheme(
       fills: selected.palette?.fills?.length ? selected.palette.fills : fills,
       strokes: selected.palette?.strokes?.length
         ? selected.palette.strokes
-        : dark
-          ? darkStrokes
-          : lightStrokes,
+        : chartFamily === "nightingale" && !selected.palette
+          ? [params.backgroundColor ?? (dark ? "#151518" : "#FFFFFF")]
+          : dark
+            ? darkStrokes
+            : lightStrokes,
     },
   };
 }

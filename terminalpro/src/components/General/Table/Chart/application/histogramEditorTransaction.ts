@@ -48,6 +48,9 @@ export function applyHistogramEditorTransaction(
     intent.panel === "xy" ||
     intent.panel === "radarPolarAxis" ||
     intent.panel === "radarPolarLabels" ||
+    intent.panel === "nightingaleGroupType" ||
+    intent.panel === "nightingalePolarAxis" ||
+    intent.panel === "nightingalePolarLabels" ||
     intent.panel === "markers" ||
     intent.panel === "connectMissingData"
   )

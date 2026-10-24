@@ -80,7 +80,7 @@ export function projectNightingaleEditorState(
         return {
           field,
           label: {
-            strokeWidth: "Line Width",
+            strokeWidth: "Stroke Width",
             lineDash: "Line Dash",
             strokeOpacity: "Line Opacity",
             fillOpacity: "Fill Opacity",

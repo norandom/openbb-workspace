@@ -174,6 +174,19 @@ export function ChartSetupPanel({
   );
   return (
     <div className="chart-setup-panel">
+      {mode?.kind === "nightingale" && (
+        <Group label="Group Type">
+          <Choice
+            label="Group Type"
+            value={mode.value}
+            choices={mode.choices}
+            onChange={(value) => {
+              if (value === "grouped" || value === "stacked" || value === "normalized")
+                mode.onEdit(value);
+            }}
+          />
+        </Group>
+      )}
       {(mode?.kind === "boxPlot" ||
         mode?.kind === "waterfall" ||
         (mode?.kind === "range" && mode.family === "rangeBar")) && (

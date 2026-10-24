@@ -179,6 +179,7 @@ function validate(input: unknown, policy?: SnapshotPolicy): ChartSnapshot {
       policy === "histogram-observations" ||
       policy === "pie-observations" ||
       policy === "radar-observations" ||
+      policy === "nightingale-observations" ||
       policy === "box-observations" ||
       policy === "statistical-observations",
   );

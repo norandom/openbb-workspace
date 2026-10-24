@@ -24,6 +24,7 @@ export function callerGeneratedOptions(
     ...polarSeries
   } = (dataOnlyOptions(series) as RuntimeOptions) ?? {};
   return {
+    nightingale: { series: polarSeries },
     "radar-line": { series: polarSeries },
     "radar-area": { series: polarSeries },
     common: {

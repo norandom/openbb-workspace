@@ -1,21 +1,17 @@
-import { canSwitchCategorySeries, selectApplicationSetup } from "./applicationSetupSelection";
+import { nightingaleGroupKey } from "./nightingaleSessionProjection";
+import {
+  canSwitchCategorySeries,
+  selectApplicationSetup,
+} from "./applicationSetupSelection";
 import { waterfallSelection } from "./waterfallSessionSelection";
 import { observationSnapshotPolicy } from "./histogramCapture";
-import {
-  isComboChartFamily,
-  type ApplicationChartFamily,
-} from "./comboSessionTypes";
+import { isComboChartFamily, type ApplicationChartFamily } from "./comboSessionTypes";
 import { rebuildComboAxes } from "./comboSessionLifecycle";
-import type {
-  ChartStorageOutput,
-  RuntimeOptions,
-} from "../compatibility/legacyTypes";
+import type { ChartStorageOutput, RuntimeOptions } from "../compatibility/legacyTypes";
 import type { ChartSnapshot } from "../compatibility/snapshotTypes";
 import type { ChartSetupEdit } from "../editor/setup/ChartSetupPanel";
 import { invalidSession, reduceSessionOptions } from "./applicationSessionEdit";
-import {
-  sessionSetup,
-} from "./applicationSessionSelection";
+import { sessionSetup } from "./applicationSessionSelection";
 import { validateSynchronousEditorStamp } from "./applicationSessionStamp";
 import type {
   ApplicationSessionCommit,
@@ -23,10 +19,7 @@ import type {
 } from "./applicationSessionTypes";
 import { applyRangeTransition, validateSessionStamp } from "./sessionState";
 import { transitionOrdinarySetup } from "./setupTransitions";
-import {
-  projectOrdinarySetup,
-  retainOrdinarySetupCapture,
-} from "./setupProjection";
+import { projectOrdinarySetup, retainOrdinarySetupCapture } from "./setupProjection";
 import { sessionRangeFrameKey } from "./applicationSessionRange";
 import type { SessionResult, SessionStamp } from "./types";
 
@@ -41,18 +34,28 @@ export function applyApplicationSetupTransaction(
   if (checked.status !== "ready") return checked;
   try {
     const combo = isComboChartFamily(context.inputs.family);
-    if (!canSwitchCategorySeries(context.inputs.family) && edit.kind === "switch-category-series")
+    if (
+      !canSwitchCategorySeries(context.inputs.family) &&
+      edit.kind === "switch-category-series"
+    )
       return invalidSession("This chart family cannot switch category and series");
     const selection = selectApplicationSetup(storage, context);
     if (selection.status !== "ready") return selection;
     const selected = selection.value;
-    if ("chartType" in selected) context = { ...context, inputs: { ...context.inputs, family: selected.chartType } };
+    if ("chartType" in selected)
+      context = {
+        ...context,
+        inputs: { ...context.inputs, family: selected.chartType },
+      };
     const previous = sessionSetup(
       context.local.baseline.model,
       context.local.range,
       context,
     );
     if (
+      (context.inputs.family === "nightingale" &&
+        nightingaleGroupKey(context.local.baseline.model) !==
+          nightingaleGroupKey(selected.baseline.model)) ||
       JSON.stringify(previous) !== JSON.stringify(selected.setup) ||
       JSON.stringify(context.local.range) !== JSON.stringify(selected.range)
     )
@@ -81,8 +84,11 @@ export function applyApplicationSetupTransaction(
     if (transition.selection.seriesIds.length) {
       const projection = projectOrdinarySetup(
         capture,
-        context.inputs.family === "waterfall" ? waterfallSelection(transition.selection) : transition.selection,
-        observationSnapshotPolicy(context.inputs.family) ?? (combo ? "combo-per-axis" : "single-axis"),
+        context.inputs.family === "waterfall"
+          ? waterfallSelection(transition.selection)
+          : transition.selection,
+        observationSnapshotPolicy(context.inputs.family) ??
+          (combo ? "combo-per-axis" : "single-axis"),
       );
       if (projection.status !== "ready") return projection;
     }
@@ -99,7 +105,9 @@ export function applyApplicationSetupTransaction(
       transition.model,
       selected.baseline.options,
       {},
-      context.inputs.family === "waterfall" ? Math.min(1, transition.selection.seriesIds.length) : transition.selection.seriesIds.length,
+      context.inputs.family === "waterfall"
+        ? Math.min(1, transition.selection.seriesIds.length)
+        : transition.selection.seriesIds.length,
     );
     if (transition.change === "range") {
       const ranged = applyRangeTransition({
@@ -127,8 +135,10 @@ export function applyApplicationSetupTransaction(
             ...(transition.change === "range"
               ? { rangeFrameKey: sessionRangeFrameKey(context.inputs, storage) }
               : {}),
-            legendEnabled: context.inputs.family === "waterfall"
-              ? context.local.legendEnabled : transition.selection.seriesIds.length > 1,
+            legendEnabled:
+              context.inputs.family === "waterfall"
+                ? context.local.legendEnabled
+                : transition.selection.seriesIds.length > 1,
           },
           transition.selection.categoryId,
         ),
@@ -161,13 +171,9 @@ function setupCapture(
       recapture.value.stateAddress !== fresh.stamp.address.stateAddress ||
       recapture.value.dataRevision !== fresh.stamp.dataRevision
     )
-      return invalidSession(
-        "Recapture observations do not match the current frame",
-      );
+      return invalidSession("Recapture observations do not match the current frame");
     if (recapture.value.categoryColumnId !== transition.selection.categoryId)
-      return invalidSession(
-        "Category recapture does not match the requested column",
-      );
+      return invalidSession("Category recapture does not match the requested column");
     const required = new Set([
       ...transition.selection.seriesIds,
       ...context.capture.selectedColumnIds.filter(

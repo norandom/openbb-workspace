@@ -1,4 +1,9 @@
 import type {
+  NightingaleEditorState,
+  NightingaleEditIntent,
+} from "../compatibility/nightingaleContracts";
+import { NightingaleControls } from "./nightingale/NightingaleControls";
+import type {
   RadarEditorState,
   RadarEditIntent,
 } from "../compatibility/radarContracts";
@@ -24,8 +29,18 @@ import { ApplicationAxisEditor } from "./ApplicationAxisEditor";
 
 export interface ApplicationCustomizeEditorProps {
   mode?: ApplicationEditorMode;
-  state: ApplicationEditorState | PieEditorState | RadarEditorState;
-  onIntent: (intent: ApplicationEditorIntent | PieEditIntent | RadarEditIntent) => void;
+  state:
+    | ApplicationEditorState
+    | PieEditorState
+    | RadarEditorState
+    | NightingaleEditorState;
+  onIntent: (
+    intent:
+      | ApplicationEditorIntent
+      | PieEditIntent
+      | RadarEditIntent
+      | NightingaleEditIntent,
+  ) => void;
   onAxisStructure: (event: ApplicationAxisStructureEvent) => void;
 }
 export function ApplicationCustomizeEditor(props: ApplicationCustomizeEditorProps) {
@@ -55,6 +70,9 @@ export function ApplicationCustomizeEditor(props: ApplicationCustomizeEditorProp
         />
       )}
       <ApplicationSeriesEditor {...props} />
+      {"kind" in state && state.kind === "nightingale" && (
+        <NightingaleControls {...state.polarAxis} onEdit={onIntent} />
+      )}
       {"kind" in state && state.kind === "radar" && (
         <RadarControls {...state.polarAxis} onEdit={onIntent} />
       )}
