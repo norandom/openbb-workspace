@@ -12,6 +12,7 @@ import type {
 import { captureBoxCategory } from "./boxPlotCapture";
 import { normalizeHistogramObservation } from "./histogramCapture";
 import { normalizePieObservation } from "./pieCapture";
+import { normalizeRadarObservation } from "./radarCapture";
 import { validateSessionStamp } from "./sessionState";
 import { DEFAULT_SETUP_CATEGORY } from "./setupTypes";
 import type { CaptureDisplayedChart, GridCaptureInput, SessionResult } from "./types";
@@ -219,11 +220,13 @@ function readValues(
     )
       continue;
     const value =
-      input.snapshotPolicy === "pie-observations"
-        ? normalizePieObservation(raw)
-        : input.snapshotPolicy === "histogram-observations"
-          ? normalizeHistogramObservation(raw)
-          : raw;
+      input.snapshotPolicy === "radar-observations"
+        ? normalizeRadarObservation(raw)
+        : input.snapshotPolicy === "pie-observations"
+          ? normalizePieObservation(raw)
+          : input.snapshotPolicy === "histogram-observations"
+            ? normalizeHistogramObservation(raw)
+            : raw;
     if (value !== null && !(typeof value === "number" && Number.isFinite(value)))
       fail("unresolved", ["rows", index, "values", id], "Unsupported numeric value");
     values[id] = value as number | null;

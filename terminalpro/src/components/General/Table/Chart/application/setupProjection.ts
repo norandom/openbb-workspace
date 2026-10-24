@@ -188,6 +188,7 @@ export function projectOrdinarySetup(
       "xy-coordinates",
       "histogram-observations",
       "pie-observations",
+      "radar-observations",
       "box-observations",
       "statistical-observations",
     ].includes(axisPolicy)
@@ -200,6 +201,7 @@ export function projectOrdinarySetup(
   if (
     axisPolicy !== "single-axis" &&
     axisPolicy !== "pie-observations" &&
+    axisPolicy !== "radar-observations" &&
     selection.switchCategorySeries
   )
     return invalidSetup("Combination charts cannot switch category and series");
@@ -228,7 +230,21 @@ export function projectOrdinarySetup(
         value: aggregateSetupRows(source.rows, selection.seriesIds, selection.aggFunc),
       };
   if (grouped.status !== "ready") return grouped;
-  const groups = grouped.value;
+  const groups =
+    axisPolicy === "radar-observations"
+      ? grouped.value.map((group) => ({
+          ...group,
+          row: {
+            ...group.row,
+            values: Object.fromEntries(
+              Object.entries(group.row.values).map(([id, value]) => [
+                id,
+                value === null || Number.isFinite(value) ? value : null,
+              ]),
+            ),
+          },
+        }))
+      : grouped.value;
   const output = selection.switchCategorySeries
     ? inverted(source, columns, groups, count)
     : ordinary(source, columns, groups, count);

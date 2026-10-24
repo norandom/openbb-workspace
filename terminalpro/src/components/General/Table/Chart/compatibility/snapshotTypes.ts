@@ -62,6 +62,7 @@ export type SnapshotPolicy =
   | "xy-coordinates"
   | "histogram-observations"
   | "pie-observations"
+  | "radar-observations"
   | "box-observations"
   | "statistical-observations";
 export type ValidateSnapshot = (
