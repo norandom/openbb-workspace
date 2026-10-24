@@ -45,7 +45,11 @@ export interface RadialAxisAnchor {
 }
 /** Center-relative geometry; axis selects the independently resolved paint. */
 export type RadialAxisStroke =
-  | { readonly axis: "category" | "numerical"; readonly kind: "circle"; readonly radius: number }
+  | {
+      readonly axis: "category" | "numerical";
+      readonly kind: "circle";
+      readonly radius: number;
+    }
   | {
       readonly axis: "category" | "numerical";
       readonly kind: "line";
@@ -60,10 +64,13 @@ export interface RadialPreparedModel {
   readonly holeRadius: number;
   readonly domain: readonly [number, number];
   readonly ticks: readonly number[];
+  readonly numericalGridRadii: readonly number[];
   readonly axisStrokes: readonly RadialAxisStroke[];
   readonly categoryLabels: readonly RadialAxisAnchor[];
   readonly numericalLabels: readonly RadialAxisAnchor[];
   readonly series: readonly RadialPreparedSeries[];
 }
 /** Throws on malformed/nonfinite geometry; translation owns the invalid envelope. */
-export type PrepareRadialModel = (input: RadialMappingInput) => RadialPreparedModel;
+export type PrepareRadialModel = (
+  input: RadialMappingInput,
+) => RadialPreparedModel;

@@ -1,10 +1,6 @@
 import type { RadialMappingInput } from "../compatibility/radialContracts";
 import { measureText } from "./cartesianLayout";
-import {
-  linearRawTicks,
-  linearTickDensity,
-  niceLinearExtent,
-} from "./linearTicks";
+import { linearRawTicks, niceLinearExtent } from "./linearTicks";
 import {
   finite,
   radialData,
@@ -20,6 +16,7 @@ import type {
 import {
   bands,
   barDomain,
+  columnTickDensity,
   columnWidth,
   connected,
   convert,
@@ -109,16 +106,7 @@ function scale(input: RadialMappingInput, data: RadialData, g: Geometry) {
           minTickCount: 0,
           maxTickCount: Number.POSITIVE_INFINITY,
         }
-      : linearTickDensity(
-          g.radius - g.hole,
-          Math.max(
-            1,
-            (measureText("0123456789", input.style.axes.numerical.labels)
-              .height +
-              4) /
-              50,
-          ),
-        );
+      : columnTickDensity(g.radius - g.hole);
   const domain =
     input.family === "radialBar"
       ? barDomain(data.extent)
@@ -358,6 +346,13 @@ export const prepareRadialModel: PrepareRadialModel = (input) => {
     outerRadius: g.radius,
     holeRadius: g.hole,
     ...s,
+    numericalGridRadii:
+      input.family === "radialColumn"
+        ? s.ticks
+            .filter((value) => value !== s.domain[1])
+            .sort((a, b) => b - a)
+            .map((value) => convert(value, s.domain, g.hole, g.radius))
+        : [],
     ...axisLabels(input, data, g, s),
     series: prepareSeries(input, data, g, s),
     axisStrokes: [

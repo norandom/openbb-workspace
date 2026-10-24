@@ -89,7 +89,19 @@ function defaults(input: PrepareRadialSelectionInput, userStroke: boolean) {
       axes: column
         ? {
             "angle-category": merge({}, category, angular),
-            "radius-number": paint,
+            "radius-number": {
+              ...paint,
+              gridLine: {
+                enabled: true,
+                width: 1,
+                style: [
+                  {
+                    stroke: applicationColors(input.theme.colors).grid,
+                    lineDash: [],
+                  },
+                ],
+              },
+            },
           }
         : { "angle-number": angular, "radius-category": category },
     },
@@ -107,6 +119,30 @@ function axisPaint(read: (path: string) => unknown, angular: boolean) {
         : {}),
     },
   };
+}
+function numericalGrid(
+  effective: object,
+): NonNullable<ResolvedRadialStyle["numericalGrid"]> {
+  const grid = object(at(effective, "axes.radius-number.gridLine"));
+  const styles = grid.style;
+  if (!Array.isArray(styles) || styles.length === 0)
+    throw Error("Missing radial grid styles");
+  return {
+    enabled: bool(grid.enabled),
+    width: number(grid.width),
+    styles: styles.map((style) => ({
+      stroke: text(at(style, "stroke")),
+      lineDash: dash(at(style, "lineDash") ?? []),
+    })),
+  };
+}
+function validateGridLayers(layers: readonly object[]): void {
+  for (const layer of layers) {
+    const style = at(layer, "axes.radius-number.gridLine.style");
+    // Object-to-array merging would otherwise silently retain the default array.
+    if (style !== undefined && !Array.isArray(style))
+      throw Error("Radial grid styles must be an array");
+  }
 }
 function resolveAxes(
   effective: object,
@@ -156,6 +192,7 @@ export function resolveRadialAppearance(
       layers.some((layer) => at(layer, "series.stroke") !== undefined),
     ),
   );
+  if (column) validateGridLayers(layers);
   const effective = merge({}, ...layers);
   const read = (path: string) => at(effective, path);
   const series = {
@@ -204,6 +241,7 @@ export function resolveRadialAppearance(
               1,
             ),
           },
+          numericalGrid: numericalGrid(effective),
         }
       : {}),
     controls: {

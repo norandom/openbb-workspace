@@ -4,6 +4,7 @@ import type { RadialMappingInput } from "../../../src/components/General/Table/C
 import { prepareRadialModel } from "../../../src/components/General/Table/Chart/echarts/radialLayout";
 import {
   bands,
+  columnTickDensity,
   columnWidth,
   connected,
 } from "../../../src/components/General/Table/Chart/echarts/radialScale";
@@ -321,3 +322,88 @@ it.each(["radialColumn", "radialBar"] as const)(
     ]);
   },
 );
+
+it("retains exact AAPL FY2025 USD observations on the original polar 80B scale", () => {
+  const input = radialInput();
+  const values = [
+    [66025000000, 58275000000],
+    [50492000000, 44867000000],
+    [50318000000, 43718000000],
+    [54125000000, 48341000000],
+  ];
+  const next = {
+    ...input,
+    context: { ...input.context, viewport: { width: 619, height: 593 } },
+    snapshot: {
+      ...input.snapshot,
+      rows: values.map(([primary, secondary], i) => ({
+        id: `q${i}`,
+        category: `Q${i + 1}`,
+        values: { primary, secondary },
+      })),
+    },
+  };
+  const model = prepareRadialModel(next);
+  expect(model.domain).toEqual([0, 80000000000]);
+  expect(model.ticks).toEqual([
+    0, 20000000000, 40000000000, 60000000000, 80000000000,
+  ]);
+  expect(model.series.map((s) => s.marks.map((m) => m.rawValue))).toEqual([
+    values.map((v) => v[0]),
+    values.map((v) => v[1]),
+  ]);
+  expect(model.numericalGridRadii).toEqual(
+    model.ticks
+      .slice(0, -1)
+      .reverse()
+      .map(
+        (v) =>
+          model.holeRadius +
+          ((model.outerRadius - model.holeRadius) * v) / 80000000000,
+      ),
+  );
+  const hidden = prepareRadialModel({
+    ...next,
+    context: { ...next.context, legendSelection: { primary: false } },
+  });
+  expect(hidden.series[0].marks).toEqual([]);
+  expect(hidden.series[1].marks.map((m) => m.rawValue)).toEqual(
+    values.map((v) => v[1]),
+  );
+  expect(
+    prepareRadialModel(radialInput("radialBar")).numericalGridRadii,
+  ).toEqual([]);
+});
+
+it("uses polar density at small and zero spans independently of font size", () => {
+  expect(columnTickDensity(110)).toEqual({
+    tickCount: 5,
+    minTickCount: 1,
+    maxTickCount: 5,
+  });
+  expect(columnTickDensity(10)).toEqual({
+    tickCount: 1,
+    minTickCount: 1,
+    maxTickCount: 1,
+  });
+  expect(columnTickDensity(0)).toEqual({
+    tickCount: 0,
+    minTickCount: 0,
+    maxTickCount: 0,
+  });
+  const input = radialInput();
+  for (const ratio of [0.99, 1]) {
+    const model = prepareRadialModel({
+      ...input,
+      style: {
+        ...input.style,
+        axes: {
+          ...input.style.axes,
+          numerical: { ...input.style.axes.numerical, innerRadiusRatio: ratio },
+        },
+      },
+    });
+    expect(model.ticks.length).toBe(ratio === 1 ? 0 : 2);
+    expect(model.numericalGridRadii.every(Number.isFinite)).toBe(true);
+  }
+});

@@ -1,7 +1,22 @@
-import { linearRawTicks, niceLinearExtent } from "./linearTicks";
+import {
+  linearRawTicks,
+  niceLinearExtent,
+  type LinearTickDensity,
+} from "./linearTicks";
 import { finite } from "./radialData";
 export const TURN = 2 * Math.PI;
 export const TOP = -Math.PI / 2;
+/** PolarAxis uses a 20px default; Cartesian's 50px floor changes financial domains. */
+export function columnTickDensity(span: number): LinearTickDensity {
+  if (span <= 0) return { tickCount: 0, minTickCount: 0, maxTickCount: 0 };
+  const maxTickCount = Math.max(1, Math.floor(span / Math.max(20, span / 6)));
+  const minTickCount = Math.min(maxTickCount, 1);
+  return {
+    minTickCount,
+    maxTickCount,
+    tickCount: Math.max(minTickCount, Math.min(maxTickCount, 5)),
+  };
+}
 export function modulo(angle: number): number {
   return ((angle % TURN) + TURN) % TURN;
 }

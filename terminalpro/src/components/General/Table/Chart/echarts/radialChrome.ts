@@ -66,6 +66,24 @@ function axes(input: RadialMappingInput, model: RadialPreparedModel) {
     },
   }));
 }
+function gridCircles(input: RadialMappingInput, model: RadialPreparedModel) {
+  const grid = input.style.numericalGrid;
+  if (input.family !== "radialColumn" || !grid?.enabled) return [];
+  if (!Number.isFinite(grid.width) || grid.width < 0 || !grid.styles.length)
+    throw Error("Invalid radial grid paint");
+  return model.numericalGridRadii.map((r, index) => ({
+    type: "circle",
+    silent: true,
+    z: -1,
+    shape: { cx: model.center[0], cy: model.center[1], r },
+    style: {
+      fill: "none",
+      stroke: grid.styles[index % grid.styles.length].stroke,
+      lineWidth: grid.width,
+      lineDash: [...grid.styles[index % grid.styles.length].lineDash],
+    },
+  }));
+}
 export function radialChrome(
   input: RadialMappingInput,
   model: RadialPreparedModel,
@@ -118,6 +136,7 @@ export function radialChrome(
       itemStyle: { borderWidth: a.legendMarkerStrokeWidth },
     },
     graphic: [
+      ...gridCircles(input, model),
       ...axes(input, model),
       ...labels(input, model, model.categoryLabels, "category"),
       ...labels(input, model, model.numericalLabels, "numerical"),

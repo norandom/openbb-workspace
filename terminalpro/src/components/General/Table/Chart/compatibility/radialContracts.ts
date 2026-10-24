@@ -4,7 +4,10 @@ import type {
   ResolvedApplicationAppearance,
   ResolvedApplicationSeries,
 } from "../application/appearanceModel";
-import type { SetupProjection, SetupSelection } from "../application/setupTypes";
+import type {
+  SetupProjection,
+  SetupSelection,
+} from "../application/setupTypes";
 import type { ChartDisplayPolicy, ResolvedRange } from "../application/types";
 import type {
   CartesianTranslationResult,
@@ -54,7 +57,9 @@ export type RadialAssignmentResult =
       }[];
     };
 /** Unknown families, malformed input and throwing getters resolve invalid; empty selection is valid. */
-export type ResolveRadialAssignments = (input: unknown) => RadialAssignmentResult;
+export type ResolveRadialAssignments = (
+  input: unknown,
+) => RadialAssignmentResult;
 export interface RadialMappingContext {
   readonly observationKind: SetupProjection["observationKind"];
   readonly display: ChartDisplayPolicy;
@@ -69,7 +74,10 @@ export type RadialLabelFont = Pick<
   "font" | "weight" | "size" | "color" | "fontWeight" | "fontStyle"
 >;
 export type RadialAxisKey =
-  | "angle-category" | "radius-number" | "angle-number" | "radius-category";
+  | "angle-category"
+  | "radius-number"
+  | "angle-number"
+  | "radius-category";
 export interface ResolvedRadialAxisPaint {
   readonly color: string;
   readonly thickness: number;
@@ -85,12 +93,20 @@ export interface ResolvedRadialCategoryAxis extends ResolvedRadialAxisPaint {
 }
 export type ResolvedRadialAxes =
   | {
-      readonly category: ResolvedRadialCategoryAxis & { readonly key: "angle-category" };
-      readonly numerical: ResolvedRadialAxisPaint & { readonly key: "radius-number" };
+      readonly category: ResolvedRadialCategoryAxis & {
+        readonly key: "angle-category";
+      };
+      readonly numerical: ResolvedRadialAxisPaint & {
+        readonly key: "radius-number";
+      };
     }
   | {
-      readonly category: ResolvedRadialCategoryAxis & { readonly key: "radius-category" };
-      readonly numerical: ResolvedRadialAxisPaint & { readonly key: "angle-number" };
+      readonly category: ResolvedRadialCategoryAxis & {
+        readonly key: "radius-category";
+      };
+      readonly numerical: ResolvedRadialAxisPaint & {
+        readonly key: "angle-number";
+      };
     };
 /** First-axis UI projection is distinct from effective rendering defaults. */
 export interface RadialPolarControlValue {
@@ -99,7 +115,9 @@ export interface RadialPolarControlValue {
   readonly innerRadiusRatio: number;
   readonly paddingInner: number;
   readonly groupPaddingInner: number;
-  readonly labels: RadialLabelFont & { readonly orientation: RadialLabelOrientation };
+  readonly labels: RadialLabelFont & {
+    readonly orientation: RadialLabelOrientation;
+  };
 }
 /** Frozen from actual axis applicability; transactions never broadcast to every axis. */
 export interface RadialControlTargets {
@@ -119,6 +137,14 @@ export type ResolvedRadialSeries = Pick<
   readonly stroke?: string;
 };
 export interface ResolvedRadialStyle {
+  readonly numericalGrid?: {
+    readonly enabled: boolean;
+    readonly width: number;
+    readonly styles: readonly {
+      readonly stroke: string;
+      readonly lineDash: readonly number[];
+    }[];
+  };
   readonly common: Pick<
     ResolvedCartesianStyle,
     "textColor" | "fontFamily" | "fontSize" | "precision"
@@ -131,7 +157,10 @@ export interface ResolvedRadialStyle {
     readonly columnWidthRatio: number;
     readonly maxColumnWidthRatio: number;
   };
-  readonly controls: { readonly value: RadialPolarControlValue; readonly targets: RadialControlTargets };
+  readonly controls: {
+    readonly value: RadialPolarControlValue;
+    readonly targets: RadialControlTargets;
+  };
 }
 export interface RadialMappingInput {
   readonly snapshot: ChartSnapshot;
@@ -146,7 +175,14 @@ export type TranslateRadial = (
 ) => RadialTranslationResult;
 export type RadialPolarAxisEdit =
   | { readonly field: "color"; readonly value: string }
-  | { readonly field: "thickness" | "innerRadiusRatio" | "paddingInner" | "groupPaddingInner"; readonly value: number };
+  | {
+      readonly field:
+        | "thickness"
+        | "innerRadiusRatio"
+        | "paddingInner"
+        | "groupPaddingInner";
+      readonly value: number;
+    };
 export type RadialPolarLabelValues = Pick<
   RadialLabelFont,
   "font" | "weight" | "size" | "color"
@@ -242,6 +278,3 @@ export type MapRadialEditorIntent = (
   selected: RadialPreparedSelection,
   intent: RadialAcceptedEditIntent,
 ) => ValidationResult<RadialEditorMutation>;
-
-
-

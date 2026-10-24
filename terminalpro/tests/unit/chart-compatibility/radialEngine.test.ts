@@ -14,6 +14,7 @@ const model: RadialPreparedModel = {
   holeRadius: 20,
   domain: [0, 10],
   ticks: [0, 10],
+  numericalGridRadii: [],
   axisStrokes: [
     { axis: "category", kind: "circle", radius: 100 },
     { axis: "numerical", kind: "line", x1: 0, y1: -20, x2: 0, y2: -100 },
@@ -316,4 +317,58 @@ it("joined numerical output renders both families and invalid pixels never escap
       }).status,
     ).toBe("invalid");
   }
+});
+
+it("paints silent alternating numerical grid circles below series and preserves absent/disabled callers", () => {
+  const base = radialInput();
+  const prepared = { ...model, numericalGridRadii: [80, 50, 20] };
+  const grid = {
+    enabled: true,
+    width: 2,
+    styles: [
+      { stroke: "red", lineDash: [4, 2] },
+      { stroke: "blue", lineDash: [] },
+    ],
+  };
+  const option = radialChrome(
+    { ...base, style: { ...base.style, numericalGrid: grid } },
+    prepared,
+  );
+  const circles = (option.graphic as any[]).filter((g) => g.z === -1);
+  expect(circles.map((g) => g.shape)).toEqual(
+    [80, 50, 20].map((r) => ({ cx: 200, cy: 180, r })),
+  );
+  expect(circles.map((g) => g.style.stroke)).toEqual(["red", "blue", "red"]);
+  expect(circles[0]).toMatchObject({
+    silent: true,
+    style: { fill: "none", lineWidth: 2, lineDash: [4, 2] },
+  });
+  const chart = init(null, undefined, {
+    renderer: "svg",
+    ssr: true,
+    width: 400,
+    height: 360,
+  });
+  try {
+    chart.setOption({ ...option, series: radialSeries(base, prepared) });
+    const painted = chart.getZr().storage.getDisplayList();
+    const grids = painted.filter((el) => el.type === "circle" && el.z === -1);
+    expect(grids.map((el) => el.shape.r)).toEqual([80, 50, 20]);
+    expect(grids.map((el) => el.style.stroke)).toEqual(["red", "blue", "red"]);
+    expect(grids.every((el) => el.silent)).toBe(true);
+    expect(painted.findIndex((el) => el.type === "path")).toBeGreaterThan(
+      painted.indexOf(grids[2]),
+    );
+  } finally {
+    chart.dispose();
+  }
+  for (const numericalGrid of [undefined, { ...grid, enabled: false }])
+    expect(
+      (
+        radialChrome(
+          { ...base, style: { ...base.style, numericalGrid } },
+          prepared,
+        ).graphic as any[]
+      ).filter((g) => g.z === -1),
+    ).toEqual([]);
 });

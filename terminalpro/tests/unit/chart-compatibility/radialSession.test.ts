@@ -383,3 +383,94 @@ for (const f of radialFamilies) {
     expect(selected(neighboring).mapping.style.series.strokeWidth).toBe(0);
   });
 }
+
+it("resolves Column grid defaults and theme tokens without projecting Bar grids", () => {
+  expect(selected().mapping.style.numericalGrid).toEqual({
+    enabled: true,
+    width: 1,
+    styles: [{ stroke: "#e6e6e6", lineDash: [] }],
+  });
+  const input = radialInput();
+  const dark = {
+    ...input,
+    theme: {
+      ...input.theme,
+      colors: {
+        ...input.theme.colors,
+        base: "ag-default-dark" as const,
+        foregroundColor: "#ffffff",
+        backgroundColor: "#000000",
+      },
+    },
+  };
+  expect(selected(dark).mapping.style.numericalGrid?.styles[0].stroke).toBe(
+    "#424242",
+  );
+  const custom = {
+    ...input,
+    theme: {
+      ...input.theme,
+      colors: {
+        ...input.theme.colors,
+        foregroundColor: "#ff0000",
+        backgroundColor: "#000000",
+      },
+    },
+  };
+  expect(selected(custom).mapping.style.numericalGrid?.styles[0].stroke).toBe(
+    "#190000",
+  );
+  expect(
+    selected({ ...input, family: "radialBar" }).mapping.style,
+  ).not.toHaveProperty("numericalGrid");
+});
+
+it("merges saved Column grid styles by index and rejects malformed effective paint", () => {
+  const input = radialInput();
+  const withGrid = (gridLine: unknown) => ({
+    ...input,
+    baseline: {
+      ...input.baseline,
+      options: { "radial-column": { axes: { "radius-number": { gridLine } } } },
+    },
+  });
+  expect(
+    selected(
+      withGrid({ enabled: false, width: 3, style: [{ lineDash: [4, 2] }] }),
+    ).mapping.style.numericalGrid,
+  ).toEqual({
+    enabled: false,
+    width: 3,
+    styles: [{ stroke: "#e6e6e6", lineDash: [4, 2] }],
+  });
+  for (const style of [undefined, []])
+    expect(
+      selected(withGrid({ style })).mapping.style.numericalGrid?.styles,
+    ).toEqual([{ stroke: "#e6e6e6", lineDash: [] }]);
+  expect(
+    selected(
+      withGrid({
+        style: [{ stroke: "red" }, { stroke: "blue", lineDash: [2, 1] }],
+      }),
+    ).mapping.style.numericalGrid?.styles,
+  ).toEqual([
+    { stroke: "red", lineDash: [] },
+    { stroke: "blue", lineDash: [2, 1] },
+  ]);
+  for (const gridLine of [
+    null,
+    { style: null },
+    { style: {} },
+    { style: [null] },
+    { style: [{ stroke: 1 }] },
+    { style: [{}, {}] },
+    { width: -1 },
+    { width: NaN },
+    { enabled: 1 },
+    { style: [{ lineDash: [-1] }] },
+  ])
+    expect(
+      prepareRadialSelection(withGrid(gridLine)).valid,
+      JSON.stringify(gridLine),
+    ).toBe(false);
+});
