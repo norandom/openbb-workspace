@@ -2,9 +2,14 @@ import type { SnapshotPolicy } from "../compatibility/snapshotTypes";
 import { isPieChartFamily } from "./pieSessionTypes";
 import { isXyChartFamily } from "./xySessionTypes";
 
-export function observationSnapshotPolicy(family: string): SnapshotPolicy | undefined {
+export function observationSnapshotPolicy(
+  family: string,
+): SnapshotPolicy | undefined {
+  if (family === "radialColumn" || family === "radialBar")
+    return "radial-observations";
   if (family === "nightingale") return "nightingale-observations";
-  if (family === "radarLine" || family === "radarArea") return "radar-observations";
+  if (family === "radarLine" || family === "radarArea")
+    return "radar-observations";
   return family === "waterfall"
     ? "waterfall-observations"
     : family === "boxPlot"

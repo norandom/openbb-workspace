@@ -1,8 +1,3 @@
-import { selectNightingaleSession } from "./nightingaleSessionProjection";
-import { isRadarChartFamily, selectRadarSession } from "./radarSessionProjection";
-import { selectRangeSession } from "./rangeSessionSelection";
-import { selectWaterfallSession } from "./waterfallSessionSelection";
-import { isRangeChartFamily } from "./rangeSessionTypes";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import { selectApplicationSession } from "./applicationSessionSelection";
 import type { ApplicationSessionContext } from "./applicationSessionTypes";
@@ -14,8 +9,20 @@ import {
   isComboChartFamily,
 } from "./comboSessionTypes";
 import { selectHistogramSession } from "./histogramSessionSelection";
+import { selectNightingaleSession } from "./nightingaleSessionProjection";
 import { selectPieSession } from "./pieSessionSelection";
 import { isPieChartFamily } from "./pieSessionTypes";
+import {
+  isRadarChartFamily,
+  selectRadarSession,
+} from "./radarSessionProjection";
+import {
+  isRadialChartFamily,
+  selectRadialSession,
+} from "./radialSessionProjection";
+import { selectRangeSession } from "./rangeSessionSelection";
+import { isRangeChartFamily } from "./rangeSessionTypes";
+import { selectWaterfallSession } from "./waterfallSessionSelection";
 import { selectXySession } from "./xySessionSelection";
 import { isXyChartFamily } from "./xySessionTypes";
 
@@ -27,8 +34,14 @@ export function selectApplicationSetup(
   const family = context.inputs.family;
   if (isComboChartFamily(family))
     return selectComboSession(storage, context as ComboSessionContext);
-  const value =
-    family === "nightingale"
+  const value = isRadialChartFamily(family)
+    ? selectRadialSession(
+        storage,
+        context as ApplicationSessionContext<
+          import("../compatibility/radialContracts").RadialChartType
+        >,
+      )
+    : family === "nightingale"
       ? selectNightingaleSession(
           storage,
           context as ApplicationSessionContext<"nightingale">,

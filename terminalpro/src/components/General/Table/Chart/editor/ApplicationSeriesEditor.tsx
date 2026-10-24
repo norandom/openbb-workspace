@@ -18,7 +18,12 @@ export function ApplicationSeriesEditor({
   onIntent,
   mode,
 }: ApplicationCustomizeEditorProps) {
-  if ("kind" in state && (state.kind === "radar" || state.kind === "nightingale"))
+  if (
+    "kind" in state &&
+    (state.kind === "radar" ||
+      state.kind === "nightingale" ||
+      state.kind === "radial")
+  )
     return (
       <ApplicationEditorGroup label="Series">
         <ChartTooltipsPanel

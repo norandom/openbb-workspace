@@ -1,32 +1,36 @@
+import type { ColDef, ColGroupDef, GridApi } from "ag-grid-community";
+import { getStateKey, getWidgetStorage } from "../../communityState";
+import type { ChartDataT } from "../../hooks/types";
+import type { ApplicationSessionInputs } from "../application/applicationSessionTypes";
+import { restoreAxisSettings } from "../application/axisPersistence";
+import type { ApplicationAxisRuntime } from "../application/axisStructureTypes";
+import { resolveChartRange } from "../application/chartRange";
+import { isPieChartFamily } from "../application/pieSessionTypes";
 import { isRadarChartFamily } from "../application/radarSessionProjection";
+import { DEFAULT_SETUP_CATEGORY } from "../application/setupTypes";
+import type { ResolvedRange } from "../application/types";
+import type { ValidationResult } from "../compatibility/legacyTypes";
+import { selectOptionBaseline } from "../compatibility/optionState";
 import {
   rangeCategoryModelOverride,
   resolveRangeCategoryKind,
 } from "../compatibility/rangeCategoryProvenance";
-import { isPieChartFamily } from "../application/pieSessionTypes";
-import { restoreAxisSettings } from "../application/axisPersistence";
-import type { ColDef, ColGroupDef, GridApi } from "ag-grid-community";
-import { getStateKey, getWidgetStorage } from "../../communityState";
-import { selectOptionBaseline } from "../compatibility/optionState";
-import type { ValidationResult } from "../compatibility/legacyTypes";
 import type { SnapshotColumn } from "../compatibility/snapshotTypes";
-import type { ApplicationAxisRuntime } from "../application/axisStructureTypes";
-import type { ResolvedRange } from "../application/types";
-import { resolveChartRange } from "../application/chartRange";
-import { DEFAULT_SETUP_CATEGORY } from "../application/setupTypes";
-import type { ApplicationSessionInputs } from "../application/applicationSessionTypes";
-import { callerOrientation } from "./orientation";
-import type { ChartDataT } from "../../hooks/types";
 import { isHorizontalCartesianFamily } from "../echarts/cartesianTypes";
+import { callerOrientation } from "./orientation";
 
 export function leafChartDefinitions(
   definitions: readonly (ColDef | ColGroupDef)[],
 ): ColDef[] {
   return definitions.flatMap((definition) =>
-    "children" in definition ? leafChartDefinitions(definition.children) : [definition],
+    "children" in definition
+      ? leafChartDefinitions(definition.children)
+      : [definition],
   );
 }
-export function hasCallerSeries(definitions: readonly (ColDef | ColGroupDef)[]) {
+export function hasCallerSeries(
+  definitions: readonly (ColDef | ColGroupDef)[],
+) {
   return leafChartDefinitions(definitions).some(
     (definition) => definition.chartDataType === "series",
   );
@@ -40,7 +44,9 @@ function descriptors(
     if (
       !id ||
       !(
-        range ? ["category", "series", "time", "number"] : ["category", "series"]
+        range
+          ? ["category", "series", "time", "number"]
+          : ["category", "series"]
       ).includes(definition.chartDataType ?? "")
     )
       return [];
@@ -66,7 +72,9 @@ function storedRange(value: any): ResolvedRange | undefined {
     ...(value.rowStartIndex === undefined
       ? {}
       : { rowStartIndex: value.rowStartIndex }),
-    ...(value.rowEndIndex === undefined ? {} : { rowEndIndex: value.rowEndIndex }),
+    ...(value.rowEndIndex === undefined
+      ? {}
+      : { rowEndIndex: value.rowEndIndex }),
   };
 }
 export interface CallerChart {
@@ -141,22 +149,29 @@ export function resolveCallerChart(
       ignoreCellRange: widget.storage?.ignoreCellRange === true,
     });
     if (range.status !== "ready")
-      throw new Error(range.diagnostics[0]?.message ?? "Chart range is unavailable");
+      throw new Error(
+        range.diagnostics[0]?.message ?? "Chart range is unavailable",
+      );
     const category =
       range.range.columnIds.find((id) =>
-        columns.some((column) => column.id === id && column.role === "category"),
+        columns.some(
+          (column) => column.id === id && column.role === "category",
+        ),
       ) ?? DEFAULT_SETUP_CATEGORY;
     const categoryFact = leafChartDefinitions(definitions).find(
       (d) => (d.colId ?? d.field) === category,
     );
     const resolvedCategory = resolveRangeCategoryKind(
       {
-        columnChartDataType: isRange ? (categoryFact?.chartDataType ?? null) : null,
+        columnChartDataType: isRange
+          ? (categoryFact?.chartDataType ?? null)
+          : null,
         firstCategoryIsDate: false,
       },
       isRange ? rangeCategoryModelOverride(model) : undefined,
     );
-    if (!resolvedCategory.valid) throw Error(resolvedCategory.diagnostic.message);
+    if (!resolvedCategory.valid)
+      throw Error(resolvedCategory.diagnostic.message);
     const categoryType = resolvedCategory.kind;
     const horizontal = isHorizontalCartesianFamily(chartType);
     return {
@@ -165,13 +180,18 @@ export function resolveCallerChart(
         chartType,
         rangePolicy,
         ...(orientation.custom || orientation.transposed
-          ? { pendingReason: "custom or transposed chart data pending renderer parity" }
+          ? {
+              pendingReason:
+                "custom or transposed chart data pending renderer parity",
+            }
           : {}),
         range: range.range,
         categoryColumnId: category,
         columns,
         initialAxes: restoreAxisSettings(
-          chartType === "nightingale" ||
+          chartType === "radialColumn" ||
+            chartType === "radialBar" ||
+            chartType === "nightingale" ||
             isRadarChartFamily(chartType) ||
             isPieChartFamily(chartType)
             ? {}

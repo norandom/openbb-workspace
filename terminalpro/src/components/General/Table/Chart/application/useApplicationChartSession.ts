@@ -1,5 +1,3 @@
-import { projectNightingaleSession } from "./nightingaleSessionProjection";
-import { isRadarChartFamily, projectRadarSession } from "./radarSessionProjection";
 import cloneDeep from "lodash/cloneDeep";
 import { useMemo } from "react";
 import { useWidgetTransactionContext } from "../../../../WidgetTransaction.context";
@@ -41,8 +39,17 @@ import {
 } from "./comboSessionTypes";
 import { projectHistogramSession } from "./histogramSessionProjection";
 import type { HistogramEditIntent } from "./histogramSessionTypes";
+import { projectNightingaleSession } from "./nightingaleSessionProjection";
 import { projectPieSession } from "./pieSessionProjection";
 import { isPieChartFamily, type PieEditIntent } from "./pieSessionTypes";
+import {
+  isRadarChartFamily,
+  projectRadarSession,
+} from "./radarSessionProjection";
+import {
+  isRadialChartFamily,
+  projectRadialSession,
+} from "./radialSessionProjection";
 import { projectRangeSession } from "./rangeSessionProjection";
 import { isRangeChartFamily, type RangeEditIntent } from "./rangeSessionTypes";
 import { validateSessionStamp } from "./sessionState";
@@ -66,81 +73,90 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
     state &&
     state.dataKey === sessionDataKey(inputs) &&
     state.appearanceKey === sessionAppearanceKey(inputs) &&
-    state.actionKey === sessionActionKey(owner.widget.storage as ChartStorageOutput)
+    state.actionKey ===
+      sessionActionKey(owner.widget.storage as ChartStorageOutput)
       ? state
       : undefined;
   const projected = useMemo<SessionResult<ApplicationChartReady>>(
     () =>
       current
-        ? inputs.family === "nightingale"
-          ? projectNightingaleSession(
+        ? isRadialChartFamily(inputs.family)
+          ? projectRadialSession(
               owner.widget.storage as ChartStorageOutput,
-              inputs as ApplicationSessionInputs<"nightingale">,
+              inputs as ApplicationSessionInputs<
+                import("../compatibility/radialContracts").RadialChartType
+              >,
               current,
             )
-          : isRadarChartFamily(inputs.family)
-            ? projectRadarSession(
+          : inputs.family === "nightingale"
+            ? projectNightingaleSession(
                 owner.widget.storage as ChartStorageOutput,
-                inputs as ApplicationSessionInputs<
-                  import("../compatibility/radarContracts").RadarChartType
-                >,
+                inputs as ApplicationSessionInputs<"nightingale">,
                 current,
               )
-            : inputs.family === "waterfall"
-              ? projectWaterfallSession(
+            : isRadarChartFamily(inputs.family)
+              ? projectRadarSession(
                   owner.widget.storage as ChartStorageOutput,
-                  inputs as ApplicationSessionInputs<"waterfall">,
+                  inputs as ApplicationSessionInputs<
+                    import("../compatibility/radarContracts").RadarChartType
+                  >,
                   current,
                 )
-              : isRangeChartFamily(inputs.family)
-                ? projectRangeSession(
+              : inputs.family === "waterfall"
+                ? projectWaterfallSession(
                     owner.widget.storage as ChartStorageOutput,
-                    inputs as ApplicationSessionInputs<
-                      import("../echarts/rangeApplicationTypes").RangeFamily
-                    >,
+                    inputs as ApplicationSessionInputs<"waterfall">,
                     current,
                   )
-                : inputs.family === "boxPlot"
-                  ? projectBoxPlotSession(
+                : isRangeChartFamily(inputs.family)
+                  ? projectRangeSession(
                       owner.widget.storage as ChartStorageOutput,
-                      inputs as ApplicationSessionInputs<"boxPlot">,
+                      inputs as ApplicationSessionInputs<
+                        import("../echarts/rangeApplicationTypes").RangeFamily
+                      >,
                       current,
                     )
-                  : isPieChartFamily(inputs.family)
-                    ? projectPieSession(
+                  : inputs.family === "boxPlot"
+                    ? projectBoxPlotSession(
                         owner.widget.storage as ChartStorageOutput,
-                        inputs as ApplicationSessionInputs<
-                          import("../compatibility/pieAssignments").PieChartType
-                        >,
+                        inputs as ApplicationSessionInputs<"boxPlot">,
                         current,
                       )
-                    : inputs.family === "histogram"
-                      ? projectHistogramSession(
+                    : isPieChartFamily(inputs.family)
+                      ? projectPieSession(
                           owner.widget.storage as ChartStorageOutput,
-                          inputs as ApplicationSessionInputs<"histogram">,
+                          inputs as ApplicationSessionInputs<
+                            import("../compatibility/pieAssignments").PieChartType
+                          >,
                           current,
                         )
-                      : isXyChartFamily(inputs.family)
-                        ? projectXySession(
+                      : inputs.family === "histogram"
+                        ? projectHistogramSession(
                             owner.widget.storage as ChartStorageOutput,
-                            inputs as ApplicationSessionInputs<
-                              import("../compatibility/xyAssignments").XyChartType
-                            >,
+                            inputs as ApplicationSessionInputs<"histogram">,
                             current,
                           )
-                        : isComboChartFamily(inputs.family)
-                          ? projectComboSession(
+                        : isXyChartFamily(inputs.family)
+                          ? projectXySession(
                               owner.widget.storage as ChartStorageOutput,
-                              inputs as ApplicationSessionInputs<ComboChartType>,
+                              inputs as ApplicationSessionInputs<
+                                import("../compatibility/xyAssignments").XyChartType
+                              >,
                               current,
                             )
-                          : withCartesianKind(
-                              projectApplicationSession(
+                          : isComboChartFamily(inputs.family)
+                            ? projectComboSession(
                                 owner.widget.storage as ChartStorageOutput,
-                                inputs as ApplicationSessionInputs,
+                                inputs as ApplicationSessionInputs<ComboChartType>,
                                 current,
-                              ),
-                            )
+                              )
+                            : withCartesianKind(
+                                projectApplicationSession(
+                                  owner.widget.storage as ChartStorageOutput,
+                                  inputs as ApplicationSessionInputs,
+                                  current,
+                                ),
+                              )
         : { status: "waiting" as const },
     [owner.widget.storage, current, inputs.display, inputs.family],
   );
@@ -175,10 +191,19 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
           ? captureApplicationSession(inputs, current, undefined, [addedId])
           : undefined;
     owner.transact(token, (widget, previous: ApplicationSessionState) =>
-      executeApplicationChartCommand(widget, previous, inputs, command, recapture),
+      executeApplicationChartCommand(
+        widget,
+        previous,
+        inputs,
+        command,
+        recapture,
+      ),
     );
   };
-  const onResize = (viewport: { readonly width: number; readonly height: number }) => {
+  const onResize = (viewport: {
+    readonly width: number;
+    readonly height: number;
+  }) => {
     if (
       !token ||
       !Number.isFinite(viewport.width) ||
@@ -212,8 +237,10 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
     owner.transact(token, (widget, previous: ApplicationSessionState) => {
       if (
         previous.local.baseline.chartType !== inputs.family ||
-        validateSynchronousEditorStamp(current.local.stamp, previous.local.stamp)
-          .status !== "ready"
+        validateSynchronousEditorStamp(
+          current.local.stamp,
+          previous.local.stamp,
+        ).status !== "ready"
       )
         return { widget, value: previous };
       if (!previous.capture) return { widget, value: previous };
@@ -256,14 +283,18 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
     chartType: current?.local.baseline.chartType ?? inputs.family,
     hasCustomCombo: Boolean(current?.local.savedCustomSeriesChartTypes?.length),
     seriesCount: current?.local.range.columnIds.filter((id) =>
-      inputs.columns.some((column) => column.id === id && column.role === "number"),
+      inputs.columns.some(
+        (column) => column.id === id && column.role === "number",
+      ),
     ).length,
     hostKey: state?.local.stamp.generation,
     hostProps: {
       options: projection.status === "ready" ? projection.value.options : {},
       revision: projection.status === "ready" ? projection.value.revision : 0,
       legendScope:
-        projection.status === "ready" ? projection.value.legendScope : undefined,
+        projection.status === "ready"
+          ? projection.value.legendScope
+          : undefined,
       projectLegendSelection:
         projection.status === "ready"
           ? projection.value.projectLegendSelection
@@ -273,7 +304,9 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
           ? projection.value.projectNavigationWindow
           : undefined,
       projectPointer:
-        projection.status === "ready" ? projection.value.projectPointer : undefined,
+        projection.status === "ready"
+          ? projection.value.projectPointer
+          : undefined,
       legendPagination:
         projection.status === "ready" && projection.value.kind === "pie"
           ? projection.value.legendPagination
@@ -311,6 +344,7 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
     onXy: (edit: XyEditIntent["edit"]) => dispatch({ panel: "xy", edit }),
     onIntent: (
       intent:
+        | import("../compatibility/radialContracts").RadialEditIntent
         | import("../compatibility/nightingaleContracts").NightingaleEditIntent
         | ApplicationEditorIntent
         | PieEditIntent

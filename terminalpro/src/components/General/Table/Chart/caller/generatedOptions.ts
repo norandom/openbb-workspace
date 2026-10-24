@@ -24,15 +24,26 @@ export function callerGeneratedOptions(
     ...polarSeries
   } = (dataOnlyOptions(series) as RuntimeOptions) ?? {};
   return {
+    "radial-column": { series: polarSeries },
+    "radial-bar": { series: polarSeries },
     nightingale: { series: polarSeries },
     "radar-line": { series: polarSeries },
     "radar-area": { series: polarSeries },
     common: {
       axes: {
-        category: { ...category, label: { ...category.label, autoRotate: true } },
-        "grouped-category": { ...category, label: { ...category.label, rotation: 0 } },
+        category: {
+          ...category,
+          label: { ...category.label, autoRotate: true },
+        },
+        "grouped-category": {
+          ...category,
+          label: { ...category.label, rotation: 0 },
+        },
         time: { ...category, label: { ...category.label, rotation: 0 } },
-        number: { ...caption(view.yLabel), label: { fontSize: 11, autoRotate: false } },
+        number: {
+          ...caption(view.yLabel),
+          label: { fontSize: 11, autoRotate: false },
+        },
         ...(dataOnlyOptions(axes) as RuntimeOptions),
       },
     },
@@ -41,7 +52,10 @@ export function callerGeneratedOptions(
         family,
         {
           axes: {
-            number: { bottom: caption(view.xLabel), left: caption(view.yLabel) },
+            number: {
+              bottom: caption(view.xLabel),
+              left: caption(view.yLabel),
+            },
           },
           series: {
             label: { enabled: false },

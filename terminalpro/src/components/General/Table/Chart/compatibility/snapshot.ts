@@ -17,7 +17,11 @@ const identity = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
 
 function failure(path: DiagnosticPath, message: string): never {
-  const diagnostic: SnapshotDiagnostic = { code: "invalid-snapshot", path, message };
+  const diagnostic: SnapshotDiagnostic = {
+    code: "invalid-snapshot",
+    path,
+    message,
+  };
   failures.set(diagnostic, diagnostic);
   throw diagnostic;
 }
@@ -85,7 +89,10 @@ function columnsOf(input: RecordValue): Map<string, RecordValue> {
       failure([...path, "role"], "Expected category or number role");
     if (Object.hasOwn(column, "unit") && !identity(column.unit))
       failure([...path, "unit"], "Expected an explicit unit identity");
-    if (Object.hasOwn(column, "scale") && (!finite(column.scale) || column.scale <= 0))
+    if (
+      Object.hasOwn(column, "scale") &&
+      (!finite(column.scale) || column.scale <= 0)
+    )
       failure([...path, "scale"], "Expected a finite positive scale");
     columns.set(column.id, column);
   });
@@ -102,7 +109,10 @@ function checkSelection(
   const selected = new Set<string>();
   input.selectedColumnIds.forEach((id: unknown, index: number) => {
     if (!identity(id) || selected.has(id) || !columns.has(id))
-      failure(["selectedColumnIds", index], "Expected a unique known column ID");
+      failure(
+        ["selectedColumnIds", index],
+        "Expected a unique known column ID",
+      );
     selected.add(id);
   });
   const categories = [...columns.values()].filter(
@@ -115,7 +125,10 @@ function checkSelection(
     );
   if (!selected.has(input.categoryColumnId as string))
     failure(["categoryColumnId"], "Category must be selected");
-  if (!allowEmpty && ![...selected].some((id) => columns.get(id)?.role === "number"))
+  if (
+    !allowEmpty &&
+    ![...selected].some((id) => columns.get(id)?.role === "number")
+  )
     failure(["selectedColumnIds"], "Expected a selected numeric series");
 }
 
@@ -124,7 +137,8 @@ function checkRows(
   columns: Map<string, RecordValue>,
   statistical: boolean,
 ): void {
-  if (!Array.isArray(input.rows)) failure(["rows"], "Expected ordered observations");
+  if (!Array.isArray(input.rows))
+    failure(["rows"], "Expected ordered observations");
   const ids = new Set<string>();
   input.rows.forEach((row: unknown, index: number) => {
     const path = ["rows", index];
@@ -144,12 +158,18 @@ function checkRows(
     if (typeof row.category !== "string" && !finite(row.category))
       failure([...path, "category"], "Expected a string or finite category");
     if (!object(row.values))
-      failure([...path, "values"], "Expected numeric observations by descriptor ID");
+      failure(
+        [...path, "values"],
+        "Expected numeric observations by descriptor ID",
+      );
     for (const [id, value] of Object.entries(row.values)) {
       if (columns.get(id)?.role !== "number")
         failure([...path, "values", id], "Expected a numeric descriptor ID");
       if (value !== null && !finite(value))
-        failure([...path, "values", id], "Expected a finite observation or null");
+        failure(
+          [...path, "values", id],
+          "Expected a finite observation or null",
+        );
     }
   });
 }
@@ -180,6 +200,7 @@ function validate(input: unknown, policy?: SnapshotPolicy): ChartSnapshot {
       policy === "pie-observations" ||
       policy === "radar-observations" ||
       policy === "nightingale-observations" ||
+      policy === "radial-observations" ||
       policy === "box-observations" ||
       policy === "statistical-observations",
   );
@@ -189,7 +210,8 @@ function validate(input: unknown, policy?: SnapshotPolicy): ChartSnapshot {
     policy === "box-observations" || policy === "statistical-observations",
   );
   const categoryDiagnostic = checkRangeCategoryProvenance(copy);
-  if (categoryDiagnostic) failure(categoryDiagnostic.path, categoryDiagnostic.message);
+  if (categoryDiagnostic)
+    failure(categoryDiagnostic.path, categoryDiagnostic.message);
   return copy as unknown as ChartSnapshot;
 }
 

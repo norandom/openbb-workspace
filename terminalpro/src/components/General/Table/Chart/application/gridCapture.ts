@@ -15,7 +15,11 @@ import { normalizePieObservation } from "./pieCapture";
 import { normalizePolarObservation } from "./polarCapture";
 import { validateSessionStamp } from "./sessionState";
 import { DEFAULT_SETUP_CATEGORY } from "./setupTypes";
-import type { CaptureDisplayedChart, GridCaptureInput, SessionResult } from "./types";
+import type {
+  CaptureDisplayedChart,
+  GridCaptureInput,
+  SessionResult,
+} from "./types";
 
 // WeakMap identity lookup never inspects prototypes or properties of grid throws.
 const failures = new WeakMap<object, SessionResult<never>>();
@@ -38,7 +42,8 @@ function inspectInput(input: GridCaptureInput): ResolvedSnapshotInput {
   if (!object(input) || !object(input.range) || !object(input.api))
     fail("invalid", [], "Expected capture input, range and grid API");
   const stamp = validateSessionStamp(input.stamp, input.stamp);
-  if (stamp.status !== "ready") fail("invalid", ["stamp"], "Invalid session stamp");
+  if (stamp.status !== "ready")
+    fail("invalid", ["stamp"], "Invalid session stamp");
   for (const method of [
     "isDestroyed",
     "getGridOption",
@@ -66,7 +71,8 @@ function inspectInput(input: GridCaptureInput): ResolvedSnapshotInput {
     },
     input.snapshotPolicy,
   );
-  if (!result.valid) reject({ status: "invalid", diagnostics: result.diagnostics });
+  if (!result.valid)
+    reject({ status: "invalid", diagnostics: result.diagnostics });
   return result.snapshot;
 }
 function checkModel(input: GridCaptureInput): string | null {
@@ -79,10 +85,18 @@ function checkModel(input: GridCaptureInput): string | null {
       "Only client-side ordinary rows are supported",
     );
   if (api.getGridOption("pivotMode") || api.getGridOption("treeData"))
-    fail("unresolved", ["api"], "Pivot and tree models require another capture path");
+    fail(
+      "unresolved",
+      ["api"],
+      "Pivot and tree models require another capture path",
+    );
   for (const key of ["pinnedTopRowData", "pinnedBottomRowData"] as const) {
     if ((api.getGridOption(key)?.length ?? 0) > 0)
-      fail("unresolved", ["api", key], "Pinned rows require another capture path");
+      fail(
+        "unresolved",
+        ["api", key],
+        "Pinned rows require another capture path",
+      );
   }
   if (api.getPinnedTopRowCount() || api.getPinnedBottomRowCount())
     fail("unresolved", ["api"], "Pinned rows require another capture path");
@@ -133,7 +147,10 @@ function bounds(input: GridCaptureInput, count: number): [number, number] {
     ["rowStartIndex", start],
     ["rowEndIndex", end],
   ] as const) {
-    if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value)))
+    if (
+      value !== undefined &&
+      (typeof value !== "number" || !Number.isFinite(value))
+    )
       fail("invalid", ["range", key], "Expected finite numeric bounds");
   }
   if (
@@ -145,7 +162,11 @@ function bounds(input: GridCaptureInput, count: number): [number, number] {
     end < start ||
     end >= count
   )
-    fail("unresolved", ["range"], "Bounds must be inclusive valid displayed indices");
+    fail(
+      "unresolved",
+      ["range"],
+      "Bounds must be inclusive valid displayed indices",
+    );
   return [start, end];
 }
 function readCategory(
@@ -196,7 +217,11 @@ function readCategory(
     typeof category !== "string" &&
     !(typeof category === "number" && Number.isFinite(category))
   )
-    fail("unresolved", ["rows", index, "category"], "Unsupported category value");
+    fail(
+      "unresolved",
+      ["rows", index, "category"],
+      "Unsupported category value",
+    );
   return { category: category as string | number, firstCategoryIsDate: false };
 }
 function readValues(
@@ -221,15 +246,23 @@ function readValues(
       continue;
     const value =
       input.snapshotPolicy === "radar-observations" ||
-      input.snapshotPolicy === "nightingale-observations"
+      input.snapshotPolicy === "nightingale-observations" ||
+      input.snapshotPolicy === "radial-observations"
         ? normalizePolarObservation(raw)
         : input.snapshotPolicy === "pie-observations"
           ? normalizePieObservation(raw)
           : input.snapshotPolicy === "histogram-observations"
             ? normalizeHistogramObservation(raw)
             : raw;
-    if (value !== null && !(typeof value === "number" && Number.isFinite(value)))
-      fail("unresolved", ["rows", index, "values", id], "Unsupported numeric value");
+    if (
+      value !== null &&
+      !(typeof value === "number" && Number.isFinite(value))
+    )
+      fail(
+        "unresolved",
+        ["rows", index, "values", id],
+        "Unsupported numeric value",
+      );
     values[id] = value as number | null;
   }
   return values;
@@ -280,7 +313,11 @@ export const captureDisplayedChart: CaptureDisplayedChart = (input) => {
       return { status: "waiting" };
     const count = input.api.getDisplayedRowCount();
     if (!Number.isSafeInteger(count) || count < 0)
-      fail("unresolved", ["api", "displayedRowCount"], "Invalid displayed row count");
+      fail(
+        "unresolved",
+        ["api", "displayedRowCount"],
+        "Invalid displayed row count",
+      );
     const [start, end] = bounds(input, count);
     const { rows, firstCategoryIsDate } = readRows(input, template, start, end);
     let rangeCategory: ResolvedSnapshotInput["rangeCategory"];
@@ -311,7 +348,8 @@ export const captureDisplayedChart: CaptureDisplayedChart = (input) => {
       : { status: "invalid", diagnostics: result.diagnostics };
   } catch (error) {
     const registered =
-      (typeof error === "object" && error !== null) || typeof error === "function"
+      (typeof error === "object" && error !== null) ||
+      typeof error === "function"
         ? failures.get(error)
         : undefined;
     return (

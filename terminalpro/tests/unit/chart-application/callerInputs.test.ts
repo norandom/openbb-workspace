@@ -1,13 +1,13 @@
-import { rangeLiveInput } from "../chart-compatibility/rangeLive.fixtures";
-import { projectRangeLiveApplication } from "../../../src/components/General/Table/Chart/echarts/rangeLiveProjection";
 import { describe, expect, it } from "vitest";
+import { resolveApplicationAppearance } from "../../../src/components/General/Table/Chart/application/effectiveAppearance";
 import {
-  resolveCallerChart,
-  createCallerChartData,
   changeCallerChartType,
+  createCallerChartData,
+  resolveCallerChart,
 } from "../../../src/components/General/Table/Chart/caller/chartInputs";
 import { projectCallerTheme } from "../../../src/components/General/Table/Chart/caller/themeInputs";
-import { resolveApplicationAppearance } from "../../../src/components/General/Table/Chart/application/effectiveAppearance";
+import { projectRangeLiveApplication } from "../../../src/components/General/Table/Chart/echarts/rangeLiveProjection";
+import { rangeLiveInput } from "../chart-compatibility/rangeLive.fixtures";
 
 const definitions = [
   {
@@ -34,10 +34,19 @@ const api = {
 describe("ordinary production caller inputs", () => {
   it("uses processed definitions and actual category roles without inventing units", () => {
     const widget = { id: "w", widgetId: "ordinary", storage: {}, data: {} };
-    const selected = resolveCallerChart(widget, {}, definitions as any, api as any);
+    const selected = resolveCallerChart(
+      widget,
+      {},
+      definitions as any,
+      api as any,
+    );
     expect(selected.valid).toBe(true);
     if (!selected.valid) return;
-    expect(selected.value.range.columnIds).toEqual(["period", "income", "other"]);
+    expect(selected.value.range.columnIds).toEqual([
+      "period",
+      "income",
+      "other",
+    ]);
     expect(selected.value.categoryColumnId).toBe("period");
     expect(selected.value.columns).toEqual([
       { id: "AG-GRID-DEFAULT-CATEGORY", label: "(None)", role: "category" },
@@ -61,7 +70,9 @@ describe("ordinary production caller inputs", () => {
         id: "w",
         storage: {},
         data: {
-          table: { chartView: { cellRangeCols: { groupedColumn: ["income"] } } },
+          table: {
+            chartView: { cellRangeCols: { groupedColumn: ["income"] } },
+          },
         },
       },
       {},
@@ -99,9 +110,17 @@ describe("ordinary production caller inputs", () => {
         },
       },
     };
-    const result = resolveCallerChart(widget, {}, definitions as any, api as any);
+    const result = resolveCallerChart(
+      widget,
+      {},
+      definitions as any,
+      api as any,
+    );
     expect(result.valid && result.value.chartType).toBe("stackedColumn");
-    expect(result.valid && result.value.range.columnIds).toEqual(["period", "income"]);
+    expect(result.valid && result.value.range.columnIds).toEqual([
+      "period",
+      "income",
+    ]);
     const next = changeCallerChartType(widget, "line");
     expect(next.storage.default.chartModel).toMatchObject({
       chartType: "line",
@@ -116,13 +135,15 @@ describe("ordinary production caller inputs", () => {
     const widget = {
       id: "w",
       storage: {
-        default: { chartModel: { chartType: 42, cellRange: { columns: "broken" } } },
+        default: {
+          chartModel: { chartType: 42, cellRange: { columns: "broken" } },
+        },
       },
     };
     const original = structuredClone(widget);
-    expect(resolveCallerChart(widget, {}, definitions as any, api as any).valid).toBe(
-      false,
-    );
+    expect(
+      resolveCallerChart(widget, {}, definitions as any, api as any).valid,
+    ).toBe(false);
     expect(widget).toEqual(original);
   });
   it("selects the active palette, projects custom params and lets explicit common options win", () => {
@@ -181,7 +202,9 @@ describe("ordinary production caller inputs", () => {
       axisRuntime: selected.value.initialAxes,
     });
     expect(appearance.valid).toBe(true);
-    expect(appearance.valid && appearance.value.application.title.size).toBe(19);
+    expect(appearance.valid && appearance.value.application.title.size).toBe(
+      19,
+    );
   });
 });
 it("admits declared Range time categories while retaining ordinary descriptor admission", () => {
@@ -208,206 +231,139 @@ it("admits declared Range time categories while retaining ordinary descriptor ad
   );
 });
 
-it.each([
-  "rangeBar",
-  "rangeArea",
-] as const)("retains integrated zoom defaults for %s without overriding saved choices", (family) => {
-  for (const mode of ["light", "dark"] as const) {
-    const theme = projectCallerTheme(
-      mode,
-      ["custom"],
-      { custom: { params: { fontSize: 14 } } },
-      family,
-    );
-    expect(theme.overrides.common).toMatchObject({
-      zoom: {
-        enabled: true,
-        anchorPointX: "pointer",
-        anchorPointY: "pointer",
-        minVisibleItems: 4,
-        autoScaling: { enabled: true },
-      },
-    });
-    const custom = projectCallerTheme(
-      mode,
-      ["custom"],
-      { custom: { overrides: { common: { zoom: { enabled: false } } } } },
-      family,
-    );
-    expect((custom.overrides.common as any).zoom.enabled).toBe(false);
-    const key = family === "rangeBar" ? "range-bar" : "range-area";
-    const disabled = projectCallerTheme(
-      mode,
-      ["custom"],
-      { custom: { overrides: { [key]: { zoom: { enabled: false } } } } },
-      family,
-    );
-    expect((disabled.overrides[key] as any).zoom.enabled).toBe(false);
-    const input = { ...rangeLiveInput(family), theme };
-    const settings = { navigatorEnabled: false, miniChartEnabled: false };
-    const live = projectRangeLiveApplication(input, settings);
-    expect(live.status).toBe("supported");
-    if (live.status !== "supported") throw Error(JSON.stringify(live));
-    expect(
-      (live.options.dataZoom as any[]).some(
-        (z) => z.type === "inside" && z.zoomOnMouseWheel && z.moveOnMouseMove,
-      ),
-    ).toBe(true);
-    for (const source of [
-      { ...input, theme: custom },
-      { ...input, theme: disabled },
-      { ...input, generated: { common: { zoom: { enabled: false } } } },
-      {
-        ...input,
-        baseline: {
-          ...input.baseline,
-          options: { [key]: { zoom: { enabled: false } } },
+it.each(["rangeBar", "rangeArea"] as const)(
+  "retains integrated zoom defaults for %s without overriding saved choices",
+  (family) => {
+    for (const mode of ["light", "dark"] as const) {
+      const theme = projectCallerTheme(
+        mode,
+        ["custom"],
+        { custom: { params: { fontSize: 14 } } },
+        family,
+      );
+      expect(theme.overrides.common).toMatchObject({
+        zoom: {
+          enabled: true,
+          anchorPointX: "pointer",
+          anchorPointY: "pointer",
+          minVisibleItems: 4,
+          autoScaling: { enabled: true },
         },
-      },
-    ]) {
-      const off = projectRangeLiveApplication(source, settings);
-      expect(off.status).toBe("supported");
-      if (off.status !== "supported") throw Error(JSON.stringify(off));
-      expect(off.options.dataZoom).toBeUndefined();
+      });
+      const custom = projectCallerTheme(
+        mode,
+        ["custom"],
+        { custom: { overrides: { common: { zoom: { enabled: false } } } } },
+        family,
+      );
+      expect((custom.overrides.common as any).zoom.enabled).toBe(false);
+      const key = family === "rangeBar" ? "range-bar" : "range-area";
+      const disabled = projectCallerTheme(
+        mode,
+        ["custom"],
+        { custom: { overrides: { [key]: { zoom: { enabled: false } } } } },
+        family,
+      );
+      expect((disabled.overrides[key] as any).zoom.enabled).toBe(false);
+      const input = { ...rangeLiveInput(family), theme };
+      const settings = { navigatorEnabled: false, miniChartEnabled: false };
+      const live = projectRangeLiveApplication(input, settings);
+      expect(live.status).toBe("supported");
+      if (live.status !== "supported") throw Error(JSON.stringify(live));
+      expect(
+        (live.options.dataZoom as any[]).some(
+          (z) => z.type === "inside" && z.zoomOnMouseWheel && z.moveOnMouseMove,
+        ),
+      ).toBe(true);
+      for (const source of [
+        { ...input, theme: custom },
+        { ...input, theme: disabled },
+        { ...input, generated: { common: { zoom: { enabled: false } } } },
+        {
+          ...input,
+          baseline: {
+            ...input.baseline,
+            options: { [key]: { zoom: { enabled: false } } },
+          },
+        },
+      ]) {
+        const off = projectRangeLiveApplication(source, settings);
+        expect(off.status).toBe("supported");
+        if (off.status !== "supported") throw Error(JSON.stringify(off));
+        expect(off.options.dataZoom).toBeUndefined();
+      }
     }
-  }
-  expect(
-    (projectCallerTheme("light", [], {}).overrides.common as any).zoom,
-  ).toBeUndefined();
-});
-it.each([
-  "radarLine",
-  "radarArea",
-] as const)("projects %s caller theme and defaults without Cartesian marker additions", async (family) => {
-  const { callerGeneratedOptions } = await import(
-    "../../../src/components/General/Table/Chart/caller/generatedOptions"
-  );
-  const { selectRadarSession } = await import(
-    "../../../src/components/General/Table/Chart/application/radarSessionProjection"
-  );
-  const { sessionFixture } = await import("./applicationSessionFixture");
-  const key = family === "radarLine" ? "radar-line" : "radar-area";
-  const generated = callerGeneratedOptions(
-    {},
-    {
-      marker: { enabled: false },
-      connectMissingData: true,
-      strokeWidth: 4,
-      label: { enabled: true },
-    },
-  );
-  expect((generated[key] as any).series.marker).toBeUndefined();
-  expect((generated[key] as any).series.connectMissingData).toBeUndefined();
-  const theme = projectCallerTheme(
-    "light",
-    ["custom"],
-    {
-      custom: {
-        params: { axisColor: "#123456", fontFamily: "Arial", fontSize: 14 },
-        overrides: { [key]: { series: { strokeWidth: 2 } } },
-      },
-    },
-    family,
-  );
-  const source = sessionFixture();
-  const selected = selectRadarSession(
-    {},
-    {
-      ...source,
-      inputs: { ...source.inputs, family, generated, theme },
-      local: {
-        ...source.local,
-        baseline: {
-          ...source.local.baseline,
-          chartType: family,
-          options: {
-            common: { series: { strokeWidth: 99 } },
-            [key]: { series: { strokeWidth: 6 } },
-          },
-        },
-      },
-    },
-  );
-  expect(selected.mapping.style.series.strokeWidth).toBe(6);
-  expect(selected.mapping.style.series.markers.enabled).toBe(family === "radarLine");
-  expect(selected.mapping.style.series.labels.enabled).toBe(true);
-  expect(selected.mapping.style.polarAxis.color).toBe("#123456");
-  expect(selected.mapping.style.polarAxis.labels.font).toBe("Arial");
-  const caller = resolveCallerChart(
-    {
-      id: "w",
-      widgetId: "ordinary",
-      storage: {
-        chartModel: { chartType: family, qopenbbAxisSettings: { malformed: true } },
-      },
-      data: {},
-    },
-    {},
-    definitions as any,
-    api as any,
-  );
-  expect(caller.valid).toBe(true);
-});
-
-it.each([
-  "light",
-  "dark",
-] as const)("uses %s Nightingale palette provenance and ignores inactive axis state", async (mode) => {
-  const { callerGeneratedOptions } = await import(
-    "../../../src/components/General/Table/Chart/caller/generatedOptions"
-  );
-  const { selectNightingaleSession } = await import(
-    "../../../src/components/General/Table/Chart/application/nightingaleSessionProjection"
-  );
-  const { sessionFixture } = await import("./applicationSessionFixture");
-  for (const palette of [undefined, { fills: ["#112233"], strokes: ["#abcdef"] }]) {
-    const theme = projectCallerTheme(
-      mode,
-      ["same-name"],
-      {
-        "same-name": {
-          params: {
-            backgroundColor: "#234567",
-            axisColor: "#345678",
-            fontFamily: "Arial",
-          },
-          palette,
-        },
-      },
-      "nightingale",
+    expect(
+      (projectCallerTheme("light", [], {}).overrides.common as any).zoom,
+    ).toBeUndefined();
+  },
+);
+it.each(["radarLine", "radarArea"] as const)(
+  "projects %s caller theme and defaults without Cartesian marker additions",
+  async (family) => {
+    const { callerGeneratedOptions } = await import(
+      "../../../src/components/General/Table/Chart/caller/generatedOptions"
     );
-    expect(theme.palette.strokes).toEqual(palette?.strokes ?? ["#234567"]);
+    const { selectRadarSession } = await import(
+      "../../../src/components/General/Table/Chart/application/radarSessionProjection"
+    );
+    const { sessionFixture } = await import("./applicationSessionFixture");
+    const key = family === "radarLine" ? "radar-line" : "radar-area";
     const generated = callerGeneratedOptions(
       {},
-      { marker: { enabled: true }, connectMissingData: true, strokeWidth: 4 },
+      {
+        marker: { enabled: false },
+        connectMissingData: true,
+        strokeWidth: 4,
+        label: { enabled: true },
+      },
     );
-    expect((generated.nightingale as any).series.marker).toBeUndefined();
+    expect((generated[key] as any).series.marker).toBeUndefined();
+    expect((generated[key] as any).series.connectMissingData).toBeUndefined();
+    const theme = projectCallerTheme(
+      "light",
+      ["custom"],
+      {
+        custom: {
+          params: { axisColor: "#123456", fontFamily: "Arial", fontSize: 14 },
+          overrides: { [key]: { series: { strokeWidth: 2 } } },
+        },
+      },
+      family,
+    );
     const source = sessionFixture();
-    const selected = selectNightingaleSession(
+    const selected = selectRadarSession(
       {},
       {
         ...source,
-        inputs: { ...source.inputs, family: "nightingale", theme, generated },
+        inputs: { ...source.inputs, family, generated, theme },
         local: {
           ...source.local,
-          baseline: { ...source.local.baseline, chartType: "nightingale" },
+          baseline: {
+            ...source.local.baseline,
+            chartType: family,
+            options: {
+              common: { series: { strokeWidth: 99 } },
+              [key]: { series: { strokeWidth: 6 } },
+            },
+          },
         },
       },
     );
-    expect(selected.mapping.style.application.palette.strokes).toEqual(
-      theme.palette.strokes,
+    expect(selected.mapping.style.series.strokeWidth).toBe(6);
+    expect(selected.mapping.style.series.markers.enabled).toBe(
+      family === "radarLine",
     );
-    expect(selected.mapping.style.polarAxis.color).toBe("#345678");
-    expect(selected.mapping.style.series.strokeWidth).toBe(4);
-  }
-  expect(
-    resolveCallerChart(
+    expect(selected.mapping.style.series.labels.enabled).toBe(true);
+    expect(selected.mapping.style.polarAxis.color).toBe("#123456");
+    expect(selected.mapping.style.polarAxis.labels.font).toBe("Arial");
+    const caller = resolveCallerChart(
       {
         id: "w",
         widgetId: "ordinary",
         storage: {
           chartModel: {
-            chartType: "nightingale",
+            chartType: family,
             qopenbbAxisSettings: { malformed: true },
           },
         },
@@ -416,6 +372,204 @@ it.each([
       {},
       definitions as any,
       api as any,
-    ).valid,
-  ).toBe(true);
-});
+    );
+    expect(caller.valid).toBe(true);
+  },
+);
+
+it.each(["light", "dark"] as const)(
+  "uses %s Nightingale palette provenance and ignores inactive axis state",
+  async (mode) => {
+    const { callerGeneratedOptions } = await import(
+      "../../../src/components/General/Table/Chart/caller/generatedOptions"
+    );
+    const { selectNightingaleSession } = await import(
+      "../../../src/components/General/Table/Chart/application/nightingaleSessionProjection"
+    );
+    const { sessionFixture } = await import("./applicationSessionFixture");
+    for (const palette of [
+      undefined,
+      { fills: ["#112233"], strokes: ["#abcdef"] },
+    ]) {
+      const theme = projectCallerTheme(
+        mode,
+        ["same-name"],
+        {
+          "same-name": {
+            params: {
+              backgroundColor: "#234567",
+              axisColor: "#345678",
+              fontFamily: "Arial",
+            },
+            palette,
+          },
+        },
+        "nightingale",
+      );
+      expect(theme.palette.strokes).toEqual(palette?.strokes ?? ["#234567"]);
+      const generated = callerGeneratedOptions(
+        {},
+        { marker: { enabled: true }, connectMissingData: true, strokeWidth: 4 },
+      );
+      expect((generated.nightingale as any).series.marker).toBeUndefined();
+      const source = sessionFixture();
+      const selected = selectNightingaleSession(
+        {},
+        {
+          ...source,
+          inputs: { ...source.inputs, family: "nightingale", theme, generated },
+          local: {
+            ...source.local,
+            baseline: { ...source.local.baseline, chartType: "nightingale" },
+          },
+        },
+      );
+      expect(selected.mapping.style.application.palette.strokes).toEqual(
+        theme.palette.strokes,
+      );
+      expect(selected.mapping.style.polarAxis.color).toBe("#345678");
+      expect(selected.mapping.style.series.strokeWidth).toBe(4);
+    }
+    expect(
+      resolveCallerChart(
+        {
+          id: "w",
+          widgetId: "ordinary",
+          storage: {
+            chartModel: {
+              chartType: "nightingale",
+              qopenbbAxisSettings: { malformed: true },
+            },
+          },
+          data: {},
+        },
+        {},
+        definitions as any,
+        api as any,
+      ).valid,
+    ).toBe(true);
+  },
+);
+
+it.each(["radialColumn", "radialBar"] as const)(
+  "projects %s palette provenance, opposite axes and generated option filters",
+  async (family) => {
+    const { callerGeneratedOptions } = await import(
+      "../../../src/components/General/Table/Chart/caller/generatedOptions"
+    );
+    const { selectRadialSession } = await import(
+      "../../../src/components/General/Table/Chart/application/radialSessionProjection"
+    );
+    const { translateRadial } = await import(
+      "../../../src/components/General/Table/Chart/echarts/radial"
+    );
+    const { sessionFixture } = await import("./applicationSessionFixture");
+    const key = family === "radialColumn" ? "radial-column" : "radial-bar";
+    for (const mode of ["light", "dark"] as const)
+      for (const palette of [
+        undefined,
+        { fills: ["#112233"], strokes: ["#abcdef"] },
+      ]) {
+        const name = palette ? "openbb-dark" : "custom-name";
+        const theme = projectCallerTheme(
+          mode,
+          [name],
+          {
+            [name]: {
+              palette,
+              params: {
+                backgroundColor: "#234567",
+                axisColor: "#345678",
+                fontFamily: "Arial",
+              },
+              overrides: {
+                common: { series: { fillOpacity: 0.6 } },
+                [key]: { series: { fillOpacity: 0.4 } },
+              },
+            },
+          },
+          family,
+        );
+        expect(theme.palette.strokes[0]).toBe(
+          palette ? "#abcdef" : mode === "dark" ? "#74a8e6" : "#2b5c95",
+        );
+        const generated = callerGeneratedOptions(
+          {},
+          {
+            marker: { enabled: true },
+            connectMissingData: true,
+            calloutLabel: { enabled: true },
+            strokeWidth: 4,
+          },
+        );
+        expect((generated[key] as any).series.marker).toBeUndefined();
+        expect(
+          (generated[key] as any).series.connectMissingData,
+        ).toBeUndefined();
+        expect((generated[key] as any).series.calloutLabel).toBeUndefined();
+        const source = sessionFixture();
+        const context = {
+          ...source,
+          inputs: { ...source.inputs, family, theme, generated },
+          local: {
+            ...source.local,
+            baseline: { ...source.local.baseline, chartType: family },
+          },
+        };
+        const selected = selectRadialSession({}, context, {
+          width: 800,
+          height: 500,
+        });
+        expect(selected.mapping.style.axes.category.color).toBe("#345678");
+        expect(selected.mapping.style.axes.numerical.color).toBe("#345678");
+        expect(selected.mapping.style.series.strokeWidth).toBe(4);
+        expect(selected.mapping.style.series.stroke).toBeUndefined();
+        expect(selected.mapping.style.series.fillOpacity).toBe(0.4);
+        const rendered = translateRadial(selected.mapping);
+        expect(rendered.status).toBe("supported");
+        if (rendered.status !== "supported")
+          throw Error(JSON.stringify(rendered));
+        const shape = (rendered.options.series as any[])[0].renderItem({
+          dataIndex: 0,
+        }).children[0];
+        expect(shape.style.lineWidth).toBe(4);
+        expect(shape.style.stroke).toBe(
+          palette
+            ? "rgba(171,205,239,1)"
+            : mode === "dark"
+              ? "rgba(116,168,230,1)"
+              : "rgba(43,92,149,1)",
+        );
+        const explicit = selectRadialSession(
+          {},
+          {
+            ...context,
+            inputs: {
+              ...context.inputs,
+              generated: callerGeneratedOptions({}, { stroke: "#123456" }),
+            },
+          },
+        );
+        expect(explicit.mapping.style.series.stroke).toBe("#123456");
+        expect(explicit.mapping.style.series.strokeWidth).toBe(1);
+      }
+    expect(
+      resolveCallerChart(
+        {
+          id: "w",
+          widgetId: "ordinary",
+          storage: {
+            chartModel: {
+              chartType: family,
+              qopenbbAxisSettings: { malformed: true },
+            },
+          },
+          data: {},
+        },
+        {},
+        definitions as any,
+        api as any,
+      ).valid,
+    ).toBe(true);
+  },
+);

@@ -1,6 +1,9 @@
 import merge from "lodash.merge";
 import type { ApplicationThemeInput } from "../application/appearanceModel";
-import type { RuntimeOptions, RuntimeOptionValue } from "../compatibility/legacyTypes";
+import type {
+  RuntimeOptions,
+  RuntimeOptionValue,
+} from "../compatibility/legacyTypes";
 import { waterfallThemePaint } from "./waterfallThemePaint";
 
 const fills = [
@@ -42,9 +45,13 @@ const darkStrokes = [
 
 /** Callback behavior belongs to display policy and quick actions, never RuntimeOptions. */
 export function dataOnlyOptions(value: unknown): RuntimeOptionValue {
-  if (value === null || ["string", "boolean", "undefined"].includes(typeof value))
+  if (
+    value === null ||
+    ["string", "boolean", "undefined"].includes(typeof value)
+  )
     return value as RuntimeOptionValue;
-  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (typeof value === "number")
+    return Number.isFinite(value) ? value : undefined;
   if (Array.isArray(value)) return value.map(dataOnlyOptions);
   if (!value || typeof value !== "object") return undefined;
   return Object.fromEntries(
@@ -78,7 +85,10 @@ function parameterOptions(params: Record<string, any>): RuntimeOptions {
     label: font,
     ...(params.axisColor === undefined
       ? {}
-      : { line: { stroke: params.axisColor }, tick: { stroke: params.axisColor } }),
+      : {
+          line: { stroke: params.axisColor },
+          tick: { stroke: params.axisColor },
+        }),
     ...(params.gridLineColor === undefined
       ? {}
       : { gridLine: { style: [{ stroke: params.gridLineColor }] } }),
@@ -94,7 +104,11 @@ function parameterOptions(params: Record<string, any>): RuntimeOptions {
           : { color: params.subtleTextColor }),
       },
       legend: { item: { label: font } },
-      series: { label: retainedFont, calloutLabel: font, sectorLabel: retainedFont },
+      series: {
+        label: retainedFont,
+        calloutLabel: font,
+        sectorLabel: retainedFont,
+      },
       axes: Object.fromEntries(
         [
           "category",
@@ -103,6 +117,8 @@ function parameterOptions(params: Record<string, any>): RuntimeOptions {
           "grouped-category",
           "angle-category",
           "radius-number",
+          "angle-number",
+          "radius-category",
         ].map((type) => [type, axis]),
       ),
       ...(padding === undefined
@@ -166,6 +182,8 @@ export function projectCallerTheme(
     "radar-line",
     "radar-area",
     "nightingale",
+    "radial-column",
+    "radial-bar",
     "waterfall",
   ]) {
     overrides[family] = merge(
@@ -183,8 +201,11 @@ export function projectCallerTheme(
             },
           }
         : {},
-      (dataOnlyOptions(selected.overrides) as RuntimeOptions | undefined)?.common,
-      (dataOnlyOptions(selected.overrides) as RuntimeOptions | undefined)?.[family],
+      (dataOnlyOptions(selected.overrides) as RuntimeOptions | undefined)
+        ?.common,
+      (dataOnlyOptions(selected.overrides) as RuntimeOptions | undefined)?.[
+        family
+      ],
     );
   }
   return {
@@ -207,7 +228,8 @@ export function projectCallerTheme(
       foregroundColor: foreground,
       textColor: params.textColor ?? foreground,
       backgroundColor: params.backgroundColor ?? (dark ? "#151518" : "#FFFFFF"),
-      chartBackgroundColor: params.backgroundColor ?? (dark ? "#151518" : "#FFFFFF"),
+      chartBackgroundColor:
+        params.backgroundColor ?? (dark ? "#151518" : "#FFFFFF"),
     },
     palette: {
       fills: selected.palette?.fills?.length ? selected.palette.fills : fills,

@@ -44,13 +44,13 @@ function capture(values: unknown[], family = "radarLine", empty = false) {
   return captureDisplayedChart(input);
 }
 describe("Radar displayed observation capture", () => {
-  it.each([
-    "radarLine",
-    "radarArea",
-  ])("registers %s without changing other policies", (family) => {
-    expect(observationSnapshotPolicy(family)).toBe("radar-observations");
-    expect(observationSnapshotPolicy("line")).toBeUndefined();
-  });
+  it.each(["radarLine", "radarArea"])(
+    "registers %s without changing other policies",
+    (family) => {
+      expect(observationSnapshotPolicy(family)).toBe("radar-observations");
+      expect(observationSnapshotPolicy("line")).toBeUndefined();
+    },
+  );
   it("preserves wrapper precedence, dates and own valueOf, with invalid observations missing", () => {
     const result = capture([
       10,
@@ -105,20 +105,33 @@ describe("Radar displayed observation capture", () => {
   });
 });
 
-it("Nightingale has its own policy with shared polar wrapper admission and empty capture", () => {
-  expect(observationSnapshotPolicy("nightingale")).toBe("nightingale-observations");
-  const result = capture(
-    [
-      { value: 12 },
+it.each(["nightingale", "radialColumn", "radialBar"])(
+  "%s has its own policy with shared polar wrapper admission and empty capture",
+  (family) => {
+    expect(observationSnapshotPolicy(family)).toBe(
+      family === "nightingale"
+        ? "nightingale-observations"
+        : "radial-observations",
+    );
+    const result = capture(
+      [
+        { value: 12 },
+        null,
+        Number.POSITIVE_INFINITY,
+        { toNumber: () => -7 },
+        new Number(4),
+      ],
+      family,
+    );
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") throw Error(JSON.stringify(result));
+    expect(result.value.rows.map((r) => r.values.value)).toEqual([
+      12,
       null,
-      Number.POSITIVE_INFINITY,
-      { toNumber: () => -7 },
-      new Number(4),
-    ],
-    "nightingale",
-  );
-  expect(result.status).toBe("ready");
-  if (result.status !== "ready") throw Error(JSON.stringify(result));
-  expect(result.value.rows.map((r) => r.values.value)).toEqual([12, null, null, -7, 4]);
-  expect(capture([], "nightingale", true).status).toBe("ready");
-});
+      null,
+      -7,
+      4,
+    ]);
+    expect(capture([], family, true).status).toBe("ready");
+  },
+);

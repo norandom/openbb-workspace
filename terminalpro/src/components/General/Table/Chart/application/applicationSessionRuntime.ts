@@ -1,6 +1,5 @@
-import { isRadarChartFamily } from "./radarSessionProjection";
-import cloneDeep from "lodash/cloneDeep";
 import isEqual from "lodash.isequal";
+import cloneDeep from "lodash/cloneDeep";
 import type {
   ChartModel,
   ChartStorageOutput,
@@ -33,6 +32,8 @@ import {
 } from "./comboSessionTypes";
 import { observationSnapshotPolicy } from "./histogramCapture";
 import { isPieChartFamily } from "./pieSessionTypes";
+import { isRadarChartFamily } from "./radarSessionProjection";
+import { isRadialChartFamily } from "./radialSessionProjection";
 import { advanceSessionStamp } from "./sessionState";
 
 export const sessionAssignmentKey = (
@@ -40,7 +41,9 @@ export const sessionAssignmentKey = (
   address: ApplicationSessionInputs["address"],
 ) => {
   const partition = storage[address.stateKey] as RuntimeOptions | undefined;
-  const model = (partition?.chartModel ?? storage.chartModel) as ChartModel | undefined;
+  const model = (partition?.chartModel ?? storage.chartModel) as
+    | ChartModel
+    | undefined;
   return JSON.stringify([
     model?.seriesChartTypes ?? null,
     model ? Object.hasOwn(model, "seriesGroupType") : false,
@@ -80,7 +83,9 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
   inputs: ApplicationSessionInputs<F>,
   generation: number,
 ): ApplicationSessionState {
-  const partition = storage[inputs.address.stateKey] as RuntimeOptions | undefined;
+  const partition = storage[inputs.address.stateKey] as
+    | RuntimeOptions
+    | undefined;
   const selected = selectOptionBaseline({
     kind: "initialize",
     stateAddress: inputs.address.stateAddress,
@@ -118,13 +123,17 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
   try {
     if (
       !(
+        isRadialChartFamily(inputs.family) ||
         isRadarChartFamily(inputs.family) ||
         inputs.family === "nightingale" ||
         isPieChartFamily(inputs.family) ||
         inputs.family === "boxPlot"
       )
     )
-      local.axes = restoreAxisSettings(local.baseline.model, inputs.initialAxes);
+      local.axes = restoreAxisSettings(
+        local.baseline.model,
+        inputs.initialAxes,
+      );
     range = sessionRange(storage, context);
   } catch (failure) {
     error = failure instanceof Error ? failure.message : "Invalid chart range";
@@ -175,16 +184,25 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
     state.assignmentKey !== sessionAssignmentKey(storage, inputs.address)
   )
     return {
-      ...initialApplicationSession(storage, inputs, state.local.stamp.generation + 1),
+      ...initialApplicationSession(
+        storage,
+        inputs,
+        state.local.stamp.generation + 1,
+      ),
       viewport: state.viewport,
     };
-  if (state.pendingFamily && inputs.family !== state.pendingFamily) return state;
+  if (state.pendingFamily && inputs.family !== state.pendingFamily)
+    return state;
   if (
     inputs.family !== state.local.baseline.chartType &&
     inputs.family !== state.sourceFamily
   )
     return {
-      ...initialApplicationSession(storage, inputs, state.local.stamp.generation + 1),
+      ...initialApplicationSession(
+        storage,
+        inputs,
+        state.local.stamp.generation + 1,
+      ),
       viewport: state.viewport,
     };
   const context = {
@@ -204,6 +222,7 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
       model: { ...baseline.model, chartType: "customCombo" },
     };
   const preference =
+    isRadialChartFamily(inputs.family) ||
     isRadarChartFamily(inputs.family) ||
     inputs.family === "nightingale" ||
     isPieChartFamily(inputs.family) ||
@@ -211,6 +230,7 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
       ? undefined
       : readAxisSettings(baseline.model);
   const previousPreference =
+    isRadialChartFamily(inputs.family) ||
     isRadarChartFamily(inputs.family) ||
     inputs.family === "nightingale" ||
     isPieChartFamily(inputs.family) ||
@@ -223,7 +243,11 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
       ? restoreAxisSettings(baseline.model, state.local.axes)
       : resetAxisSettings(inputs.initialAxes, state.local.axes);
   const range = sessionRange(storage, context);
-  const before = sessionSetup(state.local.baseline.model, state.local.range, context);
+  const before = sessionSetup(
+    state.local.baseline.model,
+    state.local.range,
+    context,
+  );
   const after = sessionSetup(baseline.model, range, context);
   const dataKey = sessionDataKey(inputs);
   const appearanceKey = sessionAppearanceKey(inputs);
@@ -267,12 +291,18 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
     sourceFamily: inputs.family,
     local: {
       ...(dataChanged
-        ? rebuildComboAxes({ ...state.local, baseline, range }, after.categoryId)
+        ? rebuildComboAxes(
+            { ...state.local, baseline, range },
+            after.categoryId,
+          )
         : state.local),
       axes,
       baseline,
       range,
-      stamp: nextSessionStamp(state.local.stamp, dataChanged ? "data" : "render"),
+      stamp: nextSessionStamp(
+        state.local.stamp,
+        dataChanged ? "data" : "render",
+      ),
       ...(dataChanged || modelChanged
         ? {
             legendEnabled:

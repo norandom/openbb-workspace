@@ -112,7 +112,10 @@ function model(value: unknown, path: string): ChartModel {
       if (key === "chartType" && item !== null && typeof item !== "string") {
         throw new Error(`${path}.chartType must be a string or null`);
       }
-      copied = copy(item, `${path}.${key}`, false, ancestors);
+      copied =
+        key === "seriesGroupType" && item === undefined
+          ? undefined
+          : copy(item, `${path}.${key}`, false, ancestors);
     }
     Object.defineProperty(result, key, {
       value: copied,
@@ -149,18 +152,24 @@ function transition(data: Data): OptionBaseline {
     const root =
       data.rootModel == null ? undefined : model(data.rootModel, "rootModel");
     const fallback =
-      data.rootOptions == null ? undefined : options(data.rootOptions, "rootOptions");
+      data.rootOptions == null
+        ? undefined
+        : options(data.rootOptions, "rootOptions");
     return {
       stateAddress,
       model: partition ?? root ?? {},
-      options: options(partition?.chartOptions ?? fallback ?? {}, "selectedOptions"),
+      options: options(
+        partition?.chartOptions ?? fallback ?? {},
+        "selectedOptions",
+      ),
       chartType: text(data.initialChartType, "initialChartType"),
     };
   }
   if (data.kind !== "synchronize")
     throw new Error("kind must be initialize or synchronize");
   const previous = previousBaseline(data.previous);
-  const populated = partition !== undefined && Object.keys(partition).length > 0;
+  const populated =
+    partition !== undefined && Object.keys(partition).length > 0;
   const chartType = partition?.chartType;
   return {
     stateAddress,
@@ -179,7 +188,11 @@ function errorMessage(error: unknown): string {
   try {
     if (error !== null && typeof error === "object") {
       const descriptor = Object.getOwnPropertyDescriptor(error, "message");
-      if (descriptor && "value" in descriptor && typeof descriptor.value === "string")
+      if (
+        descriptor &&
+        "value" in descriptor &&
+        typeof descriptor.value === "string"
+      )
         return descriptor.value;
     }
   } catch {

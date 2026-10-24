@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { validateIntegratedInput } from "../../../src/components/General/Table/Chart/compatibility/legacyTypes";
 import { selectOptionBaseline } from "../../../src/components/General/Table/Chart/compatibility/optionState";
 
 const initial = (extra: object = {}) => ({
@@ -20,7 +21,11 @@ function value(input: unknown) {
 }
 describe("stored option baseline", () => {
   it("retains and returns to populated partitions without shared prior values", () => {
-    const empty = value({ kind: "synchronize", stateAddress: "empty", previous });
+    const empty = value({
+      kind: "synchronize",
+      stateAddress: "empty",
+      previous,
+    });
     const partitionModel = {
       chartType: "stackedColumn",
       chartOptions: { bar: { width: 4, missing: undefined } },
@@ -75,7 +80,9 @@ describe("stored option baseline", () => {
       { [Symbol("x")]: 1 },
       new (class extends Array {})(),
     ]) {
-      expect(selectOptionBaseline(initial({ rootOptions: { bad } })).valid).toBe(false);
+      expect(
+        selectOptionBaseline(initial({ rootOptions: { bad } })).valid,
+      ).toBe(false);
     }
     expect(calls).toBe(0);
   });
@@ -87,7 +94,11 @@ describe("stored option baseline", () => {
       { root: true },
     ],
     [
-      { partitionModel: {}, rootModel: { root: true }, rootOptions: { root: true } },
+      {
+        partitionModel: {},
+        rootModel: { root: true },
+        rootOptions: { root: true },
+      },
       {},
       { root: true },
     ],
@@ -105,13 +116,20 @@ describe("stored option baseline", () => {
       { root: true },
     ],
     [
-      { partitionModel: { chartOptions: undefined }, rootOptions: { x: undefined } },
+      {
+        partitionModel: { chartOptions: undefined },
+        rootOptions: { x: undefined },
+      },
       { chartOptions: undefined },
       { x: undefined },
     ],
     [{ partitionModel: null, rootModel: null, rootOptions: null }, {}, {}],
     [
-      { partitionModel: undefined, rootModel: undefined, rootOptions: undefined },
+      {
+        partitionModel: undefined,
+        rootModel: undefined,
+        rootOptions: undefined,
+      },
       {},
       {},
     ],
@@ -123,37 +141,41 @@ describe("stored option baseline", () => {
       chartType: "groupedColumn",
     });
   });
-  it.each([
-    undefined,
-    null,
-    {},
-  ])("retains previous values on empty partition %j", (partitionModel) => {
-    expect(
-      value({ kind: "synchronize", stateAddress: "next", partitionModel, previous }),
-    ).toEqual({ ...previous, stateAddress: "next" });
-  });
-  it.each([
-    undefined,
-    null,
-    "",
-    "stackedColumn",
-  ])("replaces populated partition and resolves type %j", (chartType) => {
-    const model =
-      chartType === undefined ? { unknown: true } : { unknown: true, chartType };
-    expect(
-      value({
-        kind: "synchronize",
+  it.each([undefined, null, {}])(
+    "retains previous values on empty partition %j",
+    (partitionModel) => {
+      expect(
+        value({
+          kind: "synchronize",
+          stateAddress: "next",
+          partitionModel,
+          previous,
+        }),
+      ).toEqual({ ...previous, stateAddress: "next" });
+    },
+  );
+  it.each([undefined, null, "", "stackedColumn"])(
+    "replaces populated partition and resolves type %j",
+    (chartType) => {
+      const model =
+        chartType === undefined
+          ? { unknown: true }
+          : { unknown: true, chartType };
+      expect(
+        value({
+          kind: "synchronize",
+          stateAddress: "next",
+          partitionModel: model,
+          previous,
+        }),
+      ).toEqual({
         stateAddress: "next",
-        partitionModel: model,
-        previous,
-      }),
-    ).toEqual({
-      stateAddress: "next",
-      model,
-      options: {},
-      chartType: chartType || "line",
-    });
-  });
+        model,
+        options: {},
+        chartType: chartType || "line",
+      });
+    },
+  );
   it("copies selected options, model options, inputs and retained values independently", () => {
     const model = { chartType: "line", chartOptions: { nested: [{ x: 1 }] } };
     const result = value(initial({ partitionModel: model }));
@@ -161,7 +183,11 @@ describe("stored option baseline", () => {
     (result.options.nested as { x: number }[])[0].x = 9;
     expect(model.chartOptions.nested[0].x).toBe(1);
     expect(result.model.chartOptions).toEqual({ nested: [{ x: 1 }] });
-    const retained = value({ kind: "synchronize", stateAddress: "b", previous });
+    const retained = value({
+      kind: "synchronize",
+      stateAddress: "b",
+      previous,
+    });
     expect(retained.model).not.toBe(previous.model);
     expect(retained.options.bar).not.toBe(previous.options.bar);
   });
@@ -170,7 +196,10 @@ describe("stored option baseline", () => {
       '{"__proto__":{"safe":1},"constructor":{"prototype":[null,2]},"toString":null}',
     );
     const result = value(
-      initial({ partitionModel: { chartOptions: options }, rootOptions: options }),
+      initial({
+        partitionModel: { chartOptions: options },
+        rootOptions: options,
+      }),
     );
     expect(result.options).toEqual(options);
     expect(Object.hasOwn(result.options, "__proto__")).toBe(true);
@@ -189,8 +218,9 @@ describe("stored option baseline", () => {
     { rootOptions: { fn: () => 1 } },
   ])("rejects malformed supplied unused fallbacks %j", (extra) => {
     expect(
-      selectOptionBaseline(initial({ partitionModel: { chartOptions: {} }, ...extra }))
-        .valid,
+      selectOptionBaseline(
+        initial({ partitionModel: { chartOptions: {} }, ...extra }),
+      ).valid,
     ).toBe(false);
   });
   it("rejects accessors without invoking them and catches inspection errors", () => {
@@ -212,8 +242,12 @@ describe("stored option baseline", () => {
     const cycle: Record<string, unknown> = {};
     cycle.self = cycle;
     for (const bad of [getter, proxy, cycle]) {
-      expect(() => selectOptionBaseline(initial({ rootModel: bad }))).not.toThrow();
-      expect(selectOptionBaseline(initial({ rootModel: bad })).valid).toBe(false);
+      expect(() =>
+        selectOptionBaseline(initial({ rootModel: bad })),
+      ).not.toThrow();
+      expect(selectOptionBaseline(initial({ rootModel: bad })).valid).toBe(
+        false,
+      );
     }
     expect(calls).toBe(0);
   });
@@ -243,4 +277,75 @@ describe("stored option baseline", () => {
     expect(selectOptionBaseline(input).valid).toBe(false);
     expect(previous.options.bar.title.text).toBe("old");
   });
+});
+
+it.each([{}, { seriesGroupType: undefined }, { seriesGroupType: "grouped" }])(
+  "retains root Group Type presence through baseline lifecycle: %s",
+  (root) => {
+    const model = { chartType: "radialColumn", ...root };
+    const initialized = value(initial({ partitionModel: model }));
+    const synchronized = value({
+      kind: "synchronize",
+      stateAddress: "a",
+      previous: initialized,
+      partitionModel: model,
+    });
+    const retained = value({
+      kind: "synchronize",
+      stateAddress: "b",
+      previous: synchronized,
+    });
+    for (const baseline of [initialized, synchronized, retained]) {
+      expect(Object.hasOwn(baseline.model, "seriesGroupType")).toBe(
+        Object.hasOwn(root, "seriesGroupType"),
+      );
+      expect(baseline.model.seriesGroupType).toBe(
+        (root as any).seriesGroupType,
+      );
+    }
+  },
+);
+it.each([{ other: undefined }, { nested: { seriesGroupType: undefined } }])(
+  "does not admit undefined elsewhere in model: %s",
+  (model) => {
+    expect(selectOptionBaseline(initial({ partitionModel: model })).valid).toBe(
+      false,
+    );
+  },
+);
+
+it("admits only root Group Type undefined at the integrated storage boundary", () => {
+  const model = { chartType: "radialBar", seriesGroupType: undefined };
+  const input = {
+    storage: { partition: { chartModel: model } },
+    currentModel: model,
+    stateKey: "partition",
+    resolvedOptions: {},
+    chartType: "radialBar",
+    totalSeries: 1,
+    isPivotMode: false,
+  };
+  expect(validateIntegratedInput(input).valid).toBe(true);
+  for (const bad of [
+    { other: undefined },
+    { nested: { seriesGroupType: undefined } },
+    Object.defineProperty({}, "seriesGroupType", {
+      get() {
+        throw Error("getter");
+      },
+      enumerable: true,
+    }),
+    Object.defineProperty({}, "seriesGroupType", { value: undefined }),
+    { [Symbol("bad")]: undefined },
+  ]) {
+    expect(validateIntegratedInput({ ...input, currentModel: bad }).valid).toBe(
+      false,
+    );
+    expect(
+      validateIntegratedInput({
+        ...input,
+        storage: { partition: { chartModel: bad } },
+      }).valid,
+    ).toBe(false);
+  }
 });

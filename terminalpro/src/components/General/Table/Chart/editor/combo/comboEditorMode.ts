@@ -4,6 +4,14 @@ import type { ComboGeometry } from "../../echarts/comboTypes";
 export type ApplicationEditorMode =
   | { kind: "ordinary" }
   | {
+      kind: "radial";
+      value: import("../../compatibility/radialContracts").RadialGroupType;
+      choices: readonly { value: string; label: string }[];
+      onEdit: (
+        value: import("../../compatibility/radialContracts").RadialGroupType,
+      ) => void;
+    }
+  | {
       kind: "nightingale";
       value: import("../../compatibility/nightingaleContracts").NightingaleGroupType;
       choices: readonly { value: string; label: string }[];
@@ -14,7 +22,9 @@ export type ApplicationEditorMode =
   | {
       kind: "waterfall";
       controls: import("../../application/waterfallTypes").WaterfallControlValues;
-      onEdit: (edit: import("../../application/waterfallTypes").WaterfallEdit) => void;
+      onEdit: (
+        edit: import("../../application/waterfallTypes").WaterfallEdit,
+      ) => void;
     }
   | ({
       kind: "range";

@@ -83,7 +83,8 @@ function Series({
   series,
   onEdit,
   mode,
-}: Pick<ChartSetupState, "series"> & Pick<ChartSetupPanelProps, "onEdit" | "mode">) {
+}: Pick<ChartSetupState, "series"> &
+  Pick<ChartSetupPanelProps, "onEdit" | "mode">) {
   const dragged = useRef<string | null>(null);
   function reorder(source: string | null, target: string) {
     if (source === null) return;
@@ -126,9 +127,11 @@ function Series({
                 dragged.current = null;
               }}
               onKeyDown={(event) => {
-                if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+                if (event.key !== "ArrowUp" && event.key !== "ArrowDown")
+                  return;
                 event.preventDefault();
-                const target = series[index + (event.key === "ArrowUp" ? -1 : 1)];
+                const target =
+                  series[index + (event.key === "ArrowUp" ? -1 : 1)];
                 if (target) reorder(item.id, target.id);
               }}
             >
@@ -139,7 +142,11 @@ function Series({
               {mode?.kind === "xy" && (
                 <small>
                   {" "}
-                  ({mode.roles.find((r) => r.colId === item.id)?.role.toUpperCase()})
+                  (
+                  {mode.roles
+                    .find((r) => r.colId === item.id)
+                    ?.role.toUpperCase()}
+                  )
                 </small>
               )}
             </span>
@@ -153,7 +160,11 @@ function Series({
             </button>
           </div>
           {mode?.kind === "combo" && (
-            <ComboAssignmentControls mode={mode} colId={item.id} label={item.label} />
+            <ComboAssignmentControls
+              mode={mode}
+              colId={item.id}
+              label={item.label}
+            />
           )}
         </div>
       ))}
@@ -174,14 +185,18 @@ export function ChartSetupPanel({
   );
   return (
     <div className="chart-setup-panel">
-      {mode?.kind === "nightingale" && (
+      {(mode?.kind === "nightingale" || mode?.kind === "radial") && (
         <Group label="Group Type">
           <Choice
             label="Group Type"
             value={mode.value}
             choices={mode.choices}
             onChange={(value) => {
-              if (value === "grouped" || value === "stacked" || value === "normalized")
+              if (
+                value === "grouped" ||
+                value === "stacked" ||
+                value === "normalized"
+              )
                 mode.onEdit(value);
             }}
           />
@@ -226,7 +241,9 @@ export function ChartSetupPanel({
               <Switch
                 label="Aggregate"
                 checked={value.aggregate}
-                onCheckedChange={(next) => onEdit({ kind: "aggregate", value: next })}
+                onCheckedChange={(next) =>
+                  onEdit({ kind: "aggregate", value: next })
+                }
               />
             </div>
             {value.aggregate && (
@@ -234,7 +251,9 @@ export function ChartSetupPanel({
                 label="Aggregation method"
                 value={value.aggregationMethod}
                 choices={aggregationMethods}
-                onChange={(next) => onEdit({ kind: "aggregation-method", value: next })}
+                onChange={(next) =>
+                  onEdit({ kind: "aggregation-method", value: next })
+                }
               />
             )}
           </>

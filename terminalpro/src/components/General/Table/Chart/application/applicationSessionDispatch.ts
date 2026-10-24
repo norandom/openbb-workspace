@@ -1,8 +1,3 @@
-import { applyNightingaleSessionTransaction } from "./nightingaleSessionProjection";
-import {
-  isRadarChartFamily,
-  applyRadarSessionTransaction,
-} from "./radarSessionProjection";
 import type { WidgetT } from "../../../../types";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import type { ApplicationChartCommand } from "./applicationChartSessionTypes";
@@ -35,8 +30,17 @@ import {
   isComboChartFamily,
 } from "./comboSessionTypes";
 import { applyHistogramEditorTransaction } from "./histogramEditorTransaction";
+import { applyNightingaleSessionTransaction } from "./nightingaleSessionProjection";
 import { applyPieEditorTransaction } from "./pieEditorTransaction";
 import { isPieChartFamily } from "./pieSessionTypes";
+import {
+  applyRadarSessionTransaction,
+  isRadarChartFamily,
+} from "./radarSessionProjection";
+import {
+  applyRadialSessionTransaction,
+  isRadialChartFamily,
+} from "./radialSessionProjection";
 import { applyRangeEditorTransaction } from "./rangeEditorTransaction";
 import { isRangeChartFamily } from "./rangeSessionTypes";
 import { applyWaterfallEditorTransaction } from "./waterfallEditorTransaction";
@@ -65,6 +69,20 @@ function transaction(
       intent.edit,
       recapture,
     );
+  if (isRadialChartFamily(context.inputs.family))
+    return applyRadialSessionTransaction(
+      storage,
+      context as ApplicationSessionContext<
+        import("../compatibility/radialContracts").RadialChartType
+      >,
+      command,
+    );
+  if (
+    intent.panel === "radialGroupType" ||
+    intent.panel === "radialPolarAxis" ||
+    intent.panel === "radialPolarLabels"
+  )
+    return { status: "stale" as const };
   if (context.inputs.family === "nightingale")
     return applyNightingaleSessionTransaction(
       storage,
@@ -219,8 +237,10 @@ export function executeApplicationChartCommand(
     command.family !== inputs.family ||
     (command.family !== state.local.baseline.chartType &&
       command.family !== state.sourceFamily) ||
-    (state.pendingFamily !== undefined && command.family !== state.pendingFamily) ||
-    validateSynchronousEditorStamp(command.stamp, state.local.stamp).status !== "ready"
+    (state.pendingFamily !== undefined &&
+      command.family !== state.pendingFamily) ||
+    validateSynchronousEditorStamp(command.stamp, state.local.stamp).status !==
+      "ready"
   )
     return { widget, value: state };
   const result = transaction(
@@ -241,7 +261,8 @@ export function executeApplicationChartCommand(
       error: undefined,
       ...(committed.local.baseline.chartType !== state.local.baseline.chartType
         ? {
-            pendingFamily: committed.local.baseline.chartType as ApplicationChartFamily,
+            pendingFamily: committed.local.baseline
+              .chartType as ApplicationChartFamily,
           }
         : {}),
       capture: { ...committed.capture, dataRevision: stamp.dataRevision },

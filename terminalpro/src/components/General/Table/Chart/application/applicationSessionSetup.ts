@@ -1,27 +1,37 @@
-import { nightingaleGroupKey } from "./nightingaleSessionProjection";
-import {
-  canSwitchCategorySeries,
-  selectApplicationSetup,
-} from "./applicationSetupSelection";
-import { waterfallSelection } from "./waterfallSessionSelection";
-import { observationSnapshotPolicy } from "./histogramCapture";
-import { isComboChartFamily, type ApplicationChartFamily } from "./comboSessionTypes";
-import { rebuildComboAxes } from "./comboSessionLifecycle";
-import type { ChartStorageOutput, RuntimeOptions } from "../compatibility/legacyTypes";
+import type {
+  ChartStorageOutput,
+  RuntimeOptions,
+} from "../compatibility/legacyTypes";
 import type { ChartSnapshot } from "../compatibility/snapshotTypes";
 import type { ChartSetupEdit } from "../editor/setup/ChartSetupPanel";
 import { invalidSession, reduceSessionOptions } from "./applicationSessionEdit";
+import { sessionRangeFrameKey } from "./applicationSessionRange";
 import { sessionSetup } from "./applicationSessionSelection";
 import { validateSynchronousEditorStamp } from "./applicationSessionStamp";
 import type {
   ApplicationSessionCommit,
   ApplicationSessionContext,
 } from "./applicationSessionTypes";
+import {
+  canSwitchCategorySeries,
+  selectApplicationSetup,
+} from "./applicationSetupSelection";
+import { rebuildComboAxes } from "./comboSessionLifecycle";
+import {
+  isComboChartFamily,
+  type ApplicationChartFamily,
+} from "./comboSessionTypes";
+import { observationSnapshotPolicy } from "./histogramCapture";
+import { nightingaleGroupKey } from "./nightingaleSessionProjection";
+import { isRadialChartFamily, radialGroupKey } from "./radialSessionProjection";
 import { applyRangeTransition, validateSessionStamp } from "./sessionState";
+import {
+  projectOrdinarySetup,
+  retainOrdinarySetupCapture,
+} from "./setupProjection";
 import { transitionOrdinarySetup } from "./setupTransitions";
-import { projectOrdinarySetup, retainOrdinarySetupCapture } from "./setupProjection";
-import { sessionRangeFrameKey } from "./applicationSessionRange";
 import type { SessionResult, SessionStamp } from "./types";
+import { waterfallSelection } from "./waterfallSessionSelection";
 
 export function applyApplicationSetupTransaction(
   storage: ChartStorageOutput,
@@ -38,7 +48,9 @@ export function applyApplicationSetupTransaction(
       !canSwitchCategorySeries(context.inputs.family) &&
       edit.kind === "switch-category-series"
     )
-      return invalidSession("This chart family cannot switch category and series");
+      return invalidSession(
+        "This chart family cannot switch category and series",
+      );
     const selection = selectApplicationSetup(storage, context);
     if (selection.status !== "ready") return selection;
     const selected = selection.value;
@@ -53,6 +65,9 @@ export function applyApplicationSetupTransaction(
       context,
     );
     if (
+      (isRadialChartFamily(context.inputs.family) &&
+        radialGroupKey(context.local.baseline.model) !==
+          radialGroupKey(selected.baseline.model)) ||
       (context.inputs.family === "nightingale" &&
         nightingaleGroupKey(context.local.baseline.model) !==
           nightingaleGroupKey(selected.baseline.model)) ||
@@ -171,9 +186,13 @@ function setupCapture(
       recapture.value.stateAddress !== fresh.stamp.address.stateAddress ||
       recapture.value.dataRevision !== fresh.stamp.dataRevision
     )
-      return invalidSession("Recapture observations do not match the current frame");
+      return invalidSession(
+        "Recapture observations do not match the current frame",
+      );
     if (recapture.value.categoryColumnId !== transition.selection.categoryId)
-      return invalidSession("Category recapture does not match the requested column");
+      return invalidSession(
+        "Category recapture does not match the requested column",
+      );
     const required = new Set([
       ...transition.selection.seriesIds,
       ...context.capture.selectedColumnIds.filter(

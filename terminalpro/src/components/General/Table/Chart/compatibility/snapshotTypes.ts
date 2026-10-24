@@ -56,7 +56,10 @@ export interface ResolvedSnapshotInput {
 export type ChartSnapshot = ResolvedSnapshotInput;
 export type SnapshotValidationResult =
   | { readonly valid: true; readonly snapshot: ChartSnapshot }
-  | { readonly valid: false; readonly diagnostics: readonly SnapshotDiagnostic[] };
+  | {
+      readonly valid: false;
+      readonly diagnostics: readonly SnapshotDiagnostic[];
+    };
 export type SnapshotPolicy =
   | "waterfall-observations"
   | "xy-coordinates"
@@ -64,6 +67,7 @@ export type SnapshotPolicy =
   | "pie-observations"
   | "radar-observations"
   | "nightingale-observations"
+  | "radial-observations"
   | "box-observations"
   | "statistical-observations";
 export type ValidateSnapshot = (

@@ -1,5 +1,8 @@
-import { isRadarChartFamily } from "./application/radarSessionProjection";
-import type { ChartModel, ColDef, CreateRangeChartParams } from "ag-grid-community";
+import type {
+  ChartModel,
+  ColDef,
+  CreateRangeChartParams,
+} from "ag-grid-community";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { SetLoadingOnResize } from "~/components/DraggableCard/SetLoadingOnResize";
 import Icon from "~/components/Icon";
@@ -17,6 +20,8 @@ import {
   isComboChartFamily,
 } from "./application/comboSessionTypes";
 import { isPieChartFamily } from "./application/pieSessionTypes";
+import { isRadarChartFamily } from "./application/radarSessionProjection";
+import { isRadialChartFamily } from "./application/radialSessionProjection";
 import { isRangeChartFamily } from "./application/rangeSessionTypes";
 import { useApplicationChartSession } from "./application/useApplicationChartSession";
 import { isXyChartFamily } from "./application/xySessionTypes";
@@ -41,7 +46,9 @@ export type CreateRangeChart = {
   chartParams: CreateRangeChartParams;
 };
 
-export function createRangeChart(props: CreateRangeChartProps): CreateRangeChart {
+export function createRangeChart(
+  props: CreateRangeChartProps,
+): CreateRangeChart {
   const { chartModel = {}, chartData } = props;
 
   const { rowData, columnDefs, columns } = chartData;
@@ -50,10 +57,13 @@ export function createRangeChart(props: CreateRangeChartProps): CreateRangeChart
     chartType: chartData.chartType ?? "groupedColumn",
     suppressChartRanges: true,
     cellRange: { columns },
-    switchCategorySeries: !!chartData?.transpose || chartModel?.switchCategorySeries,
+    switchCategorySeries:
+      !!chartData?.transpose || chartModel?.switchCategorySeries,
     aggFunc: chartModel?.aggFunc,
     seriesChartTypes: chartModel?.seriesChartTypes,
-    seriesGroupType: chartModel?.seriesGroupType,
+    ...(Object.hasOwn(chartModel, "seriesGroupType")
+      ? { seriesGroupType: chartModel.seriesGroupType }
+      : {}),
   } as CreateRangeChartParams;
 
   return { rowData, columnDefs, chartParams };
@@ -70,7 +80,8 @@ export function ChartViewElement() {
       >
         {inputs.valid &&
         !inputs.value.pendingReason &&
-        (isRadarChartFamily(inputs.value.family) ||
+        (isRadialChartFamily(inputs.value.family) ||
+          isRadarChartFamily(inputs.value.family) ||
           inputs.value.family === "nightingale" ||
           isPieChartFamily(inputs.value.family) ||
           isCartesianFamily(inputs.value.family) ||
@@ -86,7 +97,8 @@ export function ChartViewElement() {
             chartType={inputs.valid ? inputs.value.chartType : undefined}
             reason={
               inputs.valid
-                ? (inputs.value.pendingReason ?? "chart family pending renderer parity")
+                ? (inputs.value.pendingReason ??
+                  "chart family pending renderer parity")
                 : inputs.error
             }
           />
@@ -195,7 +207,9 @@ function LiveCallerChart({
   const { updateWidget } = useWidgetContext();
   const host = useRef<EChartsHostHandle>(null);
   const ready =
-    session.projection.status === "ready" ? session.projection.value : undefined;
+    session.projection.status === "ready"
+      ? session.projection.value
+      : undefined;
   useLayoutEffect(() => {
     const registration =
       ready && host.current
@@ -239,6 +253,7 @@ function LiveCallerChart({
   useEffect(() => {
     if (
       session.seriesCount !== 0 ||
+      isRadialChartFamily(inputs.family) ||
       isRadarChartFamily(inputs.family) ||
       inputs.family === "nightingale" ||
       isPieChartFamily(inputs.family) ||
@@ -266,7 +281,8 @@ function LiveCallerChart({
           {...session.hostProps}
           className="h-full w-full"
         />
-        {(ready?.kind === "radar" ||
+        {(ready?.kind === "radial" ||
+          ready?.kind === "radar" ||
           ready?.kind === "nightingale" ||
           ready?.kind === "pie" ||
           ready?.kind === "xy" ||
@@ -301,13 +317,16 @@ function LiveCallerChart({
           themeResetKey={inputs.theme.name}
           state={ready.editor}
           mode={
-            ready.kind === "nightingale"
+            ready.kind === "nightingale" || ready.kind === "radial"
               ? {
-                  kind: "nightingale",
+                  kind: ready.kind,
                   ...ready.editor.groupType,
                   onEdit: (value) =>
                     session.onIntent({
-                      panel: "nightingaleGroupType",
+                      panel:
+                        ready.kind === "radial"
+                          ? "radialGroupType"
+                          : "nightingaleGroupType",
                       edit: { value },
                     }),
                 }
