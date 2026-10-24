@@ -1,3 +1,4 @@
+import { isRadarChartFamily } from "../application/radarSessionProjection";
 import {
   rangeCategoryModelOverride,
   resolveRangeCategoryKind,
@@ -169,25 +170,28 @@ export function resolveCallerChart(
         range: range.range,
         categoryColumnId: category,
         columns,
-        initialAxes: restoreAxisSettings(isPieChartFamily(chartType) ? {} : model, {
-          categoryAxisType: categoryType,
-          axes: [
-            {
-              id: "category",
-              direction: horizontal ? "y" : "x",
-              type: categoryType,
-              position: horizontal ? "left" : "bottom",
-              options: {},
-            },
-            {
-              id: "number",
-              direction: horizontal ? "x" : "y",
-              type: "number",
-              position: horizontal ? "bottom" : "left",
-              options: {},
-            },
-          ],
-        }),
+        initialAxes: restoreAxisSettings(
+          isRadarChartFamily(chartType) || isPieChartFamily(chartType) ? {} : model,
+          {
+            categoryAxisType: categoryType,
+            axes: [
+              {
+                id: "category",
+                direction: horizontal ? "y" : "x",
+                type: categoryType,
+                position: horizontal ? "left" : "bottom",
+                options: {},
+              },
+              {
+                id: "number",
+                direction: horizontal ? "x" : "y",
+                type: "number",
+                position: horizontal ? "bottom" : "left",
+                options: {},
+              },
+            ],
+          },
+        ),
       },
     };
   } catch (error) {

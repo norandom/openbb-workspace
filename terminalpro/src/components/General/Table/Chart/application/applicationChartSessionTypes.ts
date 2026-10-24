@@ -10,10 +10,16 @@ import type {
 } from "./comboSessionTypes";
 import type { SessionStamp } from "./types";
 export type ApplicationChartReady =
+  | (Omit<ApplicationSessionReady, "editor"> & {
+      readonly kind: "radar";
+      readonly editor: import("../compatibility/radarContracts").RadarEditorState;
+    })
   | (ApplicationSessionReady & {
       readonly kind: "waterfall";
       readonly family: "waterfall";
-      readonly waterfall: { readonly controls: import("./waterfallTypes").WaterfallControlValues };
+      readonly waterfall: {
+        readonly controls: import("./waterfallTypes").WaterfallControlValues;
+      };
     })
   | import("./rangeSessionTypes").RangeSessionReady
   | (ApplicationSessionReady & {
@@ -47,6 +53,7 @@ export interface ApplicationChartCommand {
   readonly family: ApplicationChartFamily;
   readonly geometry?: ComboGeometry;
   readonly intent:
+    | import("../compatibility/radarContracts").RadarEditIntent
     | ApplicationSessionCommand["intent"]
     | import("./waterfallTypes").WaterfallEditIntent
     | import("./rangeSessionTypes").RangeEditIntent

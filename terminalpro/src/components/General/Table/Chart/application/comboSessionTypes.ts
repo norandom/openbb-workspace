@@ -10,6 +10,7 @@ import type { ApplicationSessionContext } from "./applicationSessionTypes";
 import type { ResolvedRange, SessionStamp } from "./types";
 
 export type ApplicationChartFamily =
+  | import("../compatibility/radarContracts").RadarChartType
   | CartesianFamily
   | ComboChartType
   | import("../compatibility/xyAssignments").XyChartType

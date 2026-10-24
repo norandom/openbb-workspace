@@ -275,3 +275,76 @@ it.each([
     (projectCallerTheme("light", [], {}).overrides.common as any).zoom,
   ).toBeUndefined();
 });
+it.each([
+  "radarLine",
+  "radarArea",
+] as const)("projects %s caller theme and defaults without Cartesian marker additions", async (family) => {
+  const { callerGeneratedOptions } = await import(
+    "../../../src/components/General/Table/Chart/caller/generatedOptions"
+  );
+  const { selectRadarSession } = await import(
+    "../../../src/components/General/Table/Chart/application/radarSessionProjection"
+  );
+  const { sessionFixture } = await import("./applicationSessionFixture");
+  const key = family === "radarLine" ? "radar-line" : "radar-area";
+  const generated = callerGeneratedOptions(
+    {},
+    {
+      marker: { enabled: false },
+      connectMissingData: true,
+      strokeWidth: 4,
+      label: { enabled: true },
+    },
+  );
+  expect((generated[key] as any).series.marker).toBeUndefined();
+  expect((generated[key] as any).series.connectMissingData).toBeUndefined();
+  const theme = projectCallerTheme(
+    "light",
+    ["custom"],
+    {
+      custom: {
+        params: { axisColor: "#123456", fontFamily: "Arial", fontSize: 14 },
+        overrides: { [key]: { series: { strokeWidth: 2 } } },
+      },
+    },
+    family,
+  );
+  const source = sessionFixture();
+  const selected = selectRadarSession(
+    {},
+    {
+      ...source,
+      inputs: { ...source.inputs, family, generated, theme },
+      local: {
+        ...source.local,
+        baseline: {
+          ...source.local.baseline,
+          chartType: family,
+          options: {
+            common: { series: { strokeWidth: 99 } },
+            [key]: { series: { strokeWidth: 6 } },
+          },
+        },
+      },
+    },
+  );
+  expect(selected.mapping.style.series.strokeWidth).toBe(6);
+  expect(selected.mapping.style.series.markers.enabled).toBe(family === "radarLine");
+  expect(selected.mapping.style.series.labels.enabled).toBe(true);
+  expect(selected.mapping.style.polarAxis.color).toBe("#123456");
+  expect(selected.mapping.style.polarAxis.labels.font).toBe("Arial");
+  const caller = resolveCallerChart(
+    {
+      id: "w",
+      widgetId: "ordinary",
+      storage: {
+        chartModel: { chartType: family, qopenbbAxisSettings: { malformed: true } },
+      },
+      data: {},
+    },
+    {},
+    definitions as any,
+    api as any,
+  );
+  expect(caller.valid).toBe(true);
+});

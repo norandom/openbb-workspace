@@ -28,7 +28,11 @@ export function applyHistogramEditorTransaction(
   if (command.family !== "histogram" || context.inputs.family !== "histogram")
     return { status: "stale" };
   const intent = command.intent;
-  if (intent.panel === "boxPlot" || intent.panel === "range" || intent.panel === "waterfall")
+  if (
+    intent.panel === "boxPlot" ||
+    intent.panel === "range" ||
+    intent.panel === "waterfall"
+  )
     return { status: "stale" };
   if (
     intent.panel === "pieLabel" ||
@@ -42,6 +46,8 @@ export function applyHistogramEditorTransaction(
     intent.panel === "geometry" ||
     intent.panel === "comboAssignment" ||
     intent.panel === "xy" ||
+    intent.panel === "radarPolarAxis" ||
+    intent.panel === "radarPolarLabels" ||
     intent.panel === "markers" ||
     intent.panel === "connectMissingData"
   )

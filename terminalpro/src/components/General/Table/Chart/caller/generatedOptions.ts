@@ -17,7 +17,15 @@ export function callerGeneratedOptions(
     (dataOnlyOptions(series) as RuntimeOptions) ?? {},
   );
   if (!rangeSeries.valid) throw Error(rangeSeries.error);
+  const {
+    marker: _marker,
+    connectMissingData: _connect,
+    calloutLabel: _callout,
+    ...polarSeries
+  } = (dataOnlyOptions(series) as RuntimeOptions) ?? {};
   return {
+    "radar-line": { series: polarSeries },
+    "radar-area": { series: polarSeries },
     common: {
       axes: {
         category: { ...category, label: { ...category.label, autoRotate: true } },

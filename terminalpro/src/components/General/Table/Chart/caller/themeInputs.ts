@@ -96,7 +96,14 @@ function parameterOptions(params: Record<string, any>): RuntimeOptions {
       legend: { item: { label: font } },
       series: { label: retainedFont, calloutLabel: font, sectorLabel: retainedFont },
       axes: Object.fromEntries(
-        ["category", "number", "time", "grouped-category"].map((type) => [type, axis]),
+        [
+          "category",
+          "number",
+          "time",
+          "grouped-category",
+          "angle-category",
+          "radius-number",
+        ].map((type) => [type, axis]),
       ),
       ...(padding === undefined
         ? {}
@@ -156,6 +163,8 @@ export function projectCallerTheme(
     "box-plot",
     "pie",
     "donut",
+    "radar-line",
+    "radar-area",
     "waterfall",
   ]) {
     overrides[family] = merge(

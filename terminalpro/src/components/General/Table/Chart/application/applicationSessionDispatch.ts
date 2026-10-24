@@ -1,3 +1,7 @@
+import {
+  isRadarChartFamily,
+  applyRadarSessionTransaction,
+} from "./radarSessionProjection";
 import type { WidgetT } from "../../../../types";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import type { ApplicationChartCommand } from "./applicationChartSessionTypes";
@@ -60,6 +64,14 @@ function transaction(
       intent.edit,
       recapture,
     );
+  if (isRadarChartFamily(context.inputs.family))
+    return applyRadarSessionTransaction(
+      storage,
+      context as ApplicationSessionContext<
+        import("../compatibility/radarContracts").RadarChartType
+      >,
+      command,
+    );
   if (context.inputs.family === "waterfall")
     return applyWaterfallEditorTransaction(
       storage,
@@ -113,39 +125,13 @@ function transaction(
       command,
     );
   if (intent.panel === "xy") return { status: "stale" as const };
-  if (isComboChartFamily(context.inputs.family)) {
-    const combo = context as ComboSessionContext;
-    const family = context.inputs.family;
-    if (intent.panel === "comboAssignment")
-      return applyComboAssignmentTransaction(storage, combo, {
-        ...command,
-        family,
-        intent,
-      });
-    if (intent.panel === "geometry") {
-      const selected = selectComboSession(storage, combo);
-      if (selected.status !== "ready") return selected;
-      if (!selected.value.activeGeometries.includes(intent.geometry))
-        return { status: "stale" as const };
-      return {
-        status: "ready" as const,
-        stamp: command.stamp,
-        value: {
-          storage,
-          capture: context.capture,
-          local: { ...context.local, comboGeometry: intent.geometry },
-          change: "render" as const,
-        },
-      };
-    }
-    if (!command.geometry) return { status: "stale" as const };
-    return applyComboEditorTransaction(storage, combo, {
+  if (intent.panel === "radarPolarAxis" || intent.panel === "radarPolarLabels")
+    return { status: "stale" as const };
+  if (isComboChartFamily(context.inputs.family))
+    return comboTransaction(storage, context as ComboSessionContext, {
       ...command,
-      family,
-      geometry: command.geometry,
       intent,
     });
-  }
   if (intent.panel === "geometry" || intent.panel === "comboAssignment")
     return { status: "stale" as const };
   return applyApplicationEditorTransaction(
@@ -154,6 +140,52 @@ function transaction(
     { ...command, family: context.inputs.family, intent },
   );
 }
+function comboTransaction(
+  storage: ChartStorageOutput,
+  context: ComboSessionContext,
+  command: Omit<ApplicationChartCommand, "intent"> & {
+    readonly intent:
+      | import("./comboEditorTransaction").ComboEditorCommand["intent"]
+      | Extract<
+          ApplicationChartCommand["intent"],
+          { panel: "geometry" | "comboAssignment" }
+        >;
+  },
+) {
+  const intent = command.intent;
+  const combo = context;
+  const family = context.inputs.family;
+  if (intent.panel === "comboAssignment")
+    return applyComboAssignmentTransaction(storage, combo, {
+      ...command,
+      family,
+      intent,
+    });
+  if (intent.panel === "geometry") {
+    const selected = selectComboSession(storage, combo);
+    if (selected.status !== "ready") return selected;
+    if (!selected.value.activeGeometries.includes(intent.geometry))
+      return { status: "stale" as const };
+    return {
+      status: "ready" as const,
+      stamp: command.stamp,
+      value: {
+        storage,
+        capture: context.capture,
+        local: { ...context.local, comboGeometry: intent.geometry },
+        change: "render" as const,
+      },
+    };
+  }
+  if (!command.geometry) return { status: "stale" as const };
+  return applyComboEditorTransaction(storage, combo, {
+    ...command,
+    family,
+    geometry: command.geometry,
+    intent,
+  });
+}
+
 export function executeApplicationChartCommand(
   widget: WidgetT,
   state: ApplicationSessionState,

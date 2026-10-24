@@ -1,3 +1,8 @@
+import type {
+  RadarEditorState,
+  RadarEditIntent,
+} from "../compatibility/radarContracts";
+import { RadarControls } from "./radar/RadarControls";
 import type { PieEditorState, PieEditIntent } from "../application/pieSessionTypes";
 import type { ApplicationEditorMode } from "./combo/comboEditorMode";
 import { ApplicationSeriesEditor } from "./ApplicationSeriesEditor";
@@ -19,13 +24,11 @@ import { ApplicationAxisEditor } from "./ApplicationAxisEditor";
 
 export interface ApplicationCustomizeEditorProps {
   mode?: ApplicationEditorMode;
-  state: ApplicationEditorState | PieEditorState;
-  onIntent: (intent: ApplicationEditorIntent | PieEditIntent) => void;
+  state: ApplicationEditorState | PieEditorState | RadarEditorState;
+  onIntent: (intent: ApplicationEditorIntent | PieEditIntent | RadarEditIntent) => void;
   onAxisStructure: (event: ApplicationAxisStructureEvent) => void;
 }
-export function ApplicationCustomizeEditor(
-  props: ApplicationCustomizeEditorProps,
-) {
+export function ApplicationCustomizeEditor(props: ApplicationCustomizeEditorProps) {
   const { state, onIntent } = props;
   const axisState = "axes" in state ? state : undefined;
   const horizontal = axisState ? horizontalAxisId(axisState.axes) : undefined;
@@ -52,10 +55,19 @@ export function ApplicationCustomizeEditor(
         />
       )}
       <ApplicationSeriesEditor {...props} />
-      {axisState && horizontal && <>
-        <ApplicationAxisEditor {...props} state={axisState} axis={horizontal} />
-        <ApplicationAxisEditor {...props} state={axisState} axis={verticalAxisId(horizontal)} />
-      </>}
+      {"kind" in state && state.kind === "radar" && (
+        <RadarControls {...state.polarAxis} onEdit={onIntent} />
+      )}
+      {axisState && horizontal && (
+        <>
+          <ApplicationAxisEditor {...props} state={axisState} axis={horizontal} />
+          <ApplicationAxisEditor
+            {...props}
+            state={axisState}
+            axis={verticalAxisId(horizontal)}
+          />
+        </>
+      )}
     </>
   );
 }

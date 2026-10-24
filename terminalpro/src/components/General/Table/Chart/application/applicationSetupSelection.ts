@@ -1,3 +1,4 @@
+import { isRadarChartFamily, selectRadarSession } from "./radarSessionProjection";
 import { selectRangeSession } from "./rangeSessionSelection";
 import { selectWaterfallSession } from "./waterfallSessionSelection";
 import { isRangeChartFamily } from "./rangeSessionTypes";
@@ -25,36 +26,52 @@ export function selectApplicationSetup(
   const family = context.inputs.family;
   if (isComboChartFamily(family))
     return selectComboSession(storage, context as ComboSessionContext);
-  const value = family === "waterfall"
-    ? selectWaterfallSession(storage, context as ApplicationSessionContext<"waterfall">)
-    : isRangeChartFamily(family)
-    ? selectRangeSession(
+  const value = isRadarChartFamily(family)
+    ? selectRadarSession(
         storage,
         context as ApplicationSessionContext<
-          import("../echarts/rangeApplicationTypes").RangeFamily
+          import("../compatibility/radarContracts").RadarChartType
         >,
       )
-    : isPieChartFamily(family)
-      ? selectPieSession(
+    : family === "waterfall"
+      ? selectWaterfallSession(
           storage,
-          context as ApplicationSessionContext<
-            import("../compatibility/pieAssignments").PieChartType
-          >,
+          context as ApplicationSessionContext<"waterfall">,
         )
-      : family === "boxPlot"
-        ? selectBoxPlotSession(storage, context as ApplicationSessionContext<"boxPlot">)
-        : family === "histogram"
-          ? selectHistogramSession(
+      : isRangeChartFamily(family)
+        ? selectRangeSession(
+            storage,
+            context as ApplicationSessionContext<
+              import("../echarts/rangeApplicationTypes").RangeFamily
+            >,
+          )
+        : isPieChartFamily(family)
+          ? selectPieSession(
               storage,
-              context as ApplicationSessionContext<"histogram">,
+              context as ApplicationSessionContext<
+                import("../compatibility/pieAssignments").PieChartType
+              >,
             )
-          : isXyChartFamily(family)
-            ? selectXySession(
+          : family === "boxPlot"
+            ? selectBoxPlotSession(
                 storage,
-                context as ApplicationSessionContext<
-                  import("../compatibility/xyAssignments").XyChartType
-                >,
+                context as ApplicationSessionContext<"boxPlot">,
               )
-            : selectApplicationSession(storage, context as ApplicationSessionContext);
+            : family === "histogram"
+              ? selectHistogramSession(
+                  storage,
+                  context as ApplicationSessionContext<"histogram">,
+                )
+              : isXyChartFamily(family)
+                ? selectXySession(
+                    storage,
+                    context as ApplicationSessionContext<
+                      import("../compatibility/xyAssignments").XyChartType
+                    >,
+                  )
+                : selectApplicationSession(
+                    storage,
+                    context as ApplicationSessionContext,
+                  );
   return { status: "ready" as const, stamp: context.local.stamp, value };
 }

@@ -1,3 +1,4 @@
+import { isRadarChartFamily } from "./radarSessionProjection";
 import cloneDeep from "lodash/cloneDeep";
 import isEqual from "lodash.isequal";
 import type {
@@ -111,7 +112,13 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
   let range = local.range;
   let error = selected.valid ? undefined : selected.error;
   try {
-    if (!(isPieChartFamily(inputs.family) || inputs.family === "boxPlot"))
+    if (
+      !(
+        isRadarChartFamily(inputs.family) ||
+        isPieChartFamily(inputs.family) ||
+        inputs.family === "boxPlot"
+      )
+    )
       local.axes = restoreAxisSettings(local.baseline.model, inputs.initialAxes);
     range = sessionRange(storage, context);
   } catch (failure) {
@@ -192,11 +199,15 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
       model: { ...baseline.model, chartType: "customCombo" },
     };
   const preference =
-    isPieChartFamily(inputs.family) || inputs.family === "boxPlot"
+    isRadarChartFamily(inputs.family) ||
+    isPieChartFamily(inputs.family) ||
+    inputs.family === "boxPlot"
       ? undefined
       : readAxisSettings(baseline.model);
   const previousPreference =
-    isPieChartFamily(inputs.family) || inputs.family === "boxPlot"
+    isRadarChartFamily(inputs.family) ||
+    isPieChartFamily(inputs.family) ||
+    inputs.family === "boxPlot"
       ? undefined
       : readAxisSettings(state.local.baseline.model);
   let axes = isEqual(preference, previousPreference)

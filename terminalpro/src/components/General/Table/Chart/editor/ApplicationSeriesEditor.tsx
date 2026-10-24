@@ -18,6 +18,27 @@ export function ApplicationSeriesEditor({
   onIntent,
   mode,
 }: ApplicationCustomizeEditorProps) {
+  if ("kind" in state && state.kind === "radar")
+    return (
+      <ApplicationEditorGroup label="Series">
+        <ChartTooltipsPanel
+          {...state.tooltips}
+          onEdit={(edit) => onIntent({ panel: "tooltips", edit })}
+        />
+        <ChartSeriesStylePanel
+          {...state.series}
+          onEdit={(edit) => onIntent({ panel: "series", edit })}
+        />
+        <ChartMarkersPanel
+          {...state.markers}
+          onEdit={(edit) => onIntent({ panel: "markers", edit })}
+        />
+        <ChartLabelsPanel
+          {...state.labels}
+          onEdit={(edit) => onIntent({ panel: "labels", edit })}
+        />
+      </ApplicationEditorGroup>
+    );
   if (!("axes" in state))
     return (
       <ApplicationEditorGroup label="Series">

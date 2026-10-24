@@ -1,3 +1,4 @@
+import { isRadarChartFamily } from "./application/radarSessionProjection";
 import type { ChartModel, ColDef, CreateRangeChartParams } from "ag-grid-community";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { SetLoadingOnResize } from "~/components/DraggableCard/SetLoadingOnResize";
@@ -69,7 +70,8 @@ export function ChartViewElement() {
       >
         {inputs.valid &&
         !inputs.value.pendingReason &&
-        (isPieChartFamily(inputs.value.family) ||
+        (isRadarChartFamily(inputs.value.family) ||
+          isPieChartFamily(inputs.value.family) ||
           isCartesianFamily(inputs.value.family) ||
           isComboChartFamily(inputs.value.family) ||
           isXyChartFamily(inputs.value.family) ||
@@ -236,6 +238,7 @@ function LiveCallerChart({
   useEffect(() => {
     if (
       session.seriesCount !== 0 ||
+      isRadarChartFamily(inputs.family) ||
       isPieChartFamily(inputs.family) ||
       isXyChartFamily(inputs.family) ||
       inputs.family === "histogram" ||
@@ -261,7 +264,8 @@ function LiveCallerChart({
           {...session.hostProps}
           className="h-full w-full"
         />
-        {(ready?.kind === "pie" ||
+        {(ready?.kind === "radar" ||
+          ready?.kind === "pie" ||
           ready?.kind === "xy" ||
           ready?.kind === "histogram" ||
           ready?.kind === "boxPlot" ||
