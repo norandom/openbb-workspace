@@ -1,3 +1,4 @@
+import { projectLifecycleLegend } from "./lifecycleLegendProjection";
 import { hasRangeNavigator, retainRangeWindows } from "./rangeNavigationWindow";
 import type { EChartsOption } from "echarts";
 import { navigatorAxes } from "./cartesianNavigatorOverview";
@@ -158,7 +159,12 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
             instance.getOption() as EChartsOption,
           )
         : xyNavigationWindow(
-            legendOptions(pending),
+            projectLifecycleLegend(
+              pending,
+              instance.getOption() as EChartsOption,
+              appliedScope,
+              appliedRevision,
+            ),
             instance.getOption() as EChartsOption,
           );
       if (window) {
@@ -184,40 +190,19 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
     }
   }
 
-  function legendOptions(request: ChartRenderRequest): EChartsOption {
-    if (!request.projectLegendSelection || request.legendScope === undefined)
-      return request.options;
-    const legend = Array.isArray(request.options.legend)
-      ? request.options.legend[0]
-      : request.options.legend;
-    const native = instance?.getOption();
-    const nativeLegend = Array.isArray(native?.legend)
-      ? native.legend[0]
-      : native?.legend;
-    const retained =
-      appliedScope === request.legendScope && appliedRevision !== undefined;
-    const selected: Record<string, boolean> = {};
-    for (const entry of legend?.data ?? []) {
-      const id = typeof entry === "string" ? entry : entry.name;
-      if (id && !id.startsWith("openbb-mini-"))
-        selected[id] =
-          (retained ? nativeLegend?.selected?.[id] : undefined) ??
-          legend?.selected?.[id] ??
-          true;
-    }
-    const projected = request.projectLegendSelection(Object.freeze(selected));
-    const legends = Array.isArray(projected.legend)
-      ? projected.legend
-      : [projected.legend ?? {}];
-    return { ...projected, legend: legends.map((item) => ({ ...item, selected })) };
-  }
-
   function render(request: ChartRenderRequest, force = false): void {
     if (!instance || (!force && appliedRevision === request.revision)) return;
     applying = true;
     pointer?.clear();
     try {
-      let options = legendOptions(request);
+      let options = projectLifecycleLegend(
+        request,
+        request.projectLegendSelection && request.legendScope !== undefined
+          ? (instance.getOption() as EChartsOption)
+          : undefined,
+        appliedScope,
+        appliedRevision,
+      );
       const sameScope = appliedScope === request.legendScope;
       if (
         appliedRevision !== undefined &&

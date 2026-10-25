@@ -1,8 +1,4 @@
-import type {
-  ChartModel,
-  ColDef,
-  CreateRangeChartParams,
-} from "ag-grid-community";
+import type { ChartModel, ColDef, CreateRangeChartParams } from "ag-grid-community";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { SetLoadingOnResize } from "~/components/DraggableCard/SetLoadingOnResize";
 import Icon from "~/components/Icon";
@@ -33,7 +29,7 @@ export { customChartWidgetIds } from "./caller/orientation";
 
 import { isCartesianFamily } from "./echarts/cartesianTypes";
 import { EChartsHost, type EChartsHostHandle } from "./echarts/EChartsHost";
-import { ApplicationChartEditor } from "./editor/ApplicationChartEditor";
+import { LiveChartEditor } from "./caller/LiveChartEditor";
 import { ChartEditorDock } from "./editor/ChartEditorDock";
 export type CreateRangeChartProps = {
   chartData: ChartDataT;
@@ -46,9 +42,7 @@ export type CreateRangeChart = {
   chartParams: CreateRangeChartParams;
 };
 
-export function createRangeChart(
-  props: CreateRangeChartProps,
-): CreateRangeChart {
+export function createRangeChart(props: CreateRangeChartProps): CreateRangeChart {
   const { chartModel = {}, chartData } = props;
 
   const { rowData, columnDefs, columns } = chartData;
@@ -57,8 +51,7 @@ export function createRangeChart(
     chartType: chartData.chartType ?? "groupedColumn",
     suppressChartRanges: true,
     cellRange: { columns },
-    switchCategorySeries:
-      !!chartData?.transpose || chartModel?.switchCategorySeries,
+    switchCategorySeries: !!chartData?.transpose || chartModel?.switchCategorySeries,
     aggFunc: chartModel?.aggFunc,
     seriesChartTypes: chartModel?.seriesChartTypes,
     ...(Object.hasOwn(chartModel, "seriesGroupType")
@@ -97,8 +90,7 @@ export function ChartViewElement() {
             chartType={inputs.valid ? inputs.value.chartType : undefined}
             reason={
               inputs.valid
-                ? (inputs.value.pendingReason ??
-                  "chart family pending renderer parity")
+                ? (inputs.value.pendingReason ?? "chart family pending renderer parity")
                 : inputs.error
             }
           />
@@ -207,9 +199,7 @@ function LiveCallerChart({
   const { updateWidget } = useWidgetContext();
   const host = useRef<EChartsHostHandle>(null);
   const ready =
-    session.projection.status === "ready"
-      ? session.projection.value
-      : undefined;
+    session.projection.status === "ready" ? session.projection.value : undefined;
   useLayoutEffect(() => {
     const registration =
       ready && host.current
@@ -312,64 +302,7 @@ function LiveCallerChart({
         )}
       </div>
       {ready && (
-        <ApplicationChartEditor
-          {...dock}
-          themeResetKey={inputs.theme.name}
-          state={ready.editor}
-          mode={
-            ready.kind === "nightingale" || ready.kind === "radial"
-              ? {
-                  kind: ready.kind,
-                  ...ready.editor.groupType,
-                  onEdit: (value) =>
-                    session.onIntent({
-                      panel:
-                        ready.kind === "radial"
-                          ? "radialGroupType"
-                          : "nightingaleGroupType",
-                      edit: { value },
-                    }),
-                }
-              : ready.kind === "range"
-                ? { kind: "range", ...ready.range, onEdit: session.onRange }
-                : ready.kind === "waterfall"
-                  ? {
-                      kind: "waterfall",
-                      controls: ready.waterfall.controls,
-                      onEdit: session.onWaterfall,
-                    }
-                  : ready.kind === "boxPlot"
-                    ? {
-                        kind: "boxPlot",
-                        controls: ready.boxPlot.controls,
-                        onEdit: session.onBoxPlot,
-                      }
-                    : ready.kind === "pie"
-                      ? {
-                          kind: "pie",
-                          canSwitchCategorySeries: inputs.family !== "pie",
-                        }
-                      : ready.kind === "histogram"
-                        ? {
-                            kind: "histogram",
-                            ...ready.histogram,
-                            onEdit: session.onHistogram,
-                          }
-                        : ready.kind === "xy"
-                          ? { kind: "xy", ...ready.xy, onEdit: session.onXy }
-                          : ready.kind === "combo"
-                            ? {
-                                kind: "combo",
-                                ...ready.combo,
-                                onAssignment: session.onComboAssignment,
-                                onGeometry: session.onComboGeometry,
-                              }
-                            : { kind: "ordinary" }
-          }
-          onIntent={session.onIntent}
-          onAxisStructure={session.onAxisStructure}
-          setupProps={{ ...ready.setupProps, onEdit: session.onSetup }}
-        />
+        <LiveChartEditor ready={ready} session={session} inputs={inputs} dock={dock} />
       )}
     </>
   );

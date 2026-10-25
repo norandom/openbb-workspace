@@ -1,3 +1,4 @@
+import type { ApplicationSessionFrame } from "./applicationSessionTypes";
 import { deriveEditorEligibility } from "../compatibility/editorBindings/eligibility";
 import { createEditorMetadata } from "../compatibility/editorBindings/metadata";
 import { selectApplicationEditorState } from "../compatibility/editorBindings/selectApplicationEditorState";
@@ -25,9 +26,9 @@ import { SETUP_AGGREGATIONS, type SetupSelection } from "./setupTypes";
 import type { ResolvedRange } from "./types";
 import { isXyChartFamily } from "./xySessionTypes";
 
-export function sessionBaseline<F extends ApplicationChartFamily>(
+export function sessionBaseline(
   storage: ChartStorageOutput,
-  context: ApplicationSessionContext<F>,
+  context: ApplicationSessionFrame,
 ) {
   const { local, inputs } = context;
   const partition = storage[inputs.address.stateKey] as RuntimeOptions | undefined;

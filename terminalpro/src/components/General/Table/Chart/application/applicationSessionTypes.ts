@@ -10,10 +10,7 @@ import type {
   RuntimeOptions,
 } from "../compatibility/legacyTypes";
 import type { OptionBaseline } from "../compatibility/optionStateTypes";
-import type {
-  ChartSnapshot,
-  SnapshotColumn,
-} from "../compatibility/snapshotTypes";
+import type { ChartSnapshot, SnapshotColumn } from "../compatibility/snapshotTypes";
 import type { CartesianFamily } from "../echarts/cartesianTypes";
 import type { ComboGeometry } from "../echarts/comboTypes";
 import type { ChartRenderRequest } from "../echarts/lifecycle";
@@ -64,15 +61,22 @@ export interface ApplicationSessionLocal {
   readonly baseline: OptionBaseline;
   readonly range: ResolvedRange;
   readonly axes: ApplicationAxisRuntime;
-  readonly manualRotations: Readonly<
-    Record<ApplicationAxisId, number | undefined>
-  >;
+  readonly manualRotations: Readonly<Record<ApplicationAxisId, number | undefined>>;
   readonly legendEnabled?: boolean;
   /** Identifies a live accepted Set Up range, never a serialized preference. */
   readonly rangeFrameKey?: string;
   readonly comboGeometry?: ComboGeometry;
   readonly comboAxes?: readonly ComboConcreteAxis[];
   readonly savedCustomSeriesChartTypes?: readonly ComboSeriesAssignment[];
+}
+/** Capture-free persistence boundary; family projections retain their own capture types. */
+export interface ApplicationSessionFrame {
+  readonly inputs: Pick<ApplicationSessionInputs, "address"> & {
+    readonly family:
+      | ApplicationChartFamily
+      | import("../compatibility/hierarchyContracts").HierarchyChartType;
+  };
+  readonly local: ApplicationSessionLocal;
 }
 export interface ApplicationSessionContext<
   F extends ApplicationChartFamily = CartesianFamily,
