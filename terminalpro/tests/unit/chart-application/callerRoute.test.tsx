@@ -170,7 +170,7 @@ vi.mock("~/components/General/Table/Chart/echarts/EChartsHost", () => ({
     useLayoutEffect(() => {
       props.onResize({ width: 800, height: 500 });
     }, []);
-    return <div data-testid="chart-canvas" />;
+    return <div data-testid="chart-canvas" style={props.style} />;
   }),
 }));
 const api = {
@@ -806,6 +806,65 @@ describe("ordinary table joins the production session", () => {
       expect(screen.getByTestId("retained-table")).toBeTruthy();
     },
   );
+});
+
+it.each([false, true])(
+  "shows accessible Heatmap empty selection and removes it on recovery (file=%s)",
+  async (file) => {
+    fixture.fileMode = file;
+    render(<Owner file={file} family="heatmap" enabled settingsOpen />);
+    await waitFor(() => expect(fixture.options.series?.[0]?.data).toHaveLength(2));
+    expect(screen.queryByText("No data available to be charted.")).toBeNull();
+    expect(screen.getByTestId("chart-canvas").style.visibility).not.toBe("hidden");
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Set Up" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Remove income" }));
+    await waitFor(() =>
+      expect(screen.getByText("No data available to be charted.")).toBeTruthy(),
+    );
+    expect(fixture.options.series[0].data).toEqual([]);
+    expect(fixture.owner.widget.storage.chartView.enabled).toBe(true);
+    expect(screen.getByTestId("chart-canvas").style.visibility).toBe("hidden");
+    expect(
+      getComputedStyle(screen.getByText("No data available to be charted.")).visibility,
+    ).toBe("visible");
+    fireEvent.change(screen.getByRole("combobox", { name: "Add a series" }), {
+      target: { value: "0" },
+    });
+    await waitFor(() => expect(fixture.options.series[0].data).toHaveLength(2));
+    expect(screen.queryByText("No data available to be charted.")).toBeNull();
+    expect(screen.getByTestId("chart-canvas").style.visibility).not.toBe("hidden");
+  },
+);
+
+it("preserves the Heatmap selected all-missing domain without an empty-selection overlay", async () => {
+  fixture.fileMode = true;
+  fixture.processed.rowData = fixture.processed.rowData.map((row) => ({
+    ...row,
+    income: null as any,
+  }));
+  render(<Owner file family="heatmap" enabled settingsOpen />);
+  await waitFor(() => expect(fixture.options.series?.[0]?.data).toHaveLength(2));
+  expect(fixture.options.series[0].data.map((item: any) => item.value)).toEqual([
+    [0, 0],
+    [0, 1],
+  ]);
+  expect(screen.queryByText("No data available to be charted.")).toBeNull();
+  expect(screen.getByTestId("chart-canvas").style.visibility).not.toBe("hidden");
+});
+
+it("keeps a selected Heatmap series visible when no displayed rows remain", async () => {
+  render(<Owner family="heatmap" enabled settingsOpen />);
+  await waitFor(() => expect(fixture.options.series?.[0]?.data).toHaveLength(2));
+  act(() => {
+    fixture.visible = [];
+    fixture.gridProps.onFilterChanged({ api });
+  });
+  await waitFor(() => expect(fixture.options.series[0].data).toEqual([]));
+  expect(screen.queryByText("No data available to be charted.")).toBeNull();
+  expect(screen.getByTestId("chart-canvas").style.visibility).not.toBe("hidden");
 });
 
 it.each([false, true])(

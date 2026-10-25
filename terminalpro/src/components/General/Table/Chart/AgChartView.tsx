@@ -203,6 +203,8 @@ function LiveCallerChart({
   const host = useRef<EChartsHostHandle>(null);
   const ready =
     session.projection.status === "ready" ? session.projection.value : undefined;
+  const heatmapEmpty =
+    ready?.kind === "heatmap" && ready.setupProps.value.series.length === 0;
   useLayoutEffect(() => {
     const registration =
       ready && host.current
@@ -275,25 +277,27 @@ function LiveCallerChart({
           ref={host}
           {...session.hostProps}
           className="h-full w-full"
+          style={heatmapEmpty ? { visibility: "hidden" } : undefined}
         />
-        {(ready?.kind === "radial" ||
-          ready?.kind === "radar" ||
-          ready?.kind === "nightingale" ||
-          ready?.kind === "pie" ||
-          ready?.kind === "xy" ||
-          ready?.kind === "histogram" ||
-          ready?.kind === "boxPlot" ||
-          ready?.kind === "waterfall" ||
-          ready?.kind === "range") &&
-          !(
-            Array.isArray(ready.options.series)
-              ? ready.options.series
-              : [ready.options.series]
-          ).some((series: any) => series?.data?.length) && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm">
-              No data available to be charted.
-            </div>
-          )}
+        {(heatmapEmpty ||
+          ((ready?.kind === "radial" ||
+            ready?.kind === "radar" ||
+            ready?.kind === "nightingale" ||
+            ready?.kind === "pie" ||
+            ready?.kind === "xy" ||
+            ready?.kind === "histogram" ||
+            ready?.kind === "boxPlot" ||
+            ready?.kind === "waterfall" ||
+            ready?.kind === "range") &&
+            !(
+              Array.isArray(ready.options.series)
+                ? ready.options.series
+                : [ready.options.series]
+            ).some((series: any) => series?.data?.length))) && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm">
+            No data available to be charted.
+          </div>
+        )}
         {["invalid", "unresolved"].includes(session.projection.status) && (
           <div className="absolute inset-0">
             <UnsupportedRenderer
