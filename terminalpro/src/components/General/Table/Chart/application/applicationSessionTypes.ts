@@ -45,6 +45,7 @@ export interface ApplicationSessionInputs<
   readonly categoryColumnId: string;
   readonly columns: readonly SnapshotColumn[];
   readonly theme: ApplicationThemeInput;
+  readonly hierarchyThemePalette?: import("./hierarchyAppearanceTypes").HierarchyPalette;
   readonly generated: RuntimeOptions;
   readonly display: ChartDisplayPolicy;
   readonly precision: number;
@@ -53,6 +54,7 @@ export interface ApplicationSessionInputs<
     readonly generatedColumnIds: readonly string[];
     readonly definitionColumnIds: readonly string[];
     readonly configuredColumnIds?: readonly string[];
+    readonly numericCollectionIds?: readonly string[];
   };
 }
 /** Transient concrete axes and control state stay outside Widget storage. */
@@ -93,10 +95,14 @@ export interface ApplicationSessionSelection {
   readonly style: ApplicationResolvedStyle;
   readonly editor: ApplicationEditorState;
 }
-export interface ApplicationSessionCommit {
+export interface ApplicationSessionCommit<
+  C extends
+    | import("./hierarchyTypes").RetainedApplicationCapture
+    | undefined = ChartSnapshot,
+> {
   readonly storage: ChartStorageOutput;
   readonly local: ApplicationSessionLocal;
-  readonly capture: ChartSnapshot;
+  readonly capture: C;
   readonly change: "render" | "data";
 }
 export interface ApplicationSessionState {
@@ -104,14 +110,14 @@ export interface ApplicationSessionState {
   readonly pendingFamily?: ApplicationChartFamily;
   readonly assignmentKey?: string;
   readonly local: ApplicationSessionLocal;
-  readonly capture?: ChartSnapshot;
+  readonly capture?: import("./hierarchyTypes").RetainedApplicationCapture;
   readonly viewport?: { readonly width: number; readonly height: number };
   readonly dataKey: string;
   readonly appearanceKey: string;
   readonly actionKey: string;
   readonly appearance: Pick<
     ApplicationSessionInputs,
-    "theme" | "generated" | "precision"
+    "theme" | "generated" | "precision" | "hierarchyThemePalette"
   >;
   readonly error?: string;
 }
@@ -132,3 +138,7 @@ export interface ApplicationSessionReady extends ChartRenderRequest {
   readonly model: ChartModel;
   readonly snapshot: ChartSnapshot;
 }
+
+export type ApplicationChartCommit = ApplicationSessionCommit<
+  import("./hierarchyTypes").RetainedApplicationCapture | undefined
+>;

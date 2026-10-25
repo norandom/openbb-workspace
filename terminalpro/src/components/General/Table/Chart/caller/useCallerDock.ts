@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { isHierarchyChartFamily } from "../application/applicationSessionGuards";
 import { useWidgetContext } from "~/components/Widget.context";
 import { getStateKey } from "../../communityState";
 import {
@@ -55,7 +56,8 @@ export function useCallerDock(
       onSelect: (type: string) => {
         if (
           onSelect &&
-          (isPieChartFamily(type) ||
+          (isHierarchyChartFamily(type) ||
+            isPieChartFamily(type) ||
             isCartesianFamily(type) ||
             isComboChartFamily(type) ||
             isXyChartFamily(type) ||

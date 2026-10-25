@@ -1,3 +1,7 @@
+import { hasNavigator, retainNavigatorExtent } from "./cartesianNavigator";
+import { hasRangeNavigator, retainRangeWindows } from "./rangeNavigationWindow";
+import { histogramNavigationWindow } from "./histogramNavigationWindow";
+import { navigatorAxes } from "./cartesianNavigatorOverview";
 import type { EChartsOption } from "echarts";
 import type { ChartRenderRequest } from "./lifecycleTypes";
 export function projectLifecycleLegend(
@@ -30,4 +34,41 @@ export function projectLifecycleLegend(
     ? projected.legend
     : [projected.legend ?? {}];
   return { ...projected, legend: legends.map((item) => ({ ...item, selected })) };
+}
+
+/** Pure projection preserves the existing legend, navigation and histogram ordering. */
+export function projectLifecycleOptions(
+  request: ChartRenderRequest,
+  native: EChartsOption | undefined,
+  appliedScope: string | undefined,
+  appliedRevision: number | undefined,
+  previous: ChartRenderRequest | undefined,
+): EChartsOption {
+  let options = projectLifecycleLegend(request, native, appliedScope, appliedRevision);
+  const sameScope = appliedScope === request.legendScope;
+  if (
+    appliedRevision !== undefined &&
+    previous &&
+    sameScope &&
+    hasNavigator(previous.options) &&
+    hasNavigator(options) &&
+    native
+  )
+    options = hasRangeNavigator(options)
+      ? retainRangeWindows(options, native)
+      : retainNavigatorExtent(options, native);
+  if (request.projectNavigationWindow)
+    options = request.projectNavigationWindow(
+      options,
+      appliedRevision !== undefined && sameScope && native ? native : options,
+    );
+  const histogramWindow = request.projectNavigationWindow
+    ? undefined
+    : histogramNavigationWindow(options, options);
+  if (histogramWindow)
+    options = {
+      ...options,
+      yAxis: [histogramWindow.yAxis, ...navigatorAxes(options.yAxis).slice(1)],
+    };
+  return options;
 }

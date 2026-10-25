@@ -49,7 +49,7 @@ export function sessionBaseline(
 }
 export function sessionRange<F extends ApplicationChartFamily>(
   storage: ChartStorageOutput,
-  context: ApplicationSessionContext<F>,
+  context: Pick<ApplicationSessionContext<F>, "inputs" | "local">,
 ): ResolvedRange {
   return resolveSessionRange(storage, context);
 }
@@ -68,7 +68,7 @@ export function canSwitchCategorySeries(family: ApplicationChartFamily): boolean
 export function sessionSetup<F extends ApplicationChartFamily>(
   model: ChartModel,
   range: ResolvedRange,
-  context: ApplicationSessionContext<F>,
+  context: Pick<ApplicationSessionContext<F>, "inputs" | "local">,
 ): SetupSelection {
   const categories = context.inputs.columns
     .filter((column) => column.role === "category")

@@ -6,7 +6,9 @@ import type {
   RuntimeOptions,
 } from "../compatibility/legacyTypes";
 import { selectOptionBaseline } from "../compatibility/optionState";
-import type { ChartSnapshot } from "../compatibility/snapshotTypes";
+import { isHierarchyChartFamily, isOrdinaryCapture } from "./applicationSessionGuards";
+import { DEFAULT_SETUP_CATEGORY } from "./setupTypes";
+import { selectHierarchySetup } from "./hierarchySetupSelection";
 import {
   sessionBaseline,
   sessionRange,
@@ -25,11 +27,7 @@ import {
 } from "./axisPersistence";
 import { initializeComboSession } from "./comboSessionAssignments";
 import { rebuildComboAxes } from "./comboSessionLifecycle";
-import {
-  type ApplicationChartFamily,
-  type ComboSessionContext,
-  isComboChartFamily,
-} from "./comboSessionTypes";
+import { type ApplicationChartFamily, isComboChartFamily } from "./comboSessionTypes";
 import { observationSnapshotPolicy } from "./histogramCapture";
 import { isPieChartFamily } from "./pieSessionTypes";
 import { isRadarChartFamily } from "./radarSessionProjection";
@@ -41,9 +39,7 @@ export const sessionAssignmentKey = (
   address: ApplicationSessionInputs["address"],
 ) => {
   const partition = storage[address.stateKey] as RuntimeOptions | undefined;
-  const model = (partition?.chartModel ?? storage.chartModel) as
-    | ChartModel
-    | undefined;
+  const model = (partition?.chartModel ?? storage.chartModel) as ChartModel | undefined;
   return JSON.stringify([
     model?.seriesChartTypes ?? null,
     model ? Object.hasOwn(model, "seriesGroupType") : false,
@@ -63,7 +59,13 @@ export const sessionDataKey = <F extends ApplicationChartFamily>(
   ]);
 export const sessionAppearanceKey = <F extends ApplicationChartFamily>(
   input: ApplicationSessionInputs<F>,
-) => JSON.stringify([input.theme, input.generated, input.precision]);
+) =>
+  JSON.stringify([
+    input.theme,
+    input.generated,
+    input.precision,
+    input.hierarchyThemePalette,
+  ]);
 export const sessionActionKey = (storage: ChartStorageOutput) =>
   JSON.stringify([
     Boolean(storage.chartNavigatorEnabled),
@@ -83,9 +85,7 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
   inputs: ApplicationSessionInputs<F>,
   generation: number,
 ): ApplicationSessionState {
-  const partition = storage[inputs.address.stateKey] as
-    | RuntimeOptions
-    | undefined;
+  const partition = storage[inputs.address.stateKey] as RuntimeOptions | undefined;
   const selected = selectOptionBaseline({
     kind: "initialize",
     stateAddress: inputs.address.stateAddress,
@@ -102,7 +102,12 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
       renderRevision: 1,
     },
     baseline: selected.valid
-      ? selected.value
+      ? {
+          ...selected.value,
+          model: isHierarchyChartFamily(inputs.family)
+            ? { ...selected.value.model, chartType: selected.value.chartType }
+            : selected.value.model,
+        }
       : {
           stateAddress: inputs.address.stateAddress,
           chartType: inputs.family,
@@ -116,7 +121,6 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
   const context = {
     inputs,
     local,
-    capture: undefined as unknown as ChartSnapshot,
   };
   let range = local.range;
   let error = selected.valid ? undefined : selected.error;
@@ -127,13 +131,11 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
         isRadarChartFamily(inputs.family) ||
         inputs.family === "nightingale" ||
         isPieChartFamily(inputs.family) ||
-        inputs.family === "boxPlot"
+        inputs.family === "boxPlot" ||
+        isHierarchyChartFamily(inputs.family)
       )
     )
-      local.axes = restoreAxisSettings(
-        local.baseline.model,
-        inputs.initialAxes,
-      );
+      local.axes = restoreAxisSettings(local.baseline.model, inputs.initialAxes);
     range = sessionRange(storage, context);
   } catch (failure) {
     error = failure instanceof Error ? failure.message : "Invalid chart range";
@@ -142,8 +144,9 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
   if (isComboChartFamily(inputs.family) && error === undefined) {
     const initialized = initializeComboSession({
       ...context,
+      inputs: { ...inputs, family: inputs.family },
       local: hydrated,
-    } as ComboSessionContext);
+    });
     if (initialized.status === "ready") hydrated = initialized.value;
     else if (initialized.status === "invalid")
       error = initialized.diagnostics[0].message;
@@ -160,6 +163,7 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
       theme: cloneDeep(inputs.theme),
       generated: cloneDeep(inputs.generated),
       precision: inputs.precision,
+      hierarchyThemePalette: cloneDeep(inputs.hierarchyThemePalette),
     },
   };
 }
@@ -167,7 +171,8 @@ export function contextFor<F extends ApplicationChartFamily>(
   inputs: ApplicationSessionInputs<F>,
   state: ApplicationSessionState,
 ): ApplicationSessionContext<F> {
-  if (!state.capture) throw new Error("Chart is waiting for displayed rows");
+  if (isHierarchyChartFamily(inputs.family) || !isOrdinaryCapture(state.capture))
+    throw new Error("Chart is waiting for ordinary displayed rows");
   return {
     inputs: { ...inputs, ...state.appearance },
     local: state.local,
@@ -184,31 +189,21 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
     state.assignmentKey !== sessionAssignmentKey(storage, inputs.address)
   )
     return {
-      ...initialApplicationSession(
-        storage,
-        inputs,
-        state.local.stamp.generation + 1,
-      ),
+      ...initialApplicationSession(storage, inputs, state.local.stamp.generation + 1),
       viewport: state.viewport,
     };
-  if (state.pendingFamily && inputs.family !== state.pendingFamily)
-    return state;
+  if (state.pendingFamily && inputs.family !== state.pendingFamily) return state;
   if (
     inputs.family !== state.local.baseline.chartType &&
     inputs.family !== state.sourceFamily
   )
     return {
-      ...initialApplicationSession(
-        storage,
-        inputs,
-        state.local.stamp.generation + 1,
-      ),
+      ...initialApplicationSession(storage, inputs, state.local.stamp.generation + 1),
       viewport: state.viewport,
     };
   const context = {
     inputs,
     local: state.local,
-    capture: state.capture as ChartSnapshot,
   };
   let baseline = sessionBaseline(storage, context);
   if (
@@ -226,7 +221,8 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
     isRadarChartFamily(inputs.family) ||
     inputs.family === "nightingale" ||
     isPieChartFamily(inputs.family) ||
-    inputs.family === "boxPlot"
+    inputs.family === "boxPlot" ||
+    isHierarchyChartFamily(inputs.family)
       ? undefined
       : readAxisSettings(baseline.model);
   const previousPreference =
@@ -234,7 +230,8 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
     isRadarChartFamily(inputs.family) ||
     inputs.family === "nightingale" ||
     isPieChartFamily(inputs.family) ||
-    inputs.family === "boxPlot"
+    inputs.family === "boxPlot" ||
+    isHierarchyChartFamily(inputs.family)
       ? undefined
       : readAxisSettings(state.local.baseline.model);
   let axes = isEqual(preference, previousPreference)
@@ -243,12 +240,8 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
       ? restoreAxisSettings(baseline.model, state.local.axes)
       : resetAxisSettings(inputs.initialAxes, state.local.axes);
   const range = sessionRange(storage, context);
-  const before = sessionSetup(
-    state.local.baseline.model,
-    state.local.range,
-    context,
-  );
-  const after = sessionSetup(baseline.model, range, context);
+  const before = runtimeSetup(state.local.baseline.model, state.local.range, context);
+  const after = runtimeSetup(baseline.model, range, context);
   const dataKey = sessionDataKey(inputs);
   const appearanceKey = sessionAppearanceKey(inputs);
   const actionKey = sessionActionKey(storage);
@@ -262,6 +255,7 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
   const dataChanged =
     observationSnapshotPolicy(state.sourceFamily ?? "") !==
       observationSnapshotPolicy(inputs.family) ||
+    state.sourceFamily !== inputs.family ||
     state.dataKey !== dataKey ||
     !isEqual(before, after) ||
     !isEqual(range, state.local.range);
@@ -285,25 +279,20 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
       theme: cloneDeep(inputs.theme),
       generated: cloneDeep(inputs.generated),
       precision: inputs.precision,
+      hierarchyThemePalette: cloneDeep(inputs.hierarchyThemePalette),
     },
     capture: dataChanged ? undefined : state.capture,
     pendingFamily: undefined,
     sourceFamily: inputs.family,
     local: {
-      ...(dataChanged
-        ? rebuildComboAxes(
-            { ...state.local, baseline, range },
-            after.categoryId,
-          )
+      ...(dataChanged && "categoryId" in after
+        ? rebuildComboAxes({ ...state.local, baseline, range }, after.categoryId)
         : state.local),
       axes,
       baseline,
       range,
-      stamp: nextSessionStamp(
-        state.local.stamp,
-        dataChanged ? "data" : "render",
-      ),
-      ...(dataChanged || modelChanged
+      stamp: nextSessionStamp(state.local.stamp, dataChanged ? "data" : "render"),
+      ...(!isHierarchyChartFamily(inputs.family) && (dataChanged || modelChanged)
         ? {
             legendEnabled:
               inputs.family === "waterfall"
@@ -315,4 +304,20 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
         : {}),
     },
   };
+}
+
+function runtimeSetup<F extends ApplicationChartFamily>(
+  model: ChartModel,
+  range: ApplicationSessionLocal["range"],
+  context: Pick<ApplicationSessionContext<F>, "inputs" | "local">,
+) {
+  if (!isHierarchyChartFamily(context.inputs.family))
+    return sessionSetup(model, range, context);
+  const result = selectHierarchySetup(
+    model,
+    range,
+    context.inputs.columns.filter((column) => column.id !== DEFAULT_SETUP_CATEGORY),
+  );
+  if (result.status !== "ready") throw Error(result.diagnostics[0].message);
+  return result.value;
 }

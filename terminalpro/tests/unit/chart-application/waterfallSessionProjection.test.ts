@@ -4,6 +4,7 @@ import type { ApplicationChartCommand } from "../../../src/components/General/Ta
 import { executeApplicationChartCommand } from "../../../src/components/General/Table/Chart/application/applicationSessionDispatch";
 import { initialApplicationSession } from "../../../src/components/General/Table/Chart/application/applicationSessionRuntime";
 import type { ApplicationSessionState } from "../../../src/components/General/Table/Chart/application/applicationSessionTypes";
+import type { ChartSnapshot } from "../../../src/components/General/Table/Chart/compatibility/snapshotTypes";
 import { projectOrdinarySetup } from "../../../src/components/General/Table/Chart/application/setupProjection";
 import { projectWaterfallSession } from "../../../src/components/General/Table/Chart/application/waterfallSessionProjection";
 import { projectCallerTheme } from "../../../src/components/General/Table/Chart/caller/themeInputs";
@@ -38,7 +39,7 @@ function source(storage: ChartStorageOutput = {}, generation = 1) {
       "waterfall",
     ),
   };
-  const capture = {
+  const capture: ChartSnapshot = {
     ...base.capture,
     columns: base.capture.columns.map((column) => ({
       ...column,
@@ -54,15 +55,16 @@ function source(storage: ChartStorageOutput = {}, generation = 1) {
       values: { revenue, income: 90 + index },
     })),
   };
-  const state: ApplicationSessionState = {
+  const state = {
     ...initialApplicationSession(storage, inputs, generation),
     capture,
     viewport: { width: 620, height: 420 },
-  };
+  } satisfies ApplicationSessionState;
   return { inputs, state };
 }
 
-function ready(storage: ChartStorageOutput, fixture = source(storage)) {
+type WaterfallFixture = Omit<ReturnType<typeof source>, "state"> & { state: ApplicationSessionState };
+function ready(storage: ChartStorageOutput, fixture: WaterfallFixture = source(storage)) {
   const result = projectWaterfallSession(storage, fixture.inputs, fixture.state);
   expect(result.status, JSON.stringify(result)).toBe("ready");
   if (result.status !== "ready" || result.value.kind !== "waterfall")
@@ -79,7 +81,7 @@ function movements(options: EChartsOption) {
 }
 
 function edit(
-  fixture: ReturnType<typeof source>,
+  fixture: WaterfallFixture,
   storage: ChartStorageOutput,
   intent: ApplicationChartCommand["intent"],
 ) {

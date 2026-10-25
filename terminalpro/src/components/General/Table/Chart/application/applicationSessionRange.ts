@@ -1,3 +1,5 @@
+import { isHierarchyChartFamily, hierarchyInputs } from "./applicationSessionGuards";
+import { hierarchySessionRange } from "./hierarchySessionSelection";
 import type { ApplicationChartFamily } from "./comboSessionTypes";
 import type { WidgetT } from "../../../../types";
 import type { ChartStorageOutput, RuntimeOptions } from "../compatibility/legacyTypes";
@@ -56,9 +58,14 @@ function readRange(value: unknown, ignored = false): ResolvedRange | undefined {
 }
 export function resolveSessionRange<F extends ApplicationChartFamily>(
   storage: ChartStorageOutput,
-  context: ApplicationSessionContext<F>,
+  context: Pick<ApplicationSessionContext<F>, "inputs" | "local">,
 ): ResolvedRange {
   const { inputs } = context;
+  if (isHierarchyChartFamily(inputs.family))
+    return hierarchySessionRange(storage, {
+      inputs: hierarchyInputs(inputs),
+      local: context.local,
+    });
   const partition = storage[inputs.address.stateKey] as RuntimeOptions | undefined;
   const family = partition?.[inputs.family] as RuntimeOptions | undefined;
   if (!inputs.rangePolicy) return readRange(family?.cellRange) ?? inputs.range;

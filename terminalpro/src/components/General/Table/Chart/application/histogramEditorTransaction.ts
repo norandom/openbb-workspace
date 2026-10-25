@@ -1,9 +1,6 @@
 import { mapApplicationEditorEvent } from "../compatibility/editorBindings/mapApplicationEditorEvent";
 import { rehydrateApplicationEditorEvent } from "../compatibility/editorBindings/rehydrateApplicationEditorEvent";
-import type {
-  ChartStorageOutput,
-  RuntimeOptions,
-} from "../compatibility/legacyTypes";
+import type { ChartStorageOutput, RuntimeOptions } from "../compatibility/legacyTypes";
 import type { ApplicationChartCommand } from "./applicationChartSessionTypes";
 import { invalidSession, reduceSessionOptions } from "./applicationSessionEdit";
 import {
@@ -26,15 +23,15 @@ export function applyHistogramEditorTransaction(
   context: ApplicationSessionContext<"histogram">,
   command: ApplicationChartCommand,
 ): SessionResult<ApplicationSessionCommit> {
-  const checked = validateSynchronousEditorStamp(
-    command.stamp,
-    context.local.stamp,
-  );
+  const checked = validateSynchronousEditorStamp(command.stamp, context.local.stamp);
   if (checked.status !== "ready") return checked;
   if (command.family !== "histogram" || context.inputs.family !== "histogram")
     return { status: "stale" };
   const intent = command.intent;
   if (
+    intent.panel === "hierarchySetup" ||
+    intent.panel === "hierarchySpacing" ||
+    intent.panel === "hierarchyGradientLegend" ||
     intent.panel === "boxPlot" ||
     intent.panel === "range" ||
     intent.panel === "waterfall"
@@ -70,11 +67,7 @@ export function applyHistogramEditorTransaction(
       JSON.stringify(selected.range) !== JSON.stringify(context.local.range) ||
       JSON.stringify(selected.setup) !==
         JSON.stringify(
-          sessionSetup(
-            context.local.baseline.model,
-            context.local.range,
-            context,
-          ),
+          sessionSetup(context.local.baseline.model, context.local.range, context),
         )
     )
       return { status: "stale" };

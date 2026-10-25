@@ -10,6 +10,7 @@ export interface ChartRenderRequest {
   /** Paired with projectLegendSelection; stable across render revisions, reset per session/family. */
   readonly legendScope?: string;
   readonly legendPagination?: PieLegendPagination;
+  readonly hierarchyHover?: import("./hierarchyHoverTypes").HierarchyHoverPlan;
   /** Keys equal main-series names/IDs. The callback closes over immutable current inputs. */
   readonly projectLegendSelection?: (
     selected: Readonly<Record<string, boolean>>,

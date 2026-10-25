@@ -1,3 +1,10 @@
+import {
+  hierarchyContextFor,
+  isHierarchyCapture,
+  isHierarchyChartFamily,
+  isOrdinaryCapture,
+} from "./applicationSessionGuards";
+import { projectHierarchySession } from "./hierarchySessionProjection";
 import type { ComboChartType } from "../compatibility/comboAssignments";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import type { ApplicationChartReady } from "./applicationChartSessionTypes";
@@ -26,6 +33,29 @@ export function projectApplicationChart(
   inputs: ApplicationSessionInputs<ApplicationChartFamily>,
   state: ApplicationSessionState,
 ): SessionResult<ApplicationChartReady> {
+  if (isHierarchyChartFamily(inputs.family)) {
+    if (!isHierarchyCapture(state.capture)) return { status: "waiting" };
+    try {
+      return projectHierarchySession(
+        storage,
+        hierarchyContextFor(inputs, state).inputs,
+        { ...state, capture: state.capture },
+      );
+    } catch (error) {
+      return {
+        status: "invalid",
+        diagnostics: [
+          {
+            code: "hierarchy-context",
+            path: [],
+            message:
+              error instanceof Error ? error.message : "Invalid hierarchy context",
+          },
+        ],
+      };
+    }
+  }
+  if (state.capture && !isOrdinaryCapture(state.capture)) return { status: "waiting" };
   return isRadialChartFamily(inputs.family)
     ? projectRadialSession(
         storage,

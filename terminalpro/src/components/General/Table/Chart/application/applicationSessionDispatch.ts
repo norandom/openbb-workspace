@@ -1,3 +1,16 @@
+import {
+  hierarchyContextFor,
+  isHierarchyChartFamily,
+  isHierarchyCapture,
+  isOrdinaryCapture,
+} from "./applicationSessionGuards";
+import {
+  applyHierarchyAppearanceTransaction,
+  applyHierarchySetupTransaction,
+} from "./hierarchySessionTransactions";
+import type { HierarchyAcceptedEditIntent } from "./hierarchyEditorTypes";
+import type { SessionResult } from "./types";
+import type { ChartSnapshot } from "../compatibility/snapshotTypes";
 import type { WidgetT } from "../../../../types";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import type { ApplicationChartCommand } from "./applicationChartSessionTypes";
@@ -14,6 +27,7 @@ import { applyApplicationSetupTransaction } from "./applicationSessionSetup";
 import { validateSynchronousEditorStamp } from "./applicationSessionStamp";
 import type {
   ApplicationSessionContext,
+  ApplicationChartCommit,
   ApplicationSessionInputs,
   ApplicationSessionState,
 } from "./applicationSessionTypes";
@@ -51,9 +65,15 @@ function transaction(
   storage: ChartStorageOutput,
   context: ApplicationSessionContext<ApplicationChartFamily>,
   command: ApplicationChartCommand,
-  recapture?: ReturnType<typeof captureApplicationSession>,
-) {
+  recapture?: SessionResult<ChartSnapshot>,
+): SessionResult<ApplicationChartCommit> {
   const intent = command.intent;
+  if (
+    intent.panel === "hierarchySetup" ||
+    intent.panel === "hierarchySpacing" ||
+    intent.panel === "hierarchyGradientLegend"
+  )
+    return { status: "stale" };
   if (intent.panel === "family")
     return applyComboFamilyTransaction(
       storage,
@@ -165,6 +185,7 @@ function transaction(
     });
   if (intent.panel === "geometry" || intent.panel === "comboAssignment")
     return { status: "stale" as const };
+  if (isHierarchyChartFamily(context.inputs.family)) return { status: "stale" };
   return applyApplicationEditorTransaction(
     storage,
     context as ApplicationSessionContext,
@@ -237,18 +258,22 @@ export function executeApplicationChartCommand(
     command.family !== inputs.family ||
     (command.family !== state.local.baseline.chartType &&
       command.family !== state.sourceFamily) ||
-    (state.pendingFamily !== undefined &&
-      command.family !== state.pendingFamily) ||
-    validateSynchronousEditorStamp(command.stamp, state.local.stamp).status !==
-      "ready"
+    (state.pendingFamily !== undefined && command.family !== state.pendingFamily) ||
+    validateSynchronousEditorStamp(command.stamp, state.local.stamp).status !== "ready"
   )
     return { widget, value: state };
-  const result = transaction(
-    widget.storage as ChartStorageOutput,
-    contextFor(inputs, state),
-    command,
-    recapture,
-  );
+  let result: SessionResult<ApplicationChartCommit>;
+  try {
+    result = joinedTransaction(
+      widget.storage as ChartStorageOutput,
+      state,
+      inputs,
+      command,
+      recapture,
+    );
+  } catch {
+    return { widget, value: state };
+  }
   if (result.status !== "ready") return { widget, value: state };
   const committed = result.value;
   const stamp = nextSessionStamp(state.local.stamp, committed.change);
@@ -261,11 +286,77 @@ export function executeApplicationChartCommand(
       error: undefined,
       ...(committed.local.baseline.chartType !== state.local.baseline.chartType
         ? {
-            pendingFamily: committed.local.baseline
-              .chartType as ApplicationChartFamily,
+            pendingFamily: committed.local.baseline.chartType as ApplicationChartFamily,
           }
         : {}),
-      capture: { ...committed.capture, dataRevision: stamp.dataRevision },
+      capture: committed.capture
+        ? { ...committed.capture, dataRevision: stamp.dataRevision }
+        : undefined,
     },
   };
+}
+
+function hierarchyIntent(
+  intent: ApplicationChartCommand["intent"],
+): intent is HierarchyAcceptedEditIntent {
+  return (
+    intent.panel === "padding" ||
+    intent.panel === "background" ||
+    intent.panel === "tooltips" ||
+    intent.panel === "hierarchySpacing" ||
+    intent.panel === "hierarchyGradientLegend" ||
+    (intent.panel === "titles" &&
+      (intent.edit.caption === "title" || intent.edit.caption === "subtitle"))
+  );
+}
+function joinedTransaction(
+  storage: ChartStorageOutput,
+  state: ApplicationSessionState,
+  inputs: ApplicationSessionInputs<ApplicationChartFamily>,
+  command: ApplicationChartCommand,
+  recapture?: ReturnType<typeof captureApplicationSession>,
+): SessionResult<ApplicationChartCommit> {
+  if (isHierarchyChartFamily(inputs.family)) {
+    const context = hierarchyContextFor(inputs, state);
+    if (command.intent.panel === "family")
+      return applyComboFamilyTransaction(
+        storage,
+        context,
+        command.stamp,
+        command.intent.chartType,
+      );
+    if (command.intent.panel === "hierarchySetup") {
+      if (recapture?.status === "ready" && !isHierarchyCapture(recapture.value))
+        return { status: "stale" };
+      const captured =
+        recapture?.status === "ready" && isHierarchyCapture(recapture.value)
+          ? { ...recapture, value: recapture.value }
+          : recapture?.status !== "ready"
+            ? recapture
+            : undefined;
+      return applyHierarchySetupTransaction(
+        storage,
+        context,
+        command.stamp,
+        command.intent.edit,
+        captured,
+      );
+    }
+    if (!hierarchyIntent(command.intent) || !state.viewport) return { status: "stale" };
+    return applyHierarchyAppearanceTransaction(
+      storage,
+      context,
+      { ...command, family: inputs.family, intent: command.intent },
+      state.viewport,
+    );
+  }
+  if (recapture?.status === "ready" && !isOrdinaryCapture(recapture.value))
+    return { status: "stale" };
+  const captured =
+    recapture?.status === "ready" && isOrdinaryCapture(recapture.value)
+      ? { ...recapture, value: recapture.value }
+      : recapture?.status !== "ready"
+        ? recapture
+        : undefined;
+  return transaction(storage, contextFor(inputs, state), command, captured);
 }

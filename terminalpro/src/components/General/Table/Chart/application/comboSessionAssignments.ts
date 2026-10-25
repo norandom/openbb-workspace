@@ -1,18 +1,16 @@
+import { hierarchySessionRange } from "./hierarchySessionSelection";
+import { hierarchyInputs, isHierarchyChartFamily } from "./applicationSessionGuards";
 import { commitFamilyTransition, familyColumns } from "./familyTransition";
 import cloneDeep from "lodash/cloneDeep";
 import {
   resolveComboAssignments,
   type ComboChartType,
 } from "../compatibility/comboAssignments";
-import type {
-  ChartModel,
-  ChartStorageOutput,
-} from "../compatibility/legacyTypes";
+import type { ChartModel, ChartStorageOutput } from "../compatibility/legacyTypes";
 import { sessionBaseline, sessionRange } from "./applicationSessionSelection";
 import { validateSynchronousEditorStamp } from "./applicationSessionStamp";
 import type {
   ApplicationSessionCommit,
-  ApplicationSessionContext,
   ApplicationSessionLocal,
 } from "./applicationSessionTypes";
 import {
@@ -31,7 +29,17 @@ function invalid(message: string): SessionResult<never> {
   };
 }
 function resolve(
-  context: ApplicationSessionContext<ApplicationChartFamily>,
+  context: {
+    readonly inputs: Omit<
+      import("./applicationSessionTypes").ApplicationSessionInputs<ApplicationChartFamily>,
+      "categoryColumnId" | "rangePolicy"
+    > & {
+      readonly categoryColumnId?: string;
+      readonly rangePolicy?: import("./applicationSessionTypes").ApplicationSessionInputs["rangePolicy"];
+    };
+    readonly local: ApplicationSessionLocal;
+    readonly capture?: import("./hierarchyTypes").RetainedApplicationCapture;
+  },
   range: ResolvedRange,
   chartType: ComboChartType,
   saved?: unknown,
@@ -43,7 +51,7 @@ function resolve(
   });
 }
 export function initializeComboSession(
-  context: ComboSessionContext,
+  context: Pick<ComboSessionContext, "inputs" | "local">,
 ): SessionResult<ApplicationSessionLocal> {
   const { local, inputs } = context;
   const resolved = resolve(
@@ -52,8 +60,7 @@ export function initializeComboSession(
     inputs.family,
     local.baseline.model.seriesChartTypes,
   );
-  if (resolved.status !== "resolved")
-    return invalid(resolved.diagnostics[0].message);
+  if (resolved.status !== "resolved") return invalid(resolved.diagnostics[0].message);
   const model = {
     ...local.baseline.model,
     chartType: resolved.chartType,
@@ -72,11 +79,22 @@ export function initializeComboSession(
   };
 }
 function captureMatches(
-  context: ApplicationSessionContext<ApplicationChartFamily>,
+  context: {
+    readonly inputs: Omit<
+      import("./applicationSessionTypes").ApplicationSessionInputs<ApplicationChartFamily>,
+      "categoryColumnId" | "rangePolicy"
+    > & {
+      readonly categoryColumnId?: string;
+      readonly rangePolicy?: import("./applicationSessionTypes").ApplicationSessionInputs["rangePolicy"];
+    };
+    readonly local: ApplicationSessionLocal;
+    readonly capture?: import("./hierarchyTypes").RetainedApplicationCapture;
+  },
   range: ResolvedRange,
 ) {
   const { capture, local, inputs } = context;
   if (
+    !capture ||
     capture.stateAddress !== inputs.address.stateAddress ||
     capture.dataRevision !== local.stamp.dataRevision
   )
@@ -103,7 +121,18 @@ export function selectComboSessionAssignments(
 ): SessionResult<ComboSessionAssignmentSelection> {
   try {
     const baseline = sessionBaseline(storage, context);
-    const range = sessionRange(storage, context);
+    const range = isHierarchyChartFamily(context.inputs.family)
+      ? hierarchySessionRange(storage, {
+          ...context,
+          inputs: hierarchyInputs(context.inputs),
+        })
+      : sessionRange(storage, {
+          ...context,
+          inputs: {
+            ...context.inputs,
+            categoryColumnId: context.inputs.categoryColumnId!,
+          },
+        });
     if (!captureMatches(context, range)) return { status: "stale" };
     if (!isComboChartFamily(baseline.chartType)) return { status: "stale" };
     // Live builtin selection bypasses initialization: serialized builtin assignments do not change its identity.
@@ -120,8 +149,7 @@ export function selectComboSessionAssignments(
       restoredCustom ? "customCombo" : baseline.chartType,
       saved,
     );
-    if (resolved.status !== "resolved")
-      return invalid(resolved.diagnostics[0].message);
+    if (resolved.status !== "resolved") return invalid(resolved.diagnostics[0].message);
     return {
       status: "ready",
       stamp: context.local.stamp,
@@ -138,14 +166,9 @@ export function selectComboSessionAssignments(
       },
     };
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message === "Selected chart family changed"
-    )
+    if (error instanceof Error && error.message === "Selected chart family changed")
       return { status: "stale" };
-    return invalid(
-      error instanceof Error ? error.message : "Invalid combo selection",
-    );
+    return invalid(error instanceof Error ? error.message : "Invalid combo selection");
   }
 }
 export function applyComboAssignmentTransaction(
@@ -153,10 +176,7 @@ export function applyComboAssignmentTransaction(
   context: ComboSessionContext,
   command: ComboAssignmentCommand,
 ): SessionResult<ApplicationSessionCommit> {
-  const checked = validateSynchronousEditorStamp(
-    command.stamp,
-    context.local.stamp,
-  );
+  const checked = validateSynchronousEditorStamp(command.stamp, context.local.stamp);
   if (checked.status !== "ready") return checked;
   if (command.family !== context.inputs.family) return { status: "stale" };
   const selected = selectComboSessionAssignments(storage, context);
@@ -171,11 +191,9 @@ export function applyComboAssignmentTransaction(
     context,
     selected.value.range,
     "customCombo",
-    selected.value.baseline.model.seriesChartTypes ??
-      selected.value.seriesChartTypes,
+    selected.value.baseline.model.seriesChartTypes ?? selected.value.seriesChartTypes,
   );
-  if (current.status !== "resolved")
-    return invalid(current.diagnostics[0].message);
+  if (current.status !== "resolved") return invalid(current.diagnostics[0].message);
   const requested = current.seriesChartTypes.map((value) =>
     value.colId !== command.intent.colId
       ? value
@@ -186,14 +204,8 @@ export function applyComboAssignmentTransaction(
             : { secondaryAxis: command.intent.edit.value }),
         },
   );
-  const resolved = resolve(
-    context,
-    selected.value.range,
-    "customCombo",
-    requested,
-  );
-  if (resolved.status !== "resolved")
-    return invalid(resolved.diagnostics[0].message);
+  const resolved = resolve(context, selected.value.range, "customCombo", requested);
+  if (resolved.status !== "resolved") return invalid(resolved.diagnostics[0].message);
   const local = {
     ...context.local,
     savedCustomSeriesChartTypes: cloneDeep(resolved.seriesChartTypes),
@@ -208,25 +220,52 @@ export function applyComboAssignmentTransaction(
 }
 export function applyComboFamilyTransaction(
   storage: ChartStorageOutput,
-  context: ApplicationSessionContext<ApplicationChartFamily>,
+  context: {
+    readonly inputs: Omit<
+      import("./applicationSessionTypes").ApplicationSessionInputs<ApplicationChartFamily>,
+      "categoryColumnId" | "rangePolicy"
+    > & {
+      readonly categoryColumnId?: string;
+      readonly rangePolicy?: import("./applicationSessionTypes").ApplicationSessionInputs["rangePolicy"];
+    };
+    readonly local: ApplicationSessionLocal;
+    readonly capture?: import("./hierarchyTypes").RetainedApplicationCapture;
+  },
   stamp: SessionStamp,
   chartType: ApplicationChartFamily,
-): SessionResult<ApplicationSessionCommit> {
+): SessionResult<import("./applicationSessionTypes").ApplicationChartCommit> {
   const checked = validateSynchronousEditorStamp(stamp, context.local.stamp);
   if (checked.status !== "ready") return checked;
   try {
     const baseline = sessionBaseline(storage, context);
-    const range = sessionRange(storage, context);
+    const range = isHierarchyChartFamily(context.inputs.family)
+      ? hierarchySessionRange(storage, {
+          ...context,
+          inputs: hierarchyInputs(context.inputs),
+        })
+      : sessionRange(storage, {
+          ...context,
+          inputs: {
+            ...context.inputs,
+            categoryColumnId: context.inputs.categoryColumnId!,
+          },
+        });
     if (!captureMatches(context, range)) return { status: "stale" };
     if (!isComboChartFamily(chartType))
-      return commitFamilyTransition(storage, context, baseline, chartType, undefined, true);
+      return commitFamilyTransition(
+        storage,
+        context,
+        baseline,
+        chartType,
+        undefined,
+        true,
+      );
     const saved =
       chartType === "customCombo"
         ? context.local.savedCustomSeriesChartTypes
         : undefined;
     const resolved = resolve(context, range, chartType, saved);
-    if (resolved.status !== "resolved")
-      return invalid(resolved.diagnostics[0].message);
+    if (resolved.status !== "resolved") return invalid(resolved.diagnostics[0].message);
     const local =
       chartType === "customCombo"
         ? {
@@ -244,9 +283,7 @@ export function applyComboFamilyTransaction(
     );
   } catch (error) {
     return invalid(
-      error instanceof Error
-        ? error.message
-        : "Invalid combo family transition",
+      error instanceof Error ? error.message : "Invalid combo family transition",
     );
   }
 }

@@ -1,9 +1,6 @@
 import merge from "lodash.merge";
 import type { ApplicationThemeInput } from "../application/appearanceModel";
-import type {
-  RuntimeOptions,
-  RuntimeOptionValue,
-} from "../compatibility/legacyTypes";
+import type { RuntimeOptions, RuntimeOptionValue } from "../compatibility/legacyTypes";
 import { waterfallThemePaint } from "./waterfallThemePaint";
 
 const fills = [
@@ -45,13 +42,9 @@ const darkStrokes = [
 
 /** Callback behavior belongs to display policy and quick actions, never RuntimeOptions. */
 export function dataOnlyOptions(value: unknown): RuntimeOptionValue {
-  if (
-    value === null ||
-    ["string", "boolean", "undefined"].includes(typeof value)
-  )
+  if (value === null || ["string", "boolean", "undefined"].includes(typeof value))
     return value as RuntimeOptionValue;
-  if (typeof value === "number")
-    return Number.isFinite(value) ? value : undefined;
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
   if (Array.isArray(value)) return value.map(dataOnlyOptions);
   if (!value || typeof value !== "object") return undefined;
   return Object.fromEntries(
@@ -185,6 +178,8 @@ export function projectCallerTheme(
     "radial-column",
     "radial-bar",
     "waterfall",
+    "treemap",
+    "sunburst",
   ]) {
     overrides[family] = merge(
       {},
@@ -201,11 +196,20 @@ export function projectCallerTheme(
             },
           }
         : {},
-      (dataOnlyOptions(selected.overrides) as RuntimeOptions | undefined)
-        ?.common,
-      (dataOnlyOptions(selected.overrides) as RuntimeOptions | undefined)?.[
-        family
-      ],
+      family === "treemap" || family === "sunburst"
+        ? {
+            gradientLegend: { scale: { label: typography(params) } },
+            series:
+              family === "treemap"
+                ? {
+                    group: { label: typography(params) },
+                    tile: { label: hierarchyLabel(params, dark, 1.5, 10 / 12) },
+                  }
+                : { label: hierarchyLabel(params, dark, 14 / 12, 9 / 12) },
+          }
+        : {},
+      (dataOnlyOptions(selected.overrides) as RuntimeOptions | undefined)?.common,
+      (dataOnlyOptions(selected.overrides) as RuntimeOptions | undefined)?.[family],
     );
   }
   return {
@@ -228,8 +232,7 @@ export function projectCallerTheme(
       foregroundColor: foreground,
       textColor: params.textColor ?? foreground,
       backgroundColor: params.backgroundColor ?? (dark ? "#151518" : "#FFFFFF"),
-      chartBackgroundColor:
-        params.backgroundColor ?? (dark ? "#151518" : "#FFFFFF"),
+      chartBackgroundColor: params.backgroundColor ?? (dark ? "#151518" : "#FFFFFF"),
     },
     palette: {
       fills: selected.palette?.fills?.length ? selected.palette.fills : fills,
@@ -241,5 +244,19 @@ export function projectCallerTheme(
             ? darkStrokes
             : lightStrokes,
     },
+  };
+}
+
+function hierarchyLabel(
+  params: Record<string, any>,
+  dark: boolean,
+  ratio: number,
+  minimum: number,
+) {
+  return {
+    ...typography(params),
+    color: params.backgroundColor ?? (dark ? "#151518" : "#FFFFFF"),
+    fontSize: Math.round((params.fontSize ?? 12) * ratio),
+    minimumFontSize: Math.round((params.fontSize ?? 12) * minimum),
   };
 }

@@ -13,7 +13,8 @@ import type {
   ApplicationChartCommand,
   ApplicationChartReady,
 } from "./applicationChartSessionTypes";
-import { captureApplicationSession } from "./applicationSessionCapture";
+import { planApplicationRecapture } from "./applicationSessionRecapture";
+import { isHierarchyChartFamily } from "./applicationSessionGuards";
 import { executeApplicationChartCommand } from "./applicationSessionDispatch";
 import {
   contextFor,
@@ -43,9 +44,11 @@ import { useApplicationSessionScope } from "./useApplicationSessionScope";
 import type { XyEditIntent } from "./xySessionTypes";
 
 type ReadyFor<F extends ApplicationChartFamily> =
-  F extends import("../compatibility/pieAssignments").PieChartType
-    ? Extract<ApplicationChartReady, { kind: "pie" }>
-    : Exclude<ApplicationChartReady, { kind: "pie" }>;
+  F extends import("../compatibility/hierarchyContracts").HierarchyChartType
+    ? Extract<ApplicationChartReady, { kind: "hierarchy" }>
+    : F extends import("../compatibility/pieAssignments").PieChartType
+      ? Extract<ApplicationChartReady, { kind: "pie" }>
+      : Exclude<ApplicationChartReady, { kind: "pie" | "hierarchy" }>;
 export function useApplicationChartSession<F extends ApplicationChartFamily>(
   inputs: ApplicationSessionInputs<F>,
 ) {
@@ -84,21 +87,12 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
           ? projection.value.combo.geometry
           : undefined,
     } as ApplicationChartCommand);
-    const addedId =
-      intent.panel === "setup" && intent.edit.kind === "series-add"
-        ? intent.edit.id
-        : undefined;
-    const recapture =
-      intent.panel === "setup" && intent.edit.kind === "category"
-        ? captureApplicationSession(inputs, current, intent.edit.value)
-        : addedId !== undefined &&
-            inputs.columns.some(
-              (column) => column.id === addedId && column.role === "number",
-            ) &&
-            !current.local.range.columnIds.includes(addedId) &&
-            !current.capture?.selectedColumnIds.includes(addedId)
-          ? captureApplicationSession(inputs, current, undefined, [addedId])
-          : undefined;
+    const recapture = planApplicationRecapture(
+      owner.widget.storage as ChartStorageOutput,
+      inputs,
+      current,
+      command,
+    );
     owner.transact(token, (widget, previous: ApplicationSessionState) =>
       executeApplicationChartCommand(widget, previous, inputs, command, recapture),
     );
@@ -114,6 +108,7 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
       return;
     owner.transact(token, (widget, previous: ApplicationSessionState) => {
       if (
+        !isHierarchyChartFamily(inputs.family) &&
         previous.viewport?.width === viewport.width &&
         previous.viewport.height === viewport.height
       )
@@ -141,7 +136,8 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
           .status !== "ready"
       )
         return { widget, value: previous };
-      if (!previous.capture) return { widget, value: previous };
+      if (!previous.capture || isHierarchyChartFamily(inputs.family))
+        return { widget, value: previous };
       const context = contextFor(inputs, previous);
       const setup = sessionSetup(
         previous.local.baseline.model,
@@ -203,6 +199,10 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
         projection.status === "ready" && projection.value.kind === "pie"
           ? projection.value.legendPagination
           : undefined,
+      hierarchyHover:
+        projection.status === "ready" && projection.value.kind === "hierarchy"
+          ? projection.value.hierarchyHover
+          : undefined,
       onResize,
       onError,
     },
@@ -238,11 +238,14 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
       intent:
         | import("../compatibility/radialContracts").RadialEditIntent
         | import("../compatibility/nightingaleContracts").NightingaleEditIntent
+        | import("./hierarchyEditorTypes").HierarchyAcceptedEditIntent
         | ApplicationEditorIntent
         | PieEditIntent
         | import("../compatibility/radarContracts").RadarEditIntent,
     ) => dispatch(intent),
     onAxisStructure: (event: ApplicationAxisStructureEvent) => dispatch(event),
+    onHierarchySetup: (edit: import("./hierarchySetupTypes").HierarchySetupEdit) =>
+      dispatch({ panel: "hierarchySetup", edit }),
     onSetup: (edit: ChartSetupEdit) => dispatch({ panel: "setup", edit }),
     notifyChartUpdate,
     validateCurrent,

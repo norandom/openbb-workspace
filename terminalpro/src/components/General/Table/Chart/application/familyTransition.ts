@@ -1,3 +1,6 @@
+import { isHierarchyChartFamily } from "./applicationSessionGuards";
+import { normalizeHierarchyGalleryRange } from "./hierarchyRange";
+import { applyRangeTransition } from "./sessionState";
 import cloneDeep from "lodash/cloneDeep";
 import type { ComboSeriesAssignment } from "../compatibility/comboAssignments";
 import { reduceIntegratedState } from "../compatibility/integratedState";
@@ -7,7 +10,7 @@ import {
   validateIntegratedInput,
 } from "../compatibility/legacyTypes";
 import type {
-  ApplicationSessionCommit,
+  ApplicationChartCommit,
   ApplicationSessionContext,
   ApplicationSessionLocal,
 } from "./applicationSessionTypes";
@@ -22,7 +25,7 @@ function invalid(message: string): SessionResult<never> {
   };
 }
 function rebuiltLocal(
-  context: ApplicationSessionContext<ApplicationChartFamily>,
+  context: FamilyTransitionContext,
   assignments: readonly ComboSeriesAssignment[] | undefined,
   gallery: boolean,
 ): ApplicationSessionLocal {
@@ -82,10 +85,7 @@ function rebuiltLocal(
   };
 }
 
-export function familyColumns(
-  context: ApplicationSessionContext<ApplicationChartFamily>,
-  range: ResolvedRange,
-) {
+export function familyColumns(context: FamilyTransitionContext, range: ResolvedRange) {
   const numeric = context.inputs.columns
     .filter((c) => c.role === "number")
     .map((c) => c.id);
@@ -100,8 +100,43 @@ export function commitFamilyTransition(
   baseline: ApplicationSessionLocal["baseline"],
   chartType: ApplicationChartFamily,
   assignments?: readonly ComboSeriesAssignment[],
+  gallery?: false,
+): SessionResult<import("./applicationSessionTypes").ApplicationSessionCommit>;
+export function commitFamilyTransition(
+  storage: ChartStorageOutput,
+  context: FamilyTransitionContext,
+  baseline: ApplicationSessionLocal["baseline"],
+  chartType: ApplicationChartFamily,
+  assignments: readonly ComboSeriesAssignment[] | undefined,
+  gallery: boolean,
+): SessionResult<ApplicationChartCommit>;
+export function commitFamilyTransition(
+  storage: ChartStorageOutput,
+  context: FamilyTransitionContext,
+  baseline: ApplicationSessionLocal["baseline"],
+  chartType: ApplicationChartFamily,
+  assignments?: readonly ComboSeriesAssignment[],
   gallery = false,
-): SessionResult<ApplicationSessionCommit> {
+): SessionResult<ApplicationChartCommit> {
+  let range = context.local.range;
+  if (gallery && isHierarchyChartFamily(chartType)) {
+    const normalized = normalizeHierarchyGalleryRange(
+      range,
+      context.inputs.columns,
+      [
+        ...familyColumns(context, range)
+          .filter((column) => column.selected)
+          .map((column) => column.colId),
+        ...(
+          context.inputs.rangePolicy?.numericCollectionIds ??
+          familyColumns(context, range).map((column) => column.colId)
+        ).filter((id) => !range.columnIds.includes(id)),
+      ],
+      context.inputs.family,
+    );
+    if (normalized.status !== "ready") return normalized;
+    range = normalized.range;
+  }
   const model = { ...baseline.model, chartType } as ChartModel;
   if (gallery) {
     if (chartType !== "histogram" && chartType !== "boxPlot" && chartType !== "pie")
@@ -130,19 +165,44 @@ export function commitFamilyTransition(
     isPivotMode: false,
   });
   if (!validated.valid) return invalid(validated.error);
-  const next = reduceIntegratedState(validated.value);
+  let next = reduceIntegratedState(validated.value);
+  if (gallery && isHierarchyChartFamily(chartType)) {
+    const ranged = applyRangeTransition({
+      storage: next,
+      stamp: context.local.stamp,
+      currentStamp: context.local.stamp,
+      chartType,
+      range,
+    });
+    if (ranged.status !== "ready") return ranged;
+    next = ranged.value;
+  }
   const persisted = (next[key] as any).chartModel as ChartModel;
   return {
     status: "ready",
     stamp: context.local.stamp,
     value: {
       storage: next,
-      capture: context.capture,
-      change: "render",
+      capture:
+        gallery && baseline.chartType !== chartType ? undefined : context.capture,
+      change: gallery && baseline.chartType !== chartType ? "data" : "render",
       local: {
         ...rebuiltLocal(context, assignments, gallery),
+        range,
         baseline: { ...baseline, chartType, model: persisted },
       },
     },
   };
 }
+
+export type FamilyTransitionContext = {
+  readonly inputs: Omit<
+    import("./applicationSessionTypes").ApplicationSessionInputs<ApplicationChartFamily>,
+    "categoryColumnId" | "rangePolicy"
+  > & {
+    readonly categoryColumnId?: string;
+    readonly rangePolicy?: import("./applicationSessionTypes").ApplicationSessionInputs["rangePolicy"];
+  };
+  readonly local: ApplicationSessionLocal;
+  readonly capture?: import("./hierarchyTypes").RetainedApplicationCapture;
+};

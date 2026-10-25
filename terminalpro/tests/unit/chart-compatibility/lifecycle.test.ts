@@ -12,6 +12,54 @@ const request = (revision: number) => ({
   options: { title: { text: String(revision) } },
 });
 
+describe("hierarchy hover lifecycle join", () => {
+  function setup() {
+    let width = 400;
+    const container = document.createElement("div");
+    Object.defineProperties(container, { clientWidth: { get: () => width }, clientHeight: { value: 200 } });
+    const listeners = new Map<string, (event: unknown) => void>();
+    const chart = { on: vi.fn((name, listener) => listeners.set(name, listener)), off: vi.fn((name) => listeners.delete(name)), setOption: vi.fn(), resize: vi.fn(), dispose: vi.fn(), dispatchAction: vi.fn(), getDataURL: vi.fn(() => "image") };
+    mocks.init.mockReturnValue(chart);
+    const plan = { seriesId: "tree", graphicId: "marker", project: (id: string) => id === "leaf" ? { x: 10, y: 20, size: 8, rotation: 0, color: "#fff" } : undefined };
+    const owner = createChartLifecycle(container);
+    const next = (revision: number) => ({ revision, options: { tooltip: { show: false } }, hierarchyHover: plan });
+    const hover = () => listeners.get("mouseover")?.({ seriesId: "tree", data: { id: "leaf" } });
+    return { owner, chart, next, hover, listeners, zero: () => { width = 0; }, restore: () => { width = 400; } };
+  }
+  it("keeps accepted hover on stale commands and expires coordinates until a fresh viewport request", () => {
+    const f = setup();
+    f.owner.mount(f.next(1));
+    f.hover();
+    expect(f.chart.setOption).toHaveBeenLastCalledWith({ graphic: [expect.objectContaining({ id: "marker", silent: true })] });
+    f.owner.update({ ...f.next(0), hierarchyHover: undefined });
+    f.chart.setOption.mockClear(); f.hover();
+    expect(f.chart.setOption).toHaveBeenCalledOnce();
+    f.owner.resize();
+    f.chart.setOption.mockClear(); f.hover();
+    expect(f.chart.setOption).not.toHaveBeenCalled();
+    f.owner.update(f.next(2)); f.hover();
+    expect(f.chart.setOption).toHaveBeenLastCalledWith({ graphic: [expect.objectContaining({ id: "marker" })] });
+    f.zero(); f.owner.resize(); f.restore(); f.owner.resize();
+    f.chart.setOption.mockClear(); f.hover();
+    expect(f.chart.setOption).not.toHaveBeenCalled();
+    f.owner.update(f.next(3)); f.hover();
+    expect(f.chart.setOption).toHaveBeenCalledTimes(2);
+    f.owner.dispose();
+    expect(f.listeners.size).toBe(0);
+  });
+  it("invalidates export and releases every owner when zero-size marker cleanup fails", () => {
+    const f = setup(); f.owner.mount(f.next(1)); f.hover(); f.zero();
+    f.chart.setOption.mockImplementationOnce(() => { throw Error("marker cleanup"); });
+    expect(() => f.owner.update(f.next(2))).toThrow("marker cleanup");
+    expect(f.chart.dispose).toHaveBeenCalledOnce();
+    expect(() => f.owner.exportImage()).toThrow("unavailable");
+    expect(f.listeners.size).toBe(0);
+    f.restore(); f.owner.update(f.next(3)); f.hover();
+    expect(f.chart.setOption).toHaveBeenLastCalledWith({ graphic: [expect.objectContaining({ id: "marker" })] });
+    f.owner.dispose();
+  });
+});
+
 describe("bounded ECharts ownership", () => {
   let container: HTMLDivElement;
   let width: number;

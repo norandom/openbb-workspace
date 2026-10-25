@@ -1,3 +1,4 @@
+import { projectHierarchyThemePalette } from "./hierarchyThemePalette";
 import type { ApplicationChartFamily } from "../application/comboSessionTypes";
 import dayjs from "dayjs";
 import type { GridApi } from "ag-grid-community";
@@ -86,6 +87,11 @@ export function useCallerSessionInputs() {
         stateAddress: JSON.stringify([widgetId, stateKey]),
       },
       dataRevision: (gridState?.dataRevision ?? 0) + (gridState?.displayRevision ?? 0),
+      hierarchyThemePalette: projectHierarchyThemePalette(
+        mode,
+        themes.chartThemes,
+        themes.customChartThemes,
+      ),
       theme: projectCallerTheme(
         mode,
         themes.chartThemes,

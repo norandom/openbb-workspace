@@ -24,6 +24,35 @@ export function callerGeneratedOptions(
     ...polarSeries
   } = (dataOnlyOptions(series) as RuntimeOptions) ?? {};
   return {
+    treemap: {
+      padding: { bottom: 10 },
+      series: {
+        group: {
+          label: {
+            ...(dataOnlyOptions(series.label) as RuntimeOptions),
+            enabled: true,
+          },
+        },
+        tile: {
+          label: {
+            ...(dataOnlyOptions(series.label) as RuntimeOptions),
+            enabled: true,
+          },
+        },
+        tooltip: dataOnlyOptions(series.tooltip),
+      },
+    },
+    sunburst: {
+      padding: { bottom: 10 },
+      series: {
+        label: { ...(dataOnlyOptions(series.label) as RuntimeOptions), enabled: true },
+        tooltip: {
+          ...(dataOnlyOptions(series.tooltip) as RuntimeOptions),
+          position: { anchorTo: "pointer" },
+          interaction: { enabled: true },
+        },
+      },
+    },
     "radial-column": { series: polarSeries },
     "radial-bar": { series: polarSeries },
     nightingale: { series: polarSeries },

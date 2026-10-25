@@ -16,5 +16,5 @@ export interface HierarchyAssignments {
   readonly sizeId?: string;
   readonly colorId?: string;
 }
-/** Inactive until the application session integrates both capture kinds atomically. */
+/** Retained capture kinds are narrowed at the application session boundary. */
 export type RetainedApplicationCapture = ChartSnapshot | HierarchySnapshot;

@@ -10,6 +10,7 @@ import type {
 } from "./comboSessionTypes";
 import type { SessionStamp } from "./types";
 export type ApplicationChartReady =
+  | import("./hierarchySessionTypes").HierarchySessionReady
   | (Omit<ApplicationSessionReady, "editor"> & {
       readonly kind: "radial";
       readonly editor: import("../compatibility/radialContracts").RadialEditorState;
@@ -61,6 +62,11 @@ export interface ApplicationChartCommand {
   readonly family: ApplicationChartFamily;
   readonly geometry?: ComboGeometry;
   readonly intent:
+    | import("./hierarchyEditorTypes").HierarchyAcceptedEditIntent
+    | {
+        readonly panel: "hierarchySetup";
+        readonly edit: import("./hierarchySetupTypes").HierarchySetupEdit;
+      }
     | import("../compatibility/radialContracts").RadialEditIntent
     | import("../compatibility/nightingaleContracts").NightingaleEditIntent
     | import("../compatibility/radarContracts").RadarEditIntent

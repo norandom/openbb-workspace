@@ -348,6 +348,7 @@ it.each([
   const ordinary = result.current.projection;
   expect(ordinary.status).toBe("ready");
   if (ordinary.status !== "ready") return;
+  if (ordinary.value.kind === "hierarchy") throw Error("Expected ordinary gallery source");
   expect(ordinary.value.editor.legend.value.enabled).toBe(false);
   act(() => result.current.onChartType("waterfall"));
   const waterfall = {

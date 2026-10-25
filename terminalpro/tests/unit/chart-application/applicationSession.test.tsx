@@ -68,7 +68,7 @@ function fixture(storage: any = {}, override?: ReturnType<typeof vi.fn>) {
 }
 function ready(session: ReturnType<typeof useApplicationChartSession>) {
   expect(session.projection.status).toBe("ready");
-  if (session.projection.status !== "ready" || session.projection.value.kind === "pie")
+  if (session.projection.status !== "ready" || session.projection.value.kind === "pie" || session.projection.value.kind === "hierarchy")
     throw new Error(JSON.stringify(session.projection));
   return session.projection.value;
 }

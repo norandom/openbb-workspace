@@ -1,3 +1,11 @@
+import {
+  hierarchyInputs,
+  isHierarchyCapture,
+  isHierarchyChartFamily,
+  isOrdinaryCapture,
+} from "./applicationSessionGuards";
+import { captureHierarchySession } from "./hierarchySessionCapture";
+import type { RetainedApplicationCapture } from "./hierarchyTypes";
 import type { ChartSnapshot } from "../compatibility/snapshotTypes";
 import { sessionSetup } from "./applicationSessionSelection";
 import type {
@@ -21,15 +29,19 @@ function capture(
   const context = {
     inputs,
     local: state.local,
-    capture: state.capture as ChartSnapshot,
   };
   const setup = sessionSetup(state.local.baseline.model, state.local.range, context);
   const snapshotPolicy = observationSnapshotPolicy(inputs.family);
   if (!setup.seriesIds.length && !snapshotPolicy) return { status: "waiting" };
   const categoryColumnId = categoryId ?? setup.categoryId;
   const numeric =
-    state.capture?.selectedColumnIds.filter(
-      (id) => id !== state.capture?.categoryColumnId,
+    (isOrdinaryCapture(state.capture)
+      ? state.capture
+      : undefined
+    )?.selectedColumnIds.filter(
+      (id) =>
+        id !==
+        (isOrdinaryCapture(state.capture) ? state.capture.categoryColumnId : undefined),
     ) ?? setup.seriesIds;
   const columnIds = [
     categoryColumnId,
@@ -53,13 +65,28 @@ function capture(
     : retained;
 }
 
+export function captureApplicationSession<F extends ApplicationChartFamily>(
+  inputs: ApplicationSessionInputs<F>,
+  state: ApplicationSessionState,
+  categoryId?: string,
+  additionalSeriesIds?: readonly string[],
+): SessionResult<
+  F extends import("../compatibility/hierarchyContracts").HierarchyChartType
+    ? import("../compatibility/hierarchyContracts").HierarchySnapshot
+    : ChartSnapshot
+>;
 export function captureApplicationSession(
   inputs: ApplicationSessionInputs<ApplicationChartFamily>,
   state: ApplicationSessionState,
   categoryId?: string,
   additionalSeriesIds: readonly string[] = [],
-): SessionResult<ChartSnapshot> {
+): SessionResult<RetainedApplicationCapture> {
   try {
+    if (isHierarchyChartFamily(inputs.family))
+      return captureHierarchySession(hierarchyInputs(inputs), {
+        ...state,
+        capture: isHierarchyCapture(state.capture) ? state.capture : undefined,
+      });
     return capture(inputs, state, categoryId, additionalSeriesIds);
   } catch (error) {
     return {

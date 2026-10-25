@@ -1,3 +1,4 @@
+import { isHierarchyChartFamily } from "./application/applicationSessionGuards";
 import type { ChartModel, ColDef, CreateRangeChartParams } from "ag-grid-community";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { SetLoadingOnResize } from "~/components/DraggableCard/SetLoadingOnResize";
@@ -73,7 +74,8 @@ export function ChartViewElement() {
       >
         {inputs.valid &&
         !inputs.value.pendingReason &&
-        (isRadialChartFamily(inputs.value.family) ||
+        (isHierarchyChartFamily(inputs.value.family) ||
+          isRadialChartFamily(inputs.value.family) ||
           isRadarChartFamily(inputs.value.family) ||
           inputs.value.family === "nightingale" ||
           isPieChartFamily(inputs.value.family) ||
@@ -243,6 +245,7 @@ function LiveCallerChart({
   useEffect(() => {
     if (
       session.seriesCount !== 0 ||
+      isHierarchyChartFamily(inputs.family) ||
       isRadialChartFamily(inputs.family) ||
       isRadarChartFamily(inputs.family) ||
       inputs.family === "nightingale" ||

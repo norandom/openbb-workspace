@@ -1,3 +1,5 @@
+import { isHierarchyChartFamily } from "../application/applicationSessionGuards";
+import { resolveHierarchyRange } from "../application/hierarchyRange";
 import type { ColDef, ColGroupDef, GridApi } from "ag-grid-community";
 import { getStateKey, getWidgetStorage } from "../../communityState";
 import type { ChartDataT } from "../../hooks/types";
@@ -23,14 +25,10 @@ export function leafChartDefinitions(
   definitions: readonly (ColDef | ColGroupDef)[],
 ): ColDef[] {
   return definitions.flatMap((definition) =>
-    "children" in definition
-      ? leafChartDefinitions(definition.children)
-      : [definition],
+    "children" in definition ? leafChartDefinitions(definition.children) : [definition],
   );
 }
-export function hasCallerSeries(
-  definitions: readonly (ColDef | ColGroupDef)[],
-) {
+export function hasCallerSeries(definitions: readonly (ColDef | ColGroupDef)[]) {
   return leafChartDefinitions(definitions).some(
     (definition) => definition.chartDataType === "series",
   );
@@ -44,9 +42,7 @@ function descriptors(
     if (
       !id ||
       !(
-        range
-          ? ["category", "series", "time", "number"]
-          : ["category", "series"]
+        range ? ["category", "series", "time", "number"] : ["category", "series"]
       ).includes(definition.chartDataType ?? "")
     )
       return [];
@@ -72,9 +68,7 @@ function storedRange(value: any): ResolvedRange | undefined {
     ...(value.rowStartIndex === undefined
       ? {}
       : { rowStartIndex: value.rowStartIndex }),
-    ...(value.rowEndIndex === undefined
-      ? {}
-      : { rowEndIndex: value.rowEndIndex }),
+    ...(value.rowEndIndex === undefined ? {} : { rowEndIndex: value.rowEndIndex }),
   };
 }
 export interface CallerChart {
@@ -119,7 +113,9 @@ export function resolveCallerChart(
     const chartType = baseline.value.chartType;
     const isRange = chartType === "rangeBar" || chartType === "rangeArea";
     const columns: SnapshotColumn[] = [
-      { id: DEFAULT_SETUP_CATEGORY, label: "(None)", role: "category" },
+      ...(isHierarchyChartFamily(chartType)
+        ? []
+        : [{ id: DEFAULT_SETUP_CATEGORY, label: "(None)", role: "category" as const }]),
       ...descriptors(definitions, isRange),
     ];
     const generated =
@@ -130,7 +126,16 @@ export function resolveCallerChart(
       columns
         .filter((column) => column.id !== DEFAULT_SETUP_CATEGORY)
         .map((column) => column.id);
+    const collection = api?.getColumns?.();
+    const numericCollectionIds = (
+      collection
+        ? collection.map((column) => column.getColId())
+        : columns.map((column) => column.id)
+    ).filter((id) =>
+      columns.some((column) => column.id === id && column.role === "number"),
+    );
     const rangePolicy = {
+      numericCollectionIds,
       configuredColumnIds: widget.data?.table?.chartView?.cellRangeCols?.[
         chartType
       ]?.filter((id: unknown) => typeof id === "string"),
@@ -140,38 +145,34 @@ export function resolveCallerChart(
       ),
     };
     const orientation = callerOrientation(widget, generated, rowData);
-    const range = resolveChartRange({
+    const rangeInput = {
       ...rangePolicy,
       storedRange:
         widget.storage?.ignoreCellRange === true
           ? undefined
           : storedRange(partition?.[chartType]?.cellRange ?? model.cellRange),
       ignoreCellRange: widget.storage?.ignoreCellRange === true,
-    });
+    };
+    const range = isHierarchyChartFamily(chartType)
+      ? resolveHierarchyRange({ ...rangeInput, columns })
+      : resolveChartRange(rangeInput);
     if (range.status !== "ready")
-      throw new Error(
-        range.diagnostics[0]?.message ?? "Chart range is unavailable",
-      );
+      throw new Error(range.diagnostics[0]?.message ?? "Chart range is unavailable");
     const category =
       range.range.columnIds.find((id) =>
-        columns.some(
-          (column) => column.id === id && column.role === "category",
-        ),
+        columns.some((column) => column.id === id && column.role === "category"),
       ) ?? DEFAULT_SETUP_CATEGORY;
     const categoryFact = leafChartDefinitions(definitions).find(
       (d) => (d.colId ?? d.field) === category,
     );
     const resolvedCategory = resolveRangeCategoryKind(
       {
-        columnChartDataType: isRange
-          ? (categoryFact?.chartDataType ?? null)
-          : null,
+        columnChartDataType: isRange ? (categoryFact?.chartDataType ?? null) : null,
         firstCategoryIsDate: false,
       },
       isRange ? rangeCategoryModelOverride(model) : undefined,
     );
-    if (!resolvedCategory.valid)
-      throw Error(resolvedCategory.diagnostic.message);
+    if (!resolvedCategory.valid) throw Error(resolvedCategory.diagnostic.message);
     const categoryType = resolvedCategory.kind;
     const horizontal = isHorizontalCartesianFamily(chartType);
     return {
@@ -179,10 +180,12 @@ export function resolveCallerChart(
       value: {
         chartType,
         rangePolicy,
+        ...(isHierarchyChartFamily(chartType) && api && !collection
+          ? { pendingReason: "Hierarchy column collection is unavailable" }
+          : {}),
         ...(orientation.custom || orientation.transposed
           ? {
-              pendingReason:
-                "custom or transposed chart data pending renderer parity",
+              pendingReason: "custom or transposed chart data pending renderer parity",
             }
           : {}),
         range: range.range,
@@ -193,7 +196,8 @@ export function resolveCallerChart(
             chartType === "radialBar" ||
             chartType === "nightingale" ||
             isRadarChartFamily(chartType) ||
-            isPieChartFamily(chartType)
+            isPieChartFamily(chartType) ||
+            isHierarchyChartFamily(chartType)
             ? {}
             : model,
           {

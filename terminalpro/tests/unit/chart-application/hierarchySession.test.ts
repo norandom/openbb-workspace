@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { projectApplicationChart } from "../../../src/components/General/Table/Chart/application/applicationChartProjection";
+import { initialApplicationSession } from "../../../src/components/General/Table/Chart/application/applicationSessionRuntime";
+import { executeApplicationChartCommand } from "../../../src/components/General/Table/Chart/application/applicationSessionDispatch";
 import type { GridApi } from "ag-grid-community";
 import { captureHierarchySession } from "../../../src/components/General/Table/Chart/application/hierarchySessionCapture";
 import {
@@ -64,6 +67,34 @@ const columns: readonly SnapshotColumn[] = [
   { id: "Region", label: "Region", role: "category" },
   ...["A", "B", "C"].map((id) => ({ id, label: id, role: "number" as const })),
 ];
+describe("live hierarchy session join", () => {
+  it("routes a retained hierarchy capture and composes immediate appearance edits", () => {
+    const c = context();
+    const inputs = { ...c.inputs, categoryColumnId: "period" };
+    const state = {
+      ...initialApplicationSession({}, inputs, 1),
+      capture: c.capture,
+      viewport: { width: 600, height: 400 },
+    };
+    const projected = projectApplicationChart({}, inputs, state);
+    expect(projected.status, JSON.stringify(projected)).toBe("ready");
+    if (projected.status !== "ready") throw Error("live hierarchy projection");
+    expect(projected.value.kind).toBe("hierarchy");
+    const widget = { storage: {} } as any;
+    const first = executeApplicationChartCommand(widget, state, inputs, {
+      stamp: state.local.stamp,
+      family: "treemap",
+      intent: { panel: "tooltips", edit: { field: "enabled", value: false } },
+    });
+    expect(first.widget).not.toBe(widget);
+    const second = executeApplicationChartCommand(first.widget, first.value, inputs, {
+      stamp: state.local.stamp,
+      family: "treemap",
+      intent: { panel: "tooltips", edit: { field: "enabled", value: true } },
+    });
+    expect(second.widget).not.toBe(first.widget);
+  });
+});
 const base = {
   columns,
   generatedColumnIds: ["Region", "A", "B", "C"],
