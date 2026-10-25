@@ -57,6 +57,7 @@ export function createHierarchyHoverBinding(
             id: plan.graphicId,
             type: "polygon",
             silent: true,
+            invisible: false,
             x: marker.x,
             y: marker.y,
             rotation: marker.rotation,
