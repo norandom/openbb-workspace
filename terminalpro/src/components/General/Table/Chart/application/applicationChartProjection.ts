@@ -1,13 +1,12 @@
+import type { ComboChartType } from "../compatibility/comboAssignments";
+import type { ChartStorageOutput } from "../compatibility/legacyTypes";
+import type { ApplicationChartReady } from "./applicationChartSessionTypes";
 import {
   hierarchyContextFor,
   isHierarchyCapture,
   isHierarchyChartFamily,
   isOrdinaryCapture,
 } from "./applicationSessionGuards";
-import { projectHierarchySession } from "./hierarchySessionProjection";
-import type { ComboChartType } from "../compatibility/comboAssignments";
-import type { ChartStorageOutput } from "../compatibility/legacyTypes";
-import type { ApplicationChartReady } from "./applicationChartSessionTypes";
 import { projectApplicationSession } from "./applicationSessionProjection";
 import type {
   ApplicationSessionInputs,
@@ -16,6 +15,8 @@ import type {
 import { projectBoxPlotSession } from "./boxPlotSessionProjection";
 import { projectComboSession } from "./comboSessionProjection";
 import { type ApplicationChartFamily, isComboChartFamily } from "./comboSessionTypes";
+import { projectHeatmapSession } from "./heatmapSession";
+import { projectHierarchySession } from "./hierarchySessionProjection";
 import { projectHistogramSession } from "./histogramSessionProjection";
 import { projectNightingaleSession } from "./nightingaleSessionProjection";
 import { projectPieSession } from "./pieSessionProjection";
@@ -56,6 +57,12 @@ export function projectApplicationChart(
     }
   }
   if (state.capture && !isOrdinaryCapture(state.capture)) return { status: "waiting" };
+  if (inputs.family === "heatmap")
+    return projectHeatmapSession(
+      storage,
+      inputs as ApplicationSessionInputs<"heatmap">,
+      state,
+    );
   return isRadialChartFamily(inputs.family)
     ? projectRadialSession(
         storage,

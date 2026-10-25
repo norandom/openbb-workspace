@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
-import { isHierarchyChartFamily } from "../application/applicationSessionGuards";
 import { useWidgetContext } from "~/components/Widget.context";
 import { getStateKey } from "../../communityState";
+import { isHierarchyChartFamily } from "../application/applicationSessionGuards";
 import {
   type ApplicationChartFamily,
   isComboChartFamily,
@@ -61,6 +61,7 @@ export function useCallerDock(
             isCartesianFamily(type) ||
             isComboChartFamily(type) ||
             isXyChartFamily(type) ||
+            type === "heatmap" ||
             type === "histogram" ||
             type === "boxPlot" ||
             type === "waterfall" ||

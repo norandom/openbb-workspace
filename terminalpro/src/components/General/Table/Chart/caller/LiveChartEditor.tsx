@@ -18,6 +18,17 @@ export function LiveChartEditor({
   readonly inputs: ApplicationSessionInputs<ApplicationChartFamily>;
   readonly dock: ReturnType<typeof useCallerDock>;
 }) {
+  if (ready.kind === "heatmap")
+    return (
+      <ApplicationChartEditor
+        {...dock}
+        kind="heatmap"
+        themeResetKey={inputs.theme.name}
+        state={ready.editor}
+        onIntent={session.onIntent}
+        setupProps={{ ...ready.setupProps, onEdit: session.onSetup }}
+      />
+    );
   if (ready.kind === "hierarchy")
     return (
       <ApplicationChartEditor

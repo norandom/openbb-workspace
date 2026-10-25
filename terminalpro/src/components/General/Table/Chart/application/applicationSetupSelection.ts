@@ -8,18 +8,13 @@ import {
   type ComboSessionContext,
   isComboChartFamily,
 } from "./comboSessionTypes";
+import { selectHeatmapSession } from "./heatmapSession";
 import { selectHistogramSession } from "./histogramSessionSelection";
 import { selectNightingaleSession } from "./nightingaleSessionProjection";
 import { selectPieSession } from "./pieSessionSelection";
 import { isPieChartFamily } from "./pieSessionTypes";
-import {
-  isRadarChartFamily,
-  selectRadarSession,
-} from "./radarSessionProjection";
-import {
-  isRadialChartFamily,
-  selectRadialSession,
-} from "./radialSessionProjection";
+import { isRadarChartFamily, selectRadarSession } from "./radarSessionProjection";
+import { isRadialChartFamily, selectRadialSession } from "./radialSessionProjection";
 import { selectRangeSession } from "./rangeSessionSelection";
 import { isRangeChartFamily } from "./rangeSessionTypes";
 import { selectWaterfallSession } from "./waterfallSessionSelection";
@@ -34,6 +29,15 @@ export function selectApplicationSetup(
   const family = context.inputs.family;
   if (isComboChartFamily(family))
     return selectComboSession(storage, context as ComboSessionContext);
+  if (family === "heatmap")
+    return {
+      status: "ready" as const,
+      stamp: context.local.stamp,
+      value: selectHeatmapSession(
+        storage,
+        context as ApplicationSessionContext<"heatmap">,
+      ),
+    };
   const value = isRadialChartFamily(family)
     ? selectRadialSession(
         storage,

@@ -1,14 +1,15 @@
-import { isHierarchyChartFamily, hierarchyInputs } from "./applicationSessionGuards";
-import { hierarchySessionRange } from "./hierarchySessionSelection";
-import type { ApplicationChartFamily } from "./comboSessionTypes";
 import type { WidgetT } from "../../../../types";
 import type { ChartStorageOutput, RuntimeOptions } from "../compatibility/legacyTypes";
-import { resolveChartRange } from "./chartRange";
-import { DEFAULT_SETUP_CATEGORY } from "./setupTypes";
+import { hierarchyInputs, isHierarchyChartFamily } from "./applicationSessionGuards";
 import type {
   ApplicationSessionContext,
   ApplicationSessionInputs,
 } from "./applicationSessionTypes";
+import { resolveChartRange } from "./chartRange";
+import type { ApplicationChartFamily } from "./comboSessionTypes";
+import { resolveHeatmapRange } from "./heatmapRange";
+import { hierarchySessionRange } from "./hierarchySessionSelection";
+import { DEFAULT_SETUP_CATEGORY } from "./setupTypes";
 import type { ResolvedRange } from "./types";
 
 /** Grid availability belongs to the current frame; configuration belongs to the latest Widget. */
@@ -96,11 +97,15 @@ export function resolveSessionRange<F extends ApplicationChartFamily>(
       ),
     };
   }
-  const result = resolveChartRange({
+  const rangeInput = {
     ...inputs.rangePolicy,
     ignoreCellRange: storage.ignoreCellRange === true,
     storedRange: storage.ignoreCellRange === true ? undefined : stored,
-  });
+  };
+  const result =
+    inputs.family === "heatmap"
+      ? resolveHeatmapRange(rangeInput, inputs.columns)
+      : resolveChartRange(rangeInput);
   if (result.status !== "ready")
     throw new Error(result.diagnostics[0]?.message ?? "Chart range is unavailable");
   return result.range;

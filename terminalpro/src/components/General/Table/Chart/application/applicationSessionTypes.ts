@@ -45,6 +45,7 @@ export interface ApplicationSessionInputs<
   readonly categoryColumnId: string;
   readonly columns: readonly SnapshotColumn[];
   readonly theme: ApplicationThemeInput;
+  readonly heatmapThemePaint?: import("./heatmapTypes").HeatmapThemePaint;
   readonly hierarchyThemePalette?: import("./hierarchyAppearanceTypes").HierarchyPalette;
   readonly generated: RuntimeOptions;
   readonly display: ChartDisplayPolicy;
@@ -117,7 +118,7 @@ export interface ApplicationSessionState {
   readonly actionKey: string;
   readonly appearance: Pick<
     ApplicationSessionInputs,
-    "theme" | "generated" | "precision" | "hierarchyThemePalette"
+    "theme" | "generated" | "precision" | "hierarchyThemePalette" | "heatmapThemePaint"
   >;
   readonly error?: string;
 }

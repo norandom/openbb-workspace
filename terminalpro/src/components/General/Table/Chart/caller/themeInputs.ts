@@ -178,6 +178,7 @@ export function projectCallerTheme(
     "radial-column",
     "radial-bar",
     "waterfall",
+    "heatmap",
     "treemap",
     "sunburst",
   ]) {
@@ -194,6 +195,12 @@ export function projectCallerTheme(
                 ]),
               ),
             },
+          }
+        : {},
+      family === "heatmap"
+        ? {
+            gradientLegend: { scale: { label: typography(params) } },
+            series: { label: typography(params) },
           }
         : {},
       family === "treemap" || family === "sunburst"

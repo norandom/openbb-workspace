@@ -1,4 +1,3 @@
-import { isHierarchyChartFamily } from "./application/applicationSessionGuards";
 import type { ChartModel, ColDef, CreateRangeChartParams } from "ag-grid-community";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { SetLoadingOnResize } from "~/components/DraggableCard/SetLoadingOnResize";
@@ -11,6 +10,7 @@ import { cn } from "~/lib/utils";
 import type { ChartDataT } from "../hooks/types";
 import { useAgGridContext } from "../hooks/useTableContext";
 import { useApplyColumnState } from "../hooks/useUpdateColumnState";
+import { isHierarchyChartFamily } from "./application/applicationSessionGuards";
 import type { ApplicationSessionInputs } from "./application/applicationSessionTypes";
 import {
   type ApplicationChartFamily,
@@ -28,9 +28,9 @@ import { useCallerSessionInputs } from "./caller/useCallerSessionInputs";
 
 export { customChartWidgetIds } from "./caller/orientation";
 
+import { LiveChartEditor } from "./caller/LiveChartEditor";
 import { isCartesianFamily } from "./echarts/cartesianTypes";
 import { EChartsHost, type EChartsHostHandle } from "./echarts/EChartsHost";
-import { LiveChartEditor } from "./caller/LiveChartEditor";
 import { ChartEditorDock } from "./editor/ChartEditorDock";
 export type CreateRangeChartProps = {
   chartData: ChartDataT;
@@ -82,6 +82,7 @@ export function ChartViewElement() {
           isCartesianFamily(inputs.value.family) ||
           isComboChartFamily(inputs.value.family) ||
           isXyChartFamily(inputs.value.family) ||
+          inputs.value.family === "heatmap" ||
           inputs.value.family === "histogram" ||
           inputs.value.family === "boxPlot" ||
           inputs.value.family === "waterfall" ||
@@ -251,6 +252,7 @@ function LiveCallerChart({
       inputs.family === "nightingale" ||
       isPieChartFamily(inputs.family) ||
       isXyChartFamily(inputs.family) ||
+      inputs.family === "heatmap" ||
       inputs.family === "histogram" ||
       inputs.family === "boxPlot" ||
       inputs.family === "waterfall" ||

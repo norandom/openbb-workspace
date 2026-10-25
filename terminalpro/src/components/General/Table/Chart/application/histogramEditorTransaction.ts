@@ -29,6 +29,14 @@ export function applyHistogramEditorTransaction(
     return { status: "stale" };
   const intent = command.intent;
   if (
+    intent.panel === "heatmapLine" ||
+    intent.panel === "heatmapAxis" ||
+    intent.panel === "heatmapAxisLabels" ||
+    intent.panel === "heatmapTicks" ||
+    intent.panel === "gradientLegend"
+  )
+    return { status: "stale" };
+  if (
     intent.panel === "hierarchySetup" ||
     intent.panel === "hierarchySpacing" ||
     intent.panel === "hierarchyGradientLegend" ||

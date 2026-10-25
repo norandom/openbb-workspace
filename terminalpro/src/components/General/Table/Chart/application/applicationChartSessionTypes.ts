@@ -10,6 +10,7 @@ import type {
 } from "./comboSessionTypes";
 import type { SessionStamp } from "./types";
 export type ApplicationChartReady =
+  | import("./heatmapSession").HeatmapSessionReady
   | import("./hierarchySessionTypes").HierarchySessionReady
   | (Omit<ApplicationSessionReady, "editor"> & {
       readonly kind: "radial";
@@ -62,6 +63,7 @@ export interface ApplicationChartCommand {
   readonly family: ApplicationChartFamily;
   readonly geometry?: ComboGeometry;
   readonly intent:
+    | import("./heatmapTypes").HeatmapEditIntent
     | import("./hierarchyEditorTypes").HierarchyAcceptedEditIntent
     | {
         readonly panel: "hierarchySetup";

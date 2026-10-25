@@ -1,4 +1,3 @@
-import type { ApplicationSessionFrame } from "./applicationSessionTypes";
 import { deriveEditorEligibility } from "../compatibility/editorBindings/eligibility";
 import { createEditorMetadata } from "../compatibility/editorBindings/metadata";
 import { selectApplicationEditorState } from "../compatibility/editorBindings/selectApplicationEditorState";
@@ -16,6 +15,7 @@ import type { ApplicationAxisId } from "./appearanceModel";
 import { resolveSessionRange } from "./applicationSessionRange";
 import type {
   ApplicationSessionContext,
+  ApplicationSessionFrame,
   ApplicationSessionSelection,
 } from "./applicationSessionTypes";
 import type { ApplicationAxisRuntime } from "./axisStructureTypes";
@@ -62,7 +62,8 @@ export function canSwitchCategorySeries(family: ApplicationChartFamily): boolean
     family !== "rangeBar" &&
     family !== "rangeArea" &&
     family !== "waterfall" &&
-    family !== "pie"
+    family !== "pie" &&
+    family !== "heatmap"
   );
 }
 export function sessionSetup<F extends ApplicationChartFamily>(

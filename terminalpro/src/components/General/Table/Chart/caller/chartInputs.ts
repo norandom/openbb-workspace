@@ -1,12 +1,13 @@
-import { isHierarchyChartFamily } from "../application/applicationSessionGuards";
-import { resolveHierarchyRange } from "../application/hierarchyRange";
 import type { ColDef, ColGroupDef, GridApi } from "ag-grid-community";
 import { getStateKey, getWidgetStorage } from "../../communityState";
 import type { ChartDataT } from "../../hooks/types";
+import { isHierarchyChartFamily } from "../application/applicationSessionGuards";
 import type { ApplicationSessionInputs } from "../application/applicationSessionTypes";
 import { restoreAxisSettings } from "../application/axisPersistence";
 import type { ApplicationAxisRuntime } from "../application/axisStructureTypes";
 import { resolveChartRange } from "../application/chartRange";
+import { resolveHeatmapRange } from "../application/heatmapRange";
+import { resolveHierarchyRange } from "../application/hierarchyRange";
 import { isPieChartFamily } from "../application/pieSessionTypes";
 import { isRadarChartFamily } from "../application/radarSessionProjection";
 import { DEFAULT_SETUP_CATEGORY } from "../application/setupTypes";
@@ -155,7 +156,9 @@ export function resolveCallerChart(
     };
     const range = isHierarchyChartFamily(chartType)
       ? resolveHierarchyRange({ ...rangeInput, columns })
-      : resolveChartRange(rangeInput);
+      : chartType === "heatmap"
+        ? resolveHeatmapRange(rangeInput, columns)
+        : resolveChartRange(rangeInput);
     if (range.status !== "ready")
       throw new Error(range.diagnostics[0]?.message ?? "Chart range is unavailable");
     const category =
@@ -197,6 +200,7 @@ export function resolveCallerChart(
             chartType === "nightingale" ||
             isRadarChartFamily(chartType) ||
             isPieChartFamily(chartType) ||
+            chartType === "heatmap" ||
             isHierarchyChartFamily(chartType)
             ? {}
             : model,

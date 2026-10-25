@@ -3,6 +3,7 @@ import type { ComboSeriesAssignment } from "../../compatibility/comboAssignments
 import type { ComboGeometry } from "../../echarts/comboTypes";
 export type ApplicationEditorMode =
   | { kind: "ordinary" }
+  | { kind: "heatmap" }
   | {
       kind: "radial";
       value: import("../../compatibility/radialContracts").RadialGroupType;
@@ -22,9 +23,7 @@ export type ApplicationEditorMode =
   | {
       kind: "waterfall";
       controls: import("../../application/waterfallTypes").WaterfallControlValues;
-      onEdit: (
-        edit: import("../../application/waterfallTypes").WaterfallEdit,
-      ) => void;
+      onEdit: (edit: import("../../application/waterfallTypes").WaterfallEdit) => void;
     }
   | ({
       kind: "range";

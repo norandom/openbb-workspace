@@ -20,6 +20,7 @@ import {
   type ComboSessionContext,
   isComboChartFamily,
 } from "./comboSessionTypes";
+import { applyHeatmapSessionTransaction } from "./heatmapSession";
 import { applyHistogramEditorTransaction } from "./histogramEditorTransaction";
 import { applyNightingaleSessionTransaction } from "./nightingaleSessionProjection";
 import { applyPieEditorTransaction } from "./pieEditorTransaction";
@@ -67,6 +68,42 @@ export function applyOrdinarySessionTransaction(
       intent.edit,
       recapture,
     );
+  return applyOrdinaryAppearanceTransaction(storage, context, { ...command, intent });
+}
+
+type OrdinaryAppearanceCommand = Omit<ApplicationChartCommand, "intent"> & {
+  readonly intent: Exclude<
+    ApplicationChartCommand["intent"],
+    {
+      panel:
+        | "family"
+        | "setup"
+        | "hierarchySetup"
+        | "hierarchySpacing"
+        | "hierarchyGradientLegend";
+    }
+  >;
+};
+function applyOrdinaryAppearanceTransaction(
+  storage: ChartStorageOutput,
+  context: ApplicationSessionContext<ApplicationChartFamily>,
+  command: OrdinaryAppearanceCommand,
+): SessionResult<ApplicationChartCommit> {
+  const intent = command.intent;
+  if (context.inputs.family === "heatmap")
+    return applyHeatmapSessionTransaction(
+      storage,
+      context as ApplicationSessionContext<"heatmap">,
+      command,
+    );
+  if (
+    intent.panel === "heatmapLine" ||
+    intent.panel === "heatmapAxis" ||
+    intent.panel === "heatmapAxisLabels" ||
+    intent.panel === "heatmapTicks" ||
+    intent.panel === "gradientLegend"
+  )
+    return { status: "stale" };
   if (isRadialChartFamily(context.inputs.family))
     return applyRadialSessionTransaction(
       storage,

@@ -6,10 +6,7 @@ import type {
   SnapshotRow,
 } from "../compatibility/snapshotTypes";
 import { aggregateBoxSetupRows } from "./boxPlotSetupProjection";
-import {
-  aggregateSetupRows,
-  type SetupObservationGroup,
-} from "./setupAggregation";
+import { aggregateSetupRows, type SetupObservationGroup } from "./setupAggregation";
 import {
   DEFAULT_SETUP_CATEGORY,
   invalidSetup,
@@ -32,12 +29,9 @@ export function retainOrdinarySetupCapture(
   policy?: import("../compatibility/snapshotTypes").SnapshotPolicy,
 ): SetupResult<ChartSnapshot> {
   const checked = validateSnapshot(input, policy);
-  if (!checked.valid)
-    return { status: "invalid", diagnostics: checked.diagnostics };
+  if (!checked.valid) return { status: "invalid", diagnostics: checked.diagnostics };
   if (checked.snapshot.sourceMode !== "flat")
-    return invalidSetup(
-      "Set Up requires the complete original ordinary flat capture",
-    );
+    return invalidSetup("Set Up requires the complete original ordinary flat capture");
   return { status: "ready", value: freeze(checked.snapshot) };
 }
 function selectedColumns(
@@ -72,9 +66,7 @@ function selectedColumns(
   const columns = selection.seriesIds.map((id) =>
     source.columns.find(
       (c) =>
-        c.id === id &&
-        c.role === "number" &&
-        source.selectedColumnIds.includes(id),
+        c.id === id && c.role === "number" && source.selectedColumnIds.includes(id),
     ),
   );
   return columns.every((c) => c !== undefined)
@@ -82,9 +74,7 @@ function selectedColumns(
     : undefined;
 }
 function incompatible(columns: readonly SnapshotColumn[]) {
-  const units = new Set(
-    columns.flatMap((c) => (c.unit === undefined ? [] : [c.unit])),
-  );
+  const units = new Set(columns.flatMap((c) => (c.unit === undefined ? [] : [c.unit])));
   const scales = new Set(
     columns.flatMap((c) => (c.scale === undefined ? [] : [c.scale])),
   );
@@ -117,16 +107,14 @@ function ordinary(
   groups: readonly SetupObservationGroup[],
   count: boolean,
 ) {
-  const valueOrigins: Record<
-    string,
-    Record<string, SetupValueOrigin>
-  > = Object.create(null);
+  const valueOrigins: Record<string, Record<string, SetupValueOrigin>> = Object.create(
+    null,
+  );
   const rows = groups.map((group) => {
     const values: Record<string, number | null> = Object.create(null);
     valueOrigins[group.row.id] = Object.create(null);
     for (const c of columns) {
-      if (Object.hasOwn(group.row.values, c.id))
-        values[c.id] = group.row.values[c.id];
+      if (Object.hasOwn(group.row.values, c.id)) values[c.id] = group.row.values[c.id];
       valueOrigins[group.row.id][c.id] = origin(c, group, count);
     }
     return { ...group.row, values };
@@ -134,9 +122,7 @@ function ordinary(
   return {
     rows,
     columns: [
-      source.columns.find(
-        (c) => c.id === source.categoryColumnId,
-      ) as SnapshotColumn,
+      source.columns.find((c) => c.id === source.categoryColumnId) as SnapshotColumn,
       ...aggregateColumns(columns, count),
     ],
     categoryColumnId: source.categoryColumnId,
@@ -165,17 +151,15 @@ function inverted(
       ? { scale: effective[0].scale }
       : {}),
   }));
-  const valueOrigins: Record<
-    string,
-    Record<string, SetupValueOrigin>
-  > = Object.create(null);
+  const valueOrigins: Record<string, Record<string, SetupValueOrigin>> = Object.create(
+    null,
+  );
   const rows: SnapshotRow[] = columns.map((c) => {
     const id = `setup:switch:${JSON.stringify(c.id)}`;
     const values: Record<string, number | null> = Object.create(null);
     valueOrigins[id] = Object.create(null);
     groups.forEach((g, i) => {
-      if (Object.hasOwn(g.row.values, c.id))
-        values[numeric[i].id] = g.row.values[c.id];
+      if (Object.hasOwn(g.row.values, c.id)) values[numeric[i].id] = g.row.values[c.id];
       valueOrigins[id][numeric[i].id] = origin(c, g, count);
     });
     return { id, category: c.label, values };
@@ -198,6 +182,7 @@ export function projectOrdinarySetup(
 ): SetupResult<SetupProjection> {
   if (
     ![
+      "heatmap-observations",
       "single-axis",
       "combo-per-axis",
       "waterfall-observations",
@@ -213,8 +198,7 @@ export function projectOrdinarySetup(
   )
     return invalidSetup("Invalid setup axis policy");
   const statistical =
-    axisPolicy === "box-observations" ||
-    axisPolicy === "statistical-observations";
+    axisPolicy === "box-observations" || axisPolicy === "statistical-observations";
   if (statistical && selection.switchCategorySeries)
     return invalidSetup("Box charts cannot switch category and series");
   if (
@@ -233,12 +217,7 @@ export function projectOrdinarySetup(
   const retained = retainOrdinarySetupCapture(input, policy);
   if (retained.status !== "ready") return retained;
   const source = retained.value;
-  const columns = selectedColumns(
-    source,
-    selection,
-    policy !== undefined,
-    statistical,
-  );
+  const columns = selectedColumns(source, selection, policy !== undefined, statistical);
   if (!columns)
     return invalidSetup(
       "Selection requires captured category and unique captured numerical series",
@@ -248,18 +227,12 @@ export function projectOrdinarySetup(
     axisPolicy === "single-axis" || axisPolicy === "waterfall-observations";
   // Check effective units before transpose; counts derive their own comparable unit.
   if (singleAxis && incompatible(aggregateColumns(columns, count)))
-    return invalidSetup(
-      "Known source units or scales contradict one numerical axis",
-    );
+    return invalidSetup("Known source units or scales contradict one numerical axis");
   const grouped = statistical
     ? aggregateBoxSetupRows(source.rows, selection.seriesIds, selection.aggFunc)
     : {
         status: "ready" as const,
-        value: aggregateSetupRows(
-          source.rows,
-          selection.seriesIds,
-          selection.aggFunc,
-        ),
+        value: aggregateSetupRows(source.rows, selection.seriesIds, selection.aggFunc),
       };
   if (grouped.status !== "ready") return grouped;
   const groups =
@@ -298,8 +271,7 @@ export function projectOrdinarySetup(
     },
     policy,
   );
-  if (!checked.valid)
-    return { status: "invalid", diagnostics: checked.diagnostics };
+  if (!checked.valid) return { status: "invalid", diagnostics: checked.diagnostics };
   const setupProjection = selection.switchCategorySeries
     ? {
         kind: "ordinary-switch" as const,

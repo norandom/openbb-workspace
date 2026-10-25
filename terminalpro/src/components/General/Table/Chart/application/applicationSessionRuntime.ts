@@ -1,5 +1,5 @@
-import isEqual from "lodash.isequal";
 import cloneDeep from "lodash/cloneDeep";
+import isEqual from "lodash.isequal";
 import type {
   ChartModel,
   ChartStorageOutput,
@@ -7,8 +7,6 @@ import type {
 } from "../compatibility/legacyTypes";
 import { selectOptionBaseline } from "../compatibility/optionState";
 import { isHierarchyChartFamily, isOrdinaryCapture } from "./applicationSessionGuards";
-import { DEFAULT_SETUP_CATEGORY } from "./setupTypes";
-import { selectHierarchySetup } from "./hierarchySetupSelection";
 import {
   sessionBaseline,
   sessionRange,
@@ -28,11 +26,13 @@ import {
 import { initializeComboSession } from "./comboSessionAssignments";
 import { rebuildComboAxes } from "./comboSessionLifecycle";
 import { type ApplicationChartFamily, isComboChartFamily } from "./comboSessionTypes";
+import { selectHierarchySetup } from "./hierarchySetupSelection";
 import { observationSnapshotPolicy } from "./histogramCapture";
 import { isPieChartFamily } from "./pieSessionTypes";
 import { isRadarChartFamily } from "./radarSessionProjection";
 import { isRadialChartFamily } from "./radialSessionProjection";
 import { advanceSessionStamp } from "./sessionState";
+import { DEFAULT_SETUP_CATEGORY } from "./setupTypes";
 
 export const sessionAssignmentKey = (
   storage: ChartStorageOutput,
@@ -65,6 +65,7 @@ export const sessionAppearanceKey = <F extends ApplicationChartFamily>(
     input.generated,
     input.precision,
     input.hierarchyThemePalette,
+    input.heatmapThemePaint,
   ]);
 export const sessionActionKey = (storage: ChartStorageOutput) =>
   JSON.stringify([
@@ -132,6 +133,7 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
         inputs.family === "nightingale" ||
         isPieChartFamily(inputs.family) ||
         inputs.family === "boxPlot" ||
+        inputs.family === "heatmap" ||
         isHierarchyChartFamily(inputs.family)
       )
     )
@@ -164,6 +166,7 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
       generated: cloneDeep(inputs.generated),
       precision: inputs.precision,
       hierarchyThemePalette: cloneDeep(inputs.hierarchyThemePalette),
+      heatmapThemePaint: cloneDeep(inputs.heatmapThemePaint),
     },
   };
 }
@@ -222,6 +225,7 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
     inputs.family === "nightingale" ||
     isPieChartFamily(inputs.family) ||
     inputs.family === "boxPlot" ||
+    inputs.family === "heatmap" ||
     isHierarchyChartFamily(inputs.family)
       ? undefined
       : readAxisSettings(baseline.model);
@@ -231,6 +235,7 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
     inputs.family === "nightingale" ||
     isPieChartFamily(inputs.family) ||
     inputs.family === "boxPlot" ||
+    inputs.family === "heatmap" ||
     isHierarchyChartFamily(inputs.family)
       ? undefined
       : readAxisSettings(state.local.baseline.model);
@@ -280,6 +285,7 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
       generated: cloneDeep(inputs.generated),
       precision: inputs.precision,
       hierarchyThemePalette: cloneDeep(inputs.hierarchyThemePalette),
+      heatmapThemePaint: cloneDeep(inputs.heatmapThemePaint),
     },
     capture: dataChanged ? undefined : state.capture,
     pendingFamily: undefined,
@@ -292,7 +298,9 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
       baseline,
       range,
       stamp: nextSessionStamp(state.local.stamp, dataChanged ? "data" : "render"),
-      ...(!isHierarchyChartFamily(inputs.family) && (dataChanged || modelChanged)
+      ...(!isHierarchyChartFamily(inputs.family) &&
+      inputs.family !== "heatmap" &&
+      (dataChanged || modelChanged)
         ? {
             legendEnabled:
               inputs.family === "waterfall"

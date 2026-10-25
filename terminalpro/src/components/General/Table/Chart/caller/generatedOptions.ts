@@ -24,6 +24,14 @@ export function callerGeneratedOptions(
     ...polarSeries
   } = (dataOnlyOptions(series) as RuntimeOptions) ?? {};
   return {
+    heatmap: {
+      padding: { bottom: 10 },
+      axes: { category: { bottom: caption(view.xLabel), left: caption(view.yLabel) } },
+      series: {
+        label: { ...(dataOnlyOptions(series.label) as RuntimeOptions), enabled: true },
+        tooltip: dataOnlyOptions(series.tooltip),
+      },
+    },
     treemap: {
       padding: { bottom: 10 },
       series: {

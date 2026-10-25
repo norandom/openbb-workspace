@@ -61,6 +61,7 @@ export type SnapshotValidationResult =
       readonly diagnostics: readonly SnapshotDiagnostic[];
     };
 export type SnapshotPolicy =
+  | "heatmap-observations"
   | "waterfall-observations"
   | "xy-coordinates"
   | "histogram-observations"

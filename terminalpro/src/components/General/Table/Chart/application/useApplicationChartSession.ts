@@ -1,4 +1,3 @@
-import { projectApplicationChart } from "./applicationChartProjection";
 import cloneDeep from "lodash/cloneDeep";
 import { useMemo } from "react";
 import { useWidgetTransactionContext } from "../../../../WidgetTransaction.context";
@@ -9,13 +8,14 @@ import type {
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import type { ComboGeometry } from "../echarts/comboTypes";
 import type { ChartSetupEdit } from "../editor/setup/ChartSetupPanel";
+import { projectApplicationChart } from "./applicationChartProjection";
 import type {
   ApplicationChartCommand,
   ApplicationChartReady,
 } from "./applicationChartSessionTypes";
-import { planApplicationRecapture } from "./applicationSessionRecapture";
-import { isHierarchyChartFamily } from "./applicationSessionGuards";
 import { executeApplicationChartCommand } from "./applicationSessionDispatch";
+import { isHierarchyChartFamily } from "./applicationSessionGuards";
+import { planApplicationRecapture } from "./applicationSessionRecapture";
 import {
   contextFor,
   nextSessionStamp,
@@ -46,9 +46,11 @@ import type { XyEditIntent } from "./xySessionTypes";
 type ReadyFor<F extends ApplicationChartFamily> =
   F extends import("../compatibility/hierarchyContracts").HierarchyChartType
     ? Extract<ApplicationChartReady, { kind: "hierarchy" }>
-    : F extends import("../compatibility/pieAssignments").PieChartType
-      ? Extract<ApplicationChartReady, { kind: "pie" }>
-      : Exclude<ApplicationChartReady, { kind: "pie" | "hierarchy" }>;
+    : F extends "heatmap"
+      ? Extract<ApplicationChartReady, { kind: "heatmap" }>
+      : F extends import("../compatibility/pieAssignments").PieChartType
+        ? Extract<ApplicationChartReady, { kind: "pie" }>
+        : Exclude<ApplicationChartReady, { kind: "pie" | "hierarchy" }>;
 export function useApplicationChartSession<F extends ApplicationChartFamily>(
   inputs: ApplicationSessionInputs<F>,
 ) {
@@ -136,7 +138,11 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
           .status !== "ready"
       )
         return { widget, value: previous };
-      if (!previous.capture || isHierarchyChartFamily(inputs.family))
+      if (
+        !previous.capture ||
+        isHierarchyChartFamily(inputs.family) ||
+        inputs.family === "heatmap"
+      )
         return { widget, value: previous };
       const context = contextFor(inputs, previous);
       const setup = sessionSetup(
@@ -200,7 +206,8 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
           ? projection.value.legendPagination
           : undefined,
       hierarchyHover:
-        projection.status === "ready" && projection.value.kind === "hierarchy"
+        projection.status === "ready" &&
+        (projection.value.kind === "hierarchy" || projection.value.kind === "heatmap")
           ? projection.value.hierarchyHover
           : undefined,
       onResize,
@@ -239,6 +246,7 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
         | import("../compatibility/radialContracts").RadialEditIntent
         | import("../compatibility/nightingaleContracts").NightingaleEditIntent
         | import("./hierarchyEditorTypes").HierarchyAcceptedEditIntent
+        | import("./heatmapTypes").HeatmapEditIntent
         | ApplicationEditorIntent
         | PieEditIntent
         | import("../compatibility/radarContracts").RadarEditIntent,

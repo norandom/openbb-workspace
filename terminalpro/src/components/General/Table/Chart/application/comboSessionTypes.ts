@@ -12,6 +12,7 @@ import type { ResolvedRange, SessionStamp } from "./types";
 export type ApplicationChartFamily =
   | import("../compatibility/hierarchyContracts").HierarchyChartType
   | import("../compatibility/radialContracts").RadialChartType
+  | "heatmap"
   | "nightingale"
   | import("../compatibility/radarContracts").RadarChartType
   | CartesianFamily

@@ -1,22 +1,22 @@
-import { projectHierarchyThemePalette } from "./hierarchyThemePalette";
-import type { ApplicationChartFamily } from "../application/comboSessionTypes";
-import dayjs from "dayjs";
 import type { GridApi } from "ag-grid-community";
+import dayjs from "dayjs";
 import { useMemo } from "react";
 import { useWidgetContext } from "~/components/Widget.context";
 import { useShallowThemeStore } from "~/lib/state/theme";
 import { formatNumber, formatNumberMagnitude } from "~/lib/utils";
-import { getWidgetStorage, getStateKey } from "../../communityState";
+import { getStateKey, getWidgetStorage } from "../../communityState";
 import { useAgGridContext } from "../../hooks/useTableContext";
+import type { ApplicationChartFamily } from "../application/comboSessionTypes";
 import { createChartDisplayPolicy } from "../application/financialFormatting";
 import type { IndexColumnDefinition } from "../application/types";
+import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import { useAgThemes } from "../themes";
 import { getFiscalPeriodString } from "../utils";
 import { resolveCallerChart } from "./chartInputs";
-import { projectCallerTheme } from "./themeInputs";
 import { callerGeneratedOptions } from "./generatedOptions";
-import { dataOnlyOptions } from "./themeInputs";
-import type { RuntimeOptions } from "../compatibility/legacyTypes";
+import { heatmapThemePaint } from "./heatmapThemePaint";
+import { projectHierarchyThemePalette } from "./hierarchyThemePalette";
+import { dataOnlyOptions, projectCallerTheme } from "./themeInputs";
 
 export function useCallerSessionInputs() {
   const { widget, widgetFromJSON } = useWidgetContext();
@@ -74,7 +74,13 @@ export function useCallerSessionInputs() {
       definitions,
     ],
   );
-  if (!result.valid) return result;
+  if (result.valid === false) return result;
+  const theme = projectCallerTheme(
+    mode,
+    themes.chartThemes,
+    themes.customChartThemes,
+    chartType,
+  );
   return {
     valid: true as const,
     value: {
@@ -87,17 +93,22 @@ export function useCallerSessionInputs() {
         stateAddress: JSON.stringify([widgetId, stateKey]),
       },
       dataRevision: (gridState?.dataRevision ?? 0) + (gridState?.displayRevision ?? 0),
+      ...(chartType === "heatmap"
+        ? {
+            heatmapThemePaint: heatmapThemePaint(
+              themes.customChartThemes[themes.chartThemes[0] ?? `openbb-${mode}`]
+                ?.palette,
+              theme.colors.base === "ag-default-dark",
+              theme.colors.chartBackgroundColor,
+            ),
+          }
+        : {}),
       hierarchyThemePalette: projectHierarchyThemePalette(
         mode,
         themes.chartThemes,
         themes.customChartThemes,
       ),
-      theme: projectCallerTheme(
-        mode,
-        themes.chartThemes,
-        themes.customChartThemes,
-        chartType,
-      ),
+      theme,
       generated:
         (dataOnlyOptions(gridState?.chartThemeOverrides) as RuntimeOptions) ??
         callerGeneratedOptions(widgetFromJSON?.data?.table?.chartView),
