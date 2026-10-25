@@ -45,22 +45,22 @@ export function hierarchyLabelOptions(
   padding: number,
 ): Record<string, unknown> {
   const formatter = () => text;
-  const inset = label.padding ?? padding;
   descriptors.set(formatter, {
     label,
     text,
-    horizontalPadding:
-      typeof inset === "number" ? inset * 2 : (inset.left ?? 0) + (inset.right ?? 0),
-    verticalPadding:
-      typeof inset === "number" ? inset * 2 : (inset.top ?? 0) + (inset.bottom ?? 0),
+    horizontalPadding: padding * 2,
+    verticalPadding: padding * 2,
   });
   const boxing = box(label);
+  const boxed =
+    boxing.backgroundColor !== undefined || boxing.borderColor !== undefined;
   return {
     ...fontStyle(label),
     ...boxing,
     show: label.enabled && text !== "",
     formatter,
-    padding: boxing.padding ?? padding,
+    // Native Treemap subtracts text padding again; inactive boxing must use the fit inset.
+    padding: boxed ? (boxing.padding ?? padding) : padding,
     lineHeight: "lineHeight" in label ? label.lineHeight : undefined,
     overflow: "truncate",
     ellipsis: "…",

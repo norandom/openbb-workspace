@@ -1,5 +1,6 @@
 import { init } from "echarts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { resolveHierarchyAppearance } from "../../../src/components/General/Table/Chart/application/hierarchyAppearance";
 import { projectHierarchySetup } from "../../../src/components/General/Table/Chart/application/hierarchySetupProjection";
 import type { HierarchySnapshot } from "../../../src/components/General/Table/Chart/compatibility/hierarchyContracts";
 import { fallbackDisplay } from "../../../src/components/General/Table/Chart/echarts/cartesianDisplay";
@@ -383,6 +384,125 @@ function paintNative(chart: ReturnType<typeof init>, i: HierarchyMappingInput) {
   chart.setOption(result.options, { notMerge: true });
   expect(chart.renderToSVGString()).not.toMatch(/NaN|Infinity/);
 }
+function composedTilePadding(padding: number): HierarchyMappingInput {
+  const base = input("treemap", false);
+  const appearance = resolveHierarchyAppearance({
+    family: "treemap",
+    baseline: {
+      stateAddress: "s",
+      chartType: "treemap",
+      model: {},
+      options: {
+        treemap: {
+          padding: { top: 0, right: 0, bottom: 0, left: 0 },
+          series: { tile: { padding } },
+        },
+      },
+    },
+    generated: {},
+    precision: 2,
+    assignments: { sizeId: "size" },
+    theme: {
+      name: "ag-default",
+      mode: "light",
+      overrides: {},
+      colors: {
+        base: "ag-default",
+        foregroundColor: "#000000",
+        backgroundColor: "#ffffff",
+        textColor: "#111111",
+        chartBackgroundColor: "#ffffff",
+      },
+      palette: { fills: ["#123456"], strokes: ["#654321"] },
+    },
+    themePalette: {
+      fills: ["#123456"],
+      strokes: ["#654321"],
+      hierarchyColors: ["#dddddd"],
+      secondHierarchyColors: ["#cccccc"],
+      colorRange: ["#ff0000", "#0000ff"],
+    },
+  });
+  if (!appearance.valid) throw Error(appearance.error);
+  const leaf = {
+    ...base.projection.root.children[1].children[0],
+    label: "Financial Instrument",
+  };
+  return {
+    ...base,
+    style: appearance.value,
+    context: { ...base.context, viewport: { width: 126, height: 72 } },
+    projection: {
+      ...base.projection,
+      root: {
+        ...base.projection.root,
+        subtreeWeight: leaf.subtreeWeight,
+        children: [leaf],
+      },
+    },
+  };
+}
+function nativeRectangles(chart: ReturnType<typeof init>) {
+  return chart
+    .getZr()
+    .storage.getDisplayList()
+    .filter((element) => element.type === "rect")
+    .map((element) => ({
+      ...element.getBoundingRect(),
+      transform: Array.from(element.getComputedTransform() ?? []),
+    }));
+}
+it("applies composed Tile Padding independently of default label boxing to painted text", () => {
+  const chart = init(null, undefined, {
+    renderer: "svg",
+    ssr: true,
+    width: 126,
+    height: 72,
+  });
+  try {
+    const samples = [0, 3, 10].map((padding) => {
+      const i = composedTilePadding(padding);
+      expect(i.style.family === "treemap" && i.style.tile.label.padding).toBe(8);
+      paintNative(chart, i);
+      return {
+        padding,
+        text: nativeText(chart),
+        geometry: nativeRectangles(chart),
+        weight: prepareHierarchyData(i).data[0].value,
+      };
+    });
+    expect(samples.map((sample) => sample.geometry)).toEqual(
+      samples.map(() => samples[0].geometry),
+    );
+    expect(samples.map((sample) => sample.weight)).toEqual([4, 4, 4]);
+    expect(samples.map((sample) => sample.text.map((span) => span.text))).toEqual([
+      ["Financial Instrument"],
+      ["Financial", "Instrument"],
+      ["Financial", "Instrument"],
+    ]);
+    expect(Number(samples[2].text[0].size)).toBeLessThan(
+      Number(samples[1].text[0].size),
+    );
+    for (const padding of [3, 0]) {
+      paintNative(chart, composedTilePadding(padding));
+      expect(nativeText(chart)).toEqual(
+        samples.find((sample) => sample.padding === padding)!.text,
+      );
+    }
+    chart.resize({ width: 20, height: 20 });
+    const tiny = composedTilePadding(10);
+    paintNative(chart, {
+      ...tiny,
+      context: { ...tiny.context, viewport: { width: 20, height: 20 } },
+    });
+    expect(nativeText(chart)).toEqual([]);
+    chart.resize({ width: 126, height: 72 });
+    paintNative(chart, composedTilePadding(0));
+    expect(nativeText(chart)).toEqual(samples[0].text);
+  } finally {
+    chart.dispose();
+  }
+});
 it("fits native labels after layout, restores hidden labels on resize and isolates two chart instances", () => {
   const base = input("treemap", false);
   if (base.style.family !== "treemap") throw Error("Fixture");
@@ -565,11 +685,12 @@ it("distinguishes retained unused advanced paint from an active adapter obligati
 });
 
 it.each([
-  "treemap",
-  "sunburst",
-] as const)("renders %s per-side label padding as a normalized native array", (family) => {
+  ["treemap", { top: 2, right: 7, bottom: 3, left: 11 }, [2, 7, 3, 11]],
+  ["sunburst", { top: 2, right: 7, bottom: 3, left: 11 }, [2, 7, 3, 11]],
+  ["treemap", 0, 0],
+  ["sunburst", 0, 0],
+] as const)("renders %s explicit label padding %j as native boxing", (family, padding, expected) => {
   const base = input(family, false);
-  const padding = { top: 2, right: 7, bottom: 3, left: 11 };
   const style =
     base.style.family === "treemap"
       ? {
@@ -595,9 +716,10 @@ it.each([
   });
   try {
     paintNative(chart, i);
-    expect(prepareHierarchyData(i).data[0].children![0].label.padding).toEqual([
-      2, 7, 3, 11,
-    ]);
+    expect(prepareHierarchyData(i).data[0].children![0].label.padding).toEqual(
+      expected,
+    );
+    expect(chart.renderToSVGString()).toContain("#ffff00");
     expect(
       nativeText(chart).some(
         (t) => t.text.includes("Alpha") || t.text.includes("Beta"),
