@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { resolveHeatmapAppearance } from "../../../src/components/General/Table/Chart/application/heatmapAppearance";
 import { projectHeatmapEditorState } from "../../../src/components/General/Table/Chart/application/heatmapEditor";
@@ -89,4 +89,36 @@ it.each([
   for (const name of ["Axis Type", "Time Format", "Position"])
     expect(screen.queryByRole("combobox", { name })).toBeNull();
   expect(screen.queryByRole("switch", { name: "Grid Lines" })).toBeNull();
+});
+
+it("exposes both axis sections in the composed editor and keeps their edit targets distinct", () => {
+  const onEdit = vi.fn();
+  render(<HeatmapCustomizeEditor state={state()} onEdit={onEdit} />);
+  expect(
+    screen
+      .getAllByRole("button")
+      .map((button) => button.textContent?.replace("›", "").trim()),
+  ).toEqual([
+    "Chart Style",
+    "Titles",
+    "Gradient Legend",
+    "Series",
+    "Horizontal Axis",
+    "Vertical Axis",
+  ]);
+  for (const [axis, name, thickness] of [
+    ["x", "Horizontal Axis", 4],
+    ["y", "Vertical Axis", 7],
+  ] as const) {
+    fireEvent.click(screen.getByRole("button", { name }));
+    const section = within(screen.getByRole("region", { name }));
+    fireEvent.change(section.getByRole("spinbutton", { name: "Thickness value" }), {
+      target: { value: String(thickness) },
+    });
+    fireEvent.click(section.getByRole("switch", { name: "Ticks" }));
+    expect(onEdit.mock.calls.slice(-2).map(([intent]) => intent)).toEqual([
+      { panel: "heatmapAxis", axis, edit: { field: "thickness", value: thickness } },
+      { panel: "heatmapTicks", axis, edit: { field: "enabled", value: true } },
+    ]);
+  }
 });

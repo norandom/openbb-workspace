@@ -11,6 +11,7 @@ import { ChartSeriesStylePanel } from "../series/ChartSeriesStylePanel";
 import { CaptionColorInput } from "../titles/CaptionColorInput";
 import { ChartTitlesPanel } from "../titles/ChartTitlesPanel";
 import { ChartTooltipsPanel } from "../tooltips/ChartTooltipsPanel";
+import { HeatmapAxisEditor } from "./HeatmapAxisEditor";
 export interface HeatmapCustomizeEditorProps {
   readonly state: HeatmapEditorState;
   readonly onEdit: (intent: HeatmapEditIntent) => void;
@@ -62,6 +63,8 @@ export function HeatmapCustomizeEditor({ state, onEdit }: HeatmapCustomizeEditor
           onEdit={(edit) => onEdit({ panel: "tooltips", edit })}
         />
       </ApplicationEditorGroup>
+      <HeatmapAxisEditor axis="x" state={state} onEdit={onEdit} />
+      <HeatmapAxisEditor axis="y" state={state} onEdit={onEdit} />
     </>
   );
 }
