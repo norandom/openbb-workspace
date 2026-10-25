@@ -1,4 +1,5 @@
 import { checkRangeCategoryProvenance } from "./rangeCategoryProvenance";
+import { copySnapshotJson, snapshotJsonDiagnostic } from "./snapshotJson";
 import type {
   ChartSnapshot,
   DiagnosticPath,
@@ -24,54 +25,6 @@ function failure(path: DiagnosticPath, message: string): never {
   };
   failures.set(diagnostic, diagnostic);
   throw diagnostic;
-}
-
-/** Inspect descriptors before reading: malformed provenance must never invoke getters. */
-function copyJson(
-  value: unknown,
-  path: DiagnosticPath,
-  ancestors: Set<object>,
-): unknown {
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean" ||
-    finite(value)
-  )
-    return value;
-  if (typeof value !== "object" || value === null)
-    failure(path, "Expected finite JSON data");
-  if (ancestors.has(value)) failure(path, "Cyclic JSON data");
-  const array = Array.isArray(value);
-  const prototype = Object.getPrototypeOf(value);
-  if (!array && prototype !== Object.prototype && prototype !== null)
-    failure(path, "Expected a plain JSON object");
-  ancestors.add(value);
-  const result: RecordValue | unknown[] = array ? [] : {};
-  for (const key of Reflect.ownKeys(value)) {
-    if (array && key === "length") continue;
-    if (typeof key !== "string") failure(path, "Symbol keys are not JSON data");
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    const segment = array && /^(0|[1-9]\d*)$/.test(key) ? Number(key) : key;
-    const next = [...path, segment];
-    if (!descriptor || !("value" in descriptor) || !descriptor.enumerable)
-      failure(next, "Expected an enumerable data property");
-    if (
-      array &&
-      (typeof segment !== "number" || segment >= (value as unknown[]).length)
-    )
-      failure(next, "Invalid array property");
-    Object.defineProperty(result, key, {
-      value: copyJson(descriptor.value, next, ancestors),
-      enumerable: true,
-      writable: true,
-      configurable: true,
-    });
-  }
-  if (array && Object.keys(result).length !== (value as unknown[]).length)
-    failure(path, "Sparse arrays are not JSON data");
-  ancestors.delete(value);
-  return result;
 }
 
 function columnsOf(input: RecordValue): Map<string, RecordValue> {
@@ -175,7 +128,7 @@ function checkRows(
 }
 
 function validate(input: unknown, policy?: SnapshotPolicy): ChartSnapshot {
-  const copy = copyJson(input, [], new Set());
+  const copy = copySnapshotJson(input);
   if (!object(copy)) failure([], "Expected a resolved snapshot object");
   if (!identity(copy.stateAddress))
     failure(["stateAddress"], "Expected a state address");
@@ -221,11 +174,12 @@ export const validateSnapshot: ValidateSnapshot = (input, policy) => {
   } catch (error) {
     const diagnostic = (typeof error === "object" && error !== null
       ? failures.get(error)
-      : undefined) ?? {
-      code: "invalid-snapshot",
-      path: [],
-      message: "Snapshot could not be inspected safely",
-    };
+      : undefined) ??
+      snapshotJsonDiagnostic(error) ?? {
+        code: "invalid-snapshot",
+        path: [],
+        message: "Snapshot could not be inspected safely",
+      };
     return { valid: false, diagnostics: [diagnostic] };
   }
 };

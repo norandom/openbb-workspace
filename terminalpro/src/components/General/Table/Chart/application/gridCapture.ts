@@ -10,6 +10,13 @@ import type {
   SnapshotRow,
 } from "../compatibility/snapshotTypes";
 import { captureBoxCategory } from "./boxPlotCapture";
+import {
+  captureRangeBounds,
+  checkCaptureGridModel,
+  inspectCaptureApi,
+  validateDisplayedCaptureRow,
+  type CaptureGuardResult,
+} from "./gridCaptureGuards";
 import { normalizeHistogramObservation } from "./histogramCapture";
 import { normalizePieObservation } from "./pieCapture";
 import { normalizePolarObservation } from "./polarCapture";
@@ -28,6 +35,10 @@ function reject(result: SessionResult<never>): never {
   failures.set(token, result);
   throw token;
 }
+function guardValue<T>(result: CaptureGuardResult<T>): T {
+  if (result.status !== "ready") reject(result);
+  return result.value;
+}
 function fail(
   status: "invalid" | "unresolved",
   path: DiagnosticPath,
@@ -44,19 +55,7 @@ function inspectInput(input: GridCaptureInput): ResolvedSnapshotInput {
   const stamp = validateSessionStamp(input.stamp, input.stamp);
   if (stamp.status !== "ready")
     fail("invalid", ["stamp"], "Invalid session stamp");
-  for (const method of [
-    "isDestroyed",
-    "getGridOption",
-    "getDisplayedRowCount",
-    "getDisplayedRowAtIndex",
-    "getCellValue",
-    "getColumns",
-    "getPinnedTopRowCount",
-    "getPinnedBottomRowCount",
-  ] as const) {
-    if (typeof input.api[method] !== "function")
-      fail("invalid", ["api", method], "Expected public GridApi method");
-  }
+  guardValue(inspectCaptureApi(input.api));
   const result = validateSnapshot(
     {
       stateAddress: stamp.value.address.stateAddress,
@@ -74,100 +73,6 @@ function inspectInput(input: GridCaptureInput): ResolvedSnapshotInput {
   if (!result.valid)
     reject({ status: "invalid", diagnostics: result.diagnostics });
   return result.snapshot;
-}
-function checkModel(input: GridCaptureInput): string | null {
-  const { api } = input;
-  const mode = api.getGridOption("rowModelType");
-  if (mode !== undefined && mode !== "clientSide")
-    fail(
-      "unresolved",
-      ["api", "rowModelType"],
-      "Only client-side ordinary rows are supported",
-    );
-  if (api.getGridOption("pivotMode") || api.getGridOption("treeData"))
-    fail(
-      "unresolved",
-      ["api"],
-      "Pivot and tree models require another capture path",
-    );
-  for (const key of ["pinnedTopRowData", "pinnedBottomRowData"] as const) {
-    if ((api.getGridOption(key)?.length ?? 0) > 0)
-      fail(
-        "unresolved",
-        ["api", key],
-        "Pinned rows require another capture path",
-      );
-  }
-  if (api.getPinnedTopRowCount() || api.getPinnedBottomRowCount())
-    fail("unresolved", ["api"], "Pinned rows require another capture path");
-  const rangeCategory =
-    input.snapshotPolicy === "statistical-observations" &&
-    input.categoryColumnId !== DEFAULT_SETUP_CATEGORY;
-  let found = false;
-  let chartDataType: unknown = null;
-  for (const column of api.getColumns() ?? []) {
-    const definition = column.getColDef();
-    if (rangeCategory && column.getColId() === input.categoryColumnId) {
-      found = true;
-      chartDataType = definition.chartDataType ?? null;
-    }
-    if (
-      column.isRowGroupActive() ||
-      column.isPivotActive() ||
-      definition.rowGroup ||
-      definition.pivot ||
-      definition.rowGroupIndex != null ||
-      definition.pivotIndex != null
-    )
-      fail(
-        "unresolved",
-        ["api", "columns"],
-        "Grouped or pivot columns require another capture path",
-      );
-  }
-  if (rangeCategory && !found)
-    fail(
-      "unresolved",
-      ["rangeCategory", "categoryColumnId"],
-      "Selected category column is unavailable in the Grid",
-    );
-  if (chartDataType !== null && typeof chartDataType !== "string")
-    fail(
-      "unresolved",
-      ["rangeCategory", "columnChartDataType"],
-      "Expected string or null Grid chart metadata",
-    );
-  return chartDataType;
-}
-function bounds(input: GridCaptureInput, count: number): [number, number] {
-  const { rowStartIndex: start, rowEndIndex: end } = input.range;
-  // AG serializes both full-grid endpoints as null; keep the serialized range intact.
-  if (start == null && end == null) return [0, count - 1];
-  for (const [key, value] of [
-    ["rowStartIndex", start],
-    ["rowEndIndex", end],
-  ] as const) {
-    if (
-      value !== undefined &&
-      (typeof value !== "number" || !Number.isFinite(value))
-    )
-      fail("invalid", ["range", key], "Expected finite numeric bounds");
-  }
-  if (
-    start === undefined ||
-    end === undefined ||
-    !Number.isInteger(start) ||
-    !Number.isInteger(end) ||
-    start < 0 ||
-    end < start ||
-    end >= count
-  )
-    fail(
-      "unresolved",
-      ["range"],
-      "Bounds must be inclusive valid displayed indices",
-    );
-  return [start, end];
 }
 function readCategory(
   input: GridCaptureInput,
@@ -280,13 +185,13 @@ function readRows(
     (id) => id !== snapshot.categoryColumnId,
   );
   for (let index = start; index <= end; index++) {
-    const node = input.api.getDisplayedRowAtIndex(index);
-    const path = ["rows", index];
-    if (!node || node.group || node.footer || node.rowPinned)
-      fail("unresolved", path, "Expected an ordinary displayed row");
-    if (typeof node.id !== "string" || node.id.length === 0 || ids.has(node.id))
-      fail("unresolved", [...path, "id"], "Expected a unique stable row ID");
-    ids.add(node.id);
+    const node = guardValue(
+      validateDisplayedCaptureRow(
+        input.api.getDisplayedRowAtIndex(index),
+        index,
+        ids,
+      ),
+    );
     const { firstCategoryIsDate: isDate, ...category } = readCategory(
       input,
       snapshot,
@@ -296,7 +201,7 @@ function readRows(
     );
     if (index === start) firstCategoryIsDate = isDate;
     rows.push({
-      id: node.id,
+      id: node.id!,
       ...category,
       values: readValues(input, node, numeric, index),
     });
@@ -308,17 +213,19 @@ export const captureDisplayedChart: CaptureDisplayedChart = (input) => {
   try {
     const template = inspectInput(input);
     if (input.api.isDestroyed()) return { status: "waiting" };
-    const columnChartDataType = checkModel(input);
+    const { columnChartDataType } = guardValue(
+      checkCaptureGridModel(
+        input.api,
+        input.snapshotPolicy === "statistical-observations" &&
+          input.categoryColumnId !== DEFAULT_SETUP_CATEGORY
+          ? input.categoryColumnId
+          : undefined,
+      ),
+    );
     if (!Array.isArray(input.api.getGridOption("rowData")))
       return { status: "waiting" };
     const count = input.api.getDisplayedRowCount();
-    if (!Number.isSafeInteger(count) || count < 0)
-      fail(
-        "unresolved",
-        ["api", "displayedRowCount"],
-        "Invalid displayed row count",
-      );
-    const [start, end] = bounds(input, count);
+    const [start, end] = guardValue(captureRangeBounds(input.range, count));
     const { rows, firstCategoryIsDate } = readRows(input, template, start, end);
     let rangeCategory: ResolvedSnapshotInput["rangeCategory"];
     if (input.snapshotPolicy === "statistical-observations") {
