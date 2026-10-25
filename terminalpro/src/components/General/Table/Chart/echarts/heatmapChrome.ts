@@ -3,7 +3,6 @@ import type {
   GradientHoverPlan,
   HeatmapMappingInput,
 } from "../application/heatmapTypes";
-import { niceNumberExtent } from "./cartesianAxes";
 import { fontStyle } from "./cartesianDisplay";
 import { measureText } from "./cartesianLayout";
 import { heatmapAxisSpace } from "./heatmapAxes";
@@ -20,11 +19,47 @@ interface Legend {
   thickness: number;
   vertical: boolean;
 }
+// AG Charts 12.1.1 gradient axes prefer five intervals with 10px minimum spacing.
+// Keep this independent of Cartesian display compaction and its axis-density policy.
+function tickStep(min: number, max: number, length: number): number {
+  const maxCount = Math.max(1, Math.floor(length / Math.max(10, length / 6)));
+  const count = Math.min(5, maxCount);
+  const extent = max - min;
+  const magnitude = 10 ** Math.floor(Math.log10(extent / count));
+  let step = magnitude;
+  let difference = Number.POSITIVE_INFINITY;
+  let inBounds = false;
+  for (const multiplier of [1, 2, 5, 10]) {
+    const candidate = multiplier * magnitude;
+    const intervals = Math.ceil(extent / candidate);
+    const valid = intervals >= 1 && intervals <= maxCount;
+    if (inBounds && !valid) continue;
+    const distance = Math.abs(intervals - count);
+    if (difference > distance || inBounds !== valid) {
+      inBounds ||= valid;
+      difference = distance;
+      step = candidate;
+    }
+  }
+  return step;
+}
 function values(model: HeatmapData, length = 200): number[] {
   if (!model.extent) return [];
   const [min, max] = model.extent;
   if (min === max) return [min];
-  const step = niceNumberExtent(min, max, length).interval;
+  let start = min;
+  let stop = max;
+  let step = tickStep(start, stop, length);
+  // Native LinearScale stabilizes a nice domain before clipping to the raw extent.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    step = tickStep(start, stop, length);
+    const nextStart = Math.floor(min / step) * step;
+    const nextStop = Math.ceil(max / step) * step;
+    if (start === nextStart && stop === nextStop) break;
+    start = nextStart;
+    stop = nextStop;
+  }
+  step = tickStep(start, stop, length);
   if (!step || !Number.isFinite(step)) return [min, max];
   const ticks: number[] = [];
   for (
@@ -73,7 +108,7 @@ function graphics(input: HeatmapMappingInput, model: HeatmapData, legend: Legend
       style: {
         ...fontStyle(l.label),
         fill: l.label.color,
-        text: String(input.context.display.numericAxis(value)),
+        text: String(value),
         align: legend.vertical ? "left" : "center",
         verticalAlign: legend.vertical ? "middle" : "top",
       },
@@ -132,10 +167,7 @@ function legendLayout(
   const length = Math.min(l.gradient.preferredLength, vertical ? height : width);
   const labelWidth = Math.max(
     0,
-    ...values(model, length).map(
-      (value) =>
-        measureText(String(input.context.display.numericAxis(value)), l.label).width,
-    ),
+    ...values(model, length).map((value) => measureText(String(value), l.label).width),
   );
   const breadth =
     l.gradient.thickness + 5 + (vertical ? labelWidth : l.label.size * 1.2);

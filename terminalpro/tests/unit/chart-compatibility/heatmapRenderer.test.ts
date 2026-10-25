@@ -200,6 +200,37 @@ describe("inactive heatmap renderer", () => {
     );
     expect(o.xAxis.axisLabel.rotate).toBe(-90);
   });
+  it("uses native raw financial gradient ticks and their full layout width", () => {
+    const i = heatmapFixture();
+    const input = {
+      ...i,
+      context: {
+        ...i.context,
+        display: { ...i.context.display, numericAxis: () => "COMPACT" },
+      },
+      projection: {
+        ...i.projection,
+        snapshot: {
+          ...i.projection.snapshot,
+          rows: [
+            66025000000, 58275000000, 50492000000, 44867000000, 50318000000,
+            43718000000, 54125000000, 48341000000,
+          ].map((v, n) => ({ id: String(n), category: String(n), values: { v } })),
+        },
+      },
+    };
+    const chrome = heatmapChrome(input);
+    const labels = (chrome.options.graphic as any[]).filter((g) => g.type === "text");
+    expect(labels.map((g) => g.style.text)).toEqual([
+      "45000000000",
+      "50000000000",
+      "55000000000",
+      "60000000000",
+      "65000000000",
+    ]);
+    const width = measureText("65000000000", i.style.gradientLegend.label).width;
+    expect(chrome.legend?.x).toBe(600 - 10 - 16 - 5 - width);
+  });
   it("positions all four gradient legends within the viewport", () => {
     const i = heatmapFixture();
     for (const position of ["top", "bottom", "left", "right"] as const) {
@@ -212,6 +243,69 @@ describe("inactive heatmap renderer", () => {
       expect(c.plot.height).toBeGreaterThan(0);
       expect(c.legend?.x).toBeGreaterThanOrEqual(0);
       expect(c.legend?.y).toBeGreaterThanOrEqual(0);
+    }
+  });
+  it("keeps fractional, constant and reversed gradient labels numeric", () => {
+    const i = heatmapFixture();
+    for (const values of [
+      [0.0012, 0.0018],
+      [5, 5],
+      [-0.003, 0.002],
+    ]) {
+      const input = {
+        ...i,
+        projection: {
+          ...i.projection,
+          snapshot: {
+            ...i.projection.snapshot,
+            rows: values.map((v, n) => ({
+              id: String(n),
+              category: String(n),
+              values: { v },
+            })),
+          },
+        },
+      };
+      const normal = heatmapChrome(input);
+      const reversed = heatmapChrome({
+        ...input,
+        style: {
+          ...input.style,
+          gradientLegend: { ...input.style.gradientLegend, reverseOrder: true },
+        },
+      });
+      const ticks = (normal.options.graphic as any[]).filter((g) => g.type === "text");
+      expect(ticks.length).toBeGreaterThan(0);
+      expect(ticks.every((g) => Number.isFinite(Number(g.style.text)))).toBe(true);
+      expect(
+        (reversed.options.graphic as any[])
+          .filter((g) => g.type === "text")
+          .map((g) => g.style.text),
+      ).toEqual(ticks.map((g) => g.style.text));
+      if (values[0] === values[1])
+        expect(ticks.map((g) => g.style.text)).toEqual(["5"]);
+      if (values[0] === 0.0012)
+        expect(ticks.map((g) => g.style.text)).toEqual([
+          "0.0012",
+          "0.0014",
+          "0.0016",
+          "0.0018",
+        ]);
+      const short = heatmapChrome({
+        ...input,
+        style: {
+          ...input.style,
+          gradientLegend: {
+            ...input.style.gradientLegend,
+            gradient: { thickness: 16, preferredLength: 8 },
+          },
+        },
+      });
+      const shortTicks = (short.options.graphic as any[]).filter(
+        (g) => g.type === "text",
+      );
+      expect(shortTicks.length).toBeGreaterThan(0);
+      expect(shortTicks.every((g) => Number.isFinite(g.y))).toBe(true);
     }
   });
   it("reports no selected numeric series in native SVG", () => {
@@ -230,6 +324,7 @@ describe("inactive heatmap renderer", () => {
       height: 400,
     });
     try {
+      expect(heatmapChrome(input).legend).toBeUndefined();
       chart.setOption(option(input));
       expect(chart.renderToSVGString()).toContain("No data available to be charted");
     } finally {
@@ -350,10 +445,10 @@ describe("inactive heatmap renderer", () => {
         Number.POSITIVE_INFINITY,
     );
     const first = (a.options.graphic as any[]).find(
-      (item) => item.style?.text === "-10.00",
+      (item) => item.style?.text === "-10",
     );
     const reverseFirst = (b.options.graphic as any[]).find(
-      (item) => item.style?.text === "-10.00",
+      (item) => item.style?.text === "-10",
     );
     expect(first).toBeDefined();
     expect(reverseFirst).toBeDefined();
