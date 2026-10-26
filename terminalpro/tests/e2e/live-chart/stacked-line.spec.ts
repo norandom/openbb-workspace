@@ -197,6 +197,7 @@ async function endpoints(
   normalized: boolean,
   painted = true,
   minimumTickMagnitude = 1e9,
+  categoryPositions?: number[],
 ) {
   const ticks = drawing.text
     .flatMap((t) => {
@@ -212,7 +213,7 @@ async function endpoints(
     );
   const left = Math.min(...ticks.map((t) => t.x));
   const axis = ticks
-    .filter((t) => Math.abs(t.x - left) < 30)
+    .filter((t) => Math.abs(t.x - left) < 1)
     .sort((a, b) => a.value - b.value);
   expect(
     axis.length,
@@ -223,18 +224,39 @@ async function endpoints(
   expect(hi.value).toBeGreaterThan(lo.value);
   const records = [];
   let previousX = Number.NEGATIVE_INFINITY;
+  const occurrences = new Map<string, number>();
   for (const [i, category] of categories.entries()) {
-    const label = drawing.text.find((t) => t.text === category);
-    expect(label, "all retained fiscal quarters rendered in order").toBeDefined();
+    const occurrence = occurrences.get(category) ?? 0;
+    occurrences.set(category, occurrence + 1);
+    const categoryLabels = drawing.text.filter((t) => t.text === category);
+    // The navigator repeats category captions below the main plot.
+    const plotLabelY = Math.min(...categoryLabels.map((t) => t.y));
+    const labels = categoryLabels
+      .filter((t) => Math.abs(t.y - plotLabelY) < 1)
+      .sort((a, b) => a.bounds.x - b.bounds.x);
+    const distinct = labels.filter(
+      (label, index) =>
+        index === 0 || Math.abs(label.bounds.x - labels[index - 1].bounds.x) > 1,
+    );
+    const label = distinct[occurrence];
+    if (!categoryPositions)
+      expect(
+        label,
+        "each displayed category occurrence has a real label",
+      ).toBeDefined();
+    const categoryX =
+      categoryPositions?.[i] ?? label!.bounds.x + label!.bounds.width / 2;
     const expected = values[i];
     const points = expected.map((value) => ({
-      x: label!.bounds.x + label!.bounds.width / 2,
+      x: categoryX,
       y: lo.y + ((value - lo.value) * (hi.y - lo.y)) / (hi.value - lo.value),
     }));
-    expect(
-      points[0].x,
-      "fiscal/category x order follows retained row order",
-    ).toBeGreaterThan(previousX);
+    if (categoryPositions) expect(points[0].x).toBeGreaterThanOrEqual(previousX - 0.5);
+    else
+      expect(
+        points[0].x,
+        "category occurrences follow retained row order",
+      ).toBeGreaterThan(previousX);
     previousX = points[0].x;
     const pixels = await widget
       .locator("canvas")
@@ -675,6 +697,7 @@ async function controlGeometry(
   raw: Record<string, number>[],
   normalized: boolean,
   legend: string[],
+  positions?: { xs: number[]; checkCategory: boolean },
 ) {
   await tooltipControls(page, widget, "shared");
   await stablePie(page, widget);
@@ -698,6 +721,7 @@ async function controlGeometry(
     normalized,
     true,
     0,
+    positions?.xs,
   );
   const box = await widget.locator("canvas").first().boundingBox();
   if (!box) throw new Error("Control comparison canvas required");
@@ -706,13 +730,19 @@ async function controlGeometry(
     const texts = new Set<string>();
     for (const point of row.points) {
       await page.mouse.move(0, 0);
-      await page.mouse.move(box.x + point.x, box.y + point.y);
+      const hoverX = positions
+        ? Math.max(
+            Math.min(...positions.xs) + 1,
+            Math.min(Math.max(...positions.xs) - 1, point.x),
+          )
+        : point.x;
+      await page.mouse.move(box.x + hoverX, box.y + point.y);
       const tip = nativeTooltip(widget).last();
-      await expect(tip).toBeVisible();
+      await expect(tip, `${categories[index]} at ${hoverX},${point.y}`).toBeVisible();
       texts.add(await tip.innerText());
     }
     const text = [...texts].join("\n");
-    expect(text).toContain(categories[index]);
+    if (positions?.checkCategory !== false) expect(text).toContain(categories[index]);
     for (const [label, value] of Object.entries(raw[index]))
       expect(text).toMatch(new RegExp(`${label}:\\s*${value}(?![\\d.])`));
     tooltips.push([...texts]);
@@ -971,6 +1001,266 @@ test("Stacked Line candidate signed amount geometry and legend order", async ({
     await writeFile(
       info.outputPath("signed-amount.json"),
       JSON.stringify({ identity, csv, records, diagnostics }, null, 2),
+    );
+  }
+});
+
+const coordinateVariants = [
+  ["Stacked Line", "stackedLine"],
+  ["100% Stacked Line", "normalizedLine"],
+] as const;
+
+test("Stacked Line candidate repeated ordinal categories retain native row slots", async ({
+  page,
+}, info) => {
+  test.setTimeout(180000);
+  const identity = candidateIdentity();
+  const diagnostics = await observeApplication(page);
+  const csv = "X,A,B\nRepeat,10,1\nRepeat,20,2\nTail,5,1\nLast,7,2\n";
+  const records: unknown[] = [];
+  await observePie(page);
+  try {
+    await loginDisposableWorkspace(page);
+    const { widget } = await importOrdinaryTable(page, {
+      csv,
+      name: "Ordinal duplicate comparison",
+      expectedValue: "Last",
+    });
+    await widget.locator("#chart-view-button").click();
+    await growPieWidget(page, widget, info);
+    for (const [variant, token] of coordinateVariants) {
+      const editor = await openEditor(page, widget);
+      await selectFamily(editor, variant);
+      await setup(editor, "X", ["A", "B"]);
+      await toggle(editor, "Switch Category / Series", false);
+      await collapse(editor);
+      const record = await controlGeometry(
+        page,
+        widget,
+        ["Repeat", "Repeat", "Tail", "Last"],
+        token === "normalizedLine"
+          ? [
+              [1000 / 11, 100],
+              [1000 / 11, 100],
+              [250 / 3, 100],
+              [700 / 9, 100],
+            ]
+          : [
+              [10, 11],
+              [20, 22],
+              [5, 6],
+              [7, 9],
+            ],
+        [
+          { A: 10, B: 1 },
+          { A: 20, B: 2 },
+          { A: 5, B: 1 },
+          { A: 7, B: 2 },
+        ],
+        token === "normalizedLine",
+        ["A", "B"],
+      );
+      const xs = record.geometry.map((row) => row.points[0].x);
+      expect(
+        xs[1] - xs[0],
+        "repeated labels occupy distinct original row slots",
+      ).toBeGreaterThan(10);
+      expect((xs[1] - xs[0]) / (xs[2] - xs[1])).toBeCloseTo(1, 2);
+      expect((xs[2] - xs[1]) / (xs[3] - xs[2])).toBeCloseTo(1, 2);
+      const model = await saved(page);
+      expect(model).toMatchObject({
+        chartType: token,
+        cellRange: { columns: ["X", "A", "B"] },
+      });
+      expect(model.aggFunc).toBeUndefined();
+      records.push({ token, model, ...record });
+    }
+    expectApplicationDiagnostics(diagnostics);
+  } finally {
+    await writeFile(
+      info.outputPath("ordinal-duplicates.json"),
+      JSON.stringify({ identity, csv, records, diagnostics }, null, 2),
+    );
+  }
+});
+
+async function timeAxis(page: Page, widget: Locator, variant: string) {
+  const existing = widget.getByRole("complementary", { name: "Chart editor" });
+  const editor = (await existing.isVisible())
+    ? existing
+    : await openEditor(page, widget);
+  await selectFamily(editor, variant);
+  await editor.getByRole("tab", { name: "Customize", exact: true }).click();
+  await expand(editor, "Series");
+
+  await toggle(
+    editor.getByRole("region", { name: "Series", exact: true }),
+    "Labels",
+    true,
+  );
+  await expand(editor, "Horizontal Axis");
+  await editor
+    .getByRole("combobox", { name: "Axis Type", exact: true })
+    .selectOption("time");
+  await expand(editor, "Horizontal Axis");
+  await editor
+    .getByRole("combobox", { name: "Time Format", exact: true })
+    .selectOption({ label: "DD/MM/YY" });
+  await collapse(editor);
+}
+
+async function timeGeometry(
+  page: Page,
+  widget: Locator,
+  normalized: boolean,
+  reversed = false,
+) {
+  await stablePie(page, widget);
+  const drawing = await currentPie(page, widget);
+  // Raw A labels remain distinct while two endpoints share the same Date x.
+  const xs = [11, 22, 44, 66].map((value) => {
+    const labels = drawing.text.filter((item) => item.text === String(value));
+    expect(labels, `one visible raw A label ${value}`).toHaveLength(1);
+    return labels[0].bounds.x + labels[0].bounds.width / 2;
+  });
+  expect(
+    Math.abs(xs[1] - xs[0]),
+    "equal dates share one continuous coordinate",
+  ).toBeLessThan(1);
+  expect(
+    (xs[2] - xs[1]) / (xs[3] - xs[2]),
+    "elapsed-time spacing is seven then twenty-four days",
+  ).toBeCloseTo(7 / 24, 2);
+  const prefixes = reversed
+    ? [
+        [3, 19],
+        [8, 41],
+        [7, 51],
+        [9, 75],
+      ]
+    : [
+        [11, 36],
+        [33, 41],
+        [44, 51],
+        [66, 75],
+      ];
+  const denominators = [41, 41, 51, 75];
+  const coordinates = normalized
+    ? prefixes.map((row, index) =>
+        row.map((value) => (100 * value) / denominators[index]),
+      )
+    : prefixes;
+  return controlGeometry(
+    page,
+    widget,
+    ["2026-01-01", "2026-01-01", "2026-01-08", "2026-02-01"],
+    coordinates,
+    [
+      { A: 11, B: 3 },
+      { A: 22, B: 5 },
+      { A: 44, B: 7 },
+      { A: 66, B: 9 },
+    ],
+    normalized,
+    reversed ? ["B", "A"] : ["A", "B"],
+    { xs, checkCategory: false },
+  );
+}
+
+test("Stacked Line candidate Time source oracle preserves grouped dates and saved format", async ({
+  page,
+  browser,
+}, info) => {
+  test.setTimeout(240000);
+  const identity = candidateIdentity();
+  const diagnostics = await observeApplication(page);
+  const sessions = { initial: diagnostics } as Record<string, typeof diagnostics>;
+  const csv =
+    "Date,A,B\n2026-01-01,11,3\n2026-01-01,22,5\n2026-01-08,44,7\n2026-02-01,66,9\n";
+  const records: unknown[] = [];
+  await observePie(page);
+  try {
+    await loginDisposableWorkspace(page);
+    const { widget, dashboardUrl } = await importOrdinaryTable(page, {
+      csv,
+      name: "Source-derived Time grouping",
+      expectedValue: "66",
+    });
+    await widget.locator("#chart-view-button").click();
+    await growPieWidget(page, widget, info);
+    const editor = await openEditor(page, widget);
+    await setup(editor, "Date", ["A", "B"]);
+    await toggle(editor, "Switch Category / Series", false);
+    for (const [variant, token] of coordinateVariants) {
+      await timeAxis(page, widget, variant);
+      records.push({
+        token,
+        initial: await timeGeometry(page, widget, token === "normalizedLine"),
+      });
+    }
+    const reorderEditor = await openEditor(page, widget);
+    await reorderEditor.getByRole("tab", { name: "Set Up", exact: true }).click();
+    await reorder(reorderEditor, "B", "ArrowUp");
+    await collapse(reorderEditor);
+    records.push({ reordered: await timeGeometry(page, widget, true, true) });
+    const model = await saved(page);
+    expect(model).toMatchObject({
+      chartType: "normalizedLine",
+      cellRange: { columns: ["Date", "B", "A"] },
+      qopenbbAxisSettings: { version: 1, categoryType: "time", timeFormat: "%d/%m/%y" },
+    });
+    expect(model.aggFunc).toBeUndefined();
+    expectApplicationDiagnostics(diagnostics);
+    await page.close();
+    const reopened = await reopenSavedDashboard(browser, dashboardUrl, observePie);
+    sessions.reopened = reopened.diagnostics;
+    try {
+      expect(await saved(reopened.page)).toMatchObject({
+        chartType: model.chartType,
+        cellRange: model.cellRange,
+        qopenbbAxisSettings: model.qopenbbAxisSettings,
+      });
+      const restoredEditor = await openEditor(reopened.page, reopened.widget);
+      await restoredEditor.getByRole("tab", { name: "Customize", exact: true }).click();
+      await expand(restoredEditor, "Horizontal Axis");
+      await expect(
+        restoredEditor.getByRole("combobox", { name: "Axis Type", exact: true }),
+      ).toHaveValue("time");
+      await expect(
+        restoredEditor.getByRole("combobox", { name: "Time Format", exact: true }),
+      ).toHaveValue("%d/%m/%y");
+      await collapse(restoredEditor);
+      // Recheck both variants on the persisted grouped Date route, in B/A order.
+      for (const [variant, token] of coordinateVariants) {
+        await timeAxis(reopened.page, reopened.widget, variant);
+        records.push({
+          token,
+          reopened: await timeGeometry(
+            reopened.page,
+            reopened.widget,
+            token === "normalizedLine",
+            true,
+          ),
+        });
+      }
+      expectApplicationDiagnostics(reopened.diagnostics);
+    } finally {
+      await reopened.context.close();
+    }
+  } finally {
+    await writeFile(
+      info.outputPath("time-grouping.json"),
+      JSON.stringify(
+        {
+          identity,
+          oracle: "reviewed Grid/Charts source; original File Time route unavailable",
+          csv,
+          records,
+          diagnostics: sessions,
+        },
+        null,
+        2,
+      ),
     );
   }
 });
