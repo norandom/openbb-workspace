@@ -7,6 +7,7 @@ import type {
 import type { ChartDisplayPolicy } from "../application/types";
 import type { SnapshotColumn } from "../compatibility/snapshotTypes";
 import { fontStyle } from "./cartesianDisplay";
+import { isLineFamily } from "./cartesianLineTypes";
 import { markerSymbol } from "./cartesianMarkers";
 import type { CartesianFamily, CartesianMappingContext } from "./cartesianTypes";
 
@@ -105,7 +106,7 @@ function legendOptions(
     itemGap: 0,
     itemWidth: legendWidth(a, family),
     itemHeight:
-      family === "line" && !a.series.markers.enabled
+      isLineFamily(family) && !a.series.markers.enabled
         ? a.series.strokeWidth
         : l.markerSize,
     // ECharts adds five pixels between its icon and text. Compensate explicitly;
@@ -118,10 +119,10 @@ function legendOptions(
     itemStyle: { borderWidth: a.legendMarkerStrokeWidth },
     data: columns.map((c) => ({
       name: c.id,
-      ...(family === "line" && a.series.markers.enabled
+      ...(isLineFamily(family) && a.series.markers.enabled
         ? {}
         : {
-            icon: family === "line" ? "rect" : markerSymbol("square"),
+            icon: isLineFamily(family) ? "rect" : markerSymbol("square"),
           }),
       symbolKeepAspect: true,
     })),
@@ -133,7 +134,7 @@ function legendWidth(
   family: CartesianFamily | "rangeBar" | "rangeArea" | "waterfall",
 ): number {
   // Original line legends include a 25px series sample, even with markers hidden.
-  return family === "line" ? Math.max(25, a.legend.markerSize) : a.legend.markerSize;
+  return isLineFamily(family) ? Math.max(25, a.legend.markerSize) : a.legend.markerSize;
 }
 export function applicationLayout(
   a: ResolvedApplicationAppearance,

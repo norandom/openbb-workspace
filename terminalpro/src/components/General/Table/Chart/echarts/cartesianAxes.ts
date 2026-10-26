@@ -6,6 +6,7 @@ import { isAreaFamily } from "./cartesianAreaTypes";
 import { fontStyle, timeLabel } from "./cartesianDisplay";
 import { alternatingGrid } from "./cartesianGrid";
 import { measureText } from "./cartesianLayout";
+import { isLineFamily, isStackedLineFamily } from "./cartesianLineTypes";
 import type { CartesianFamily, CartesianMappingContext } from "./cartesianTypes";
 import { isHorizontalCartesianFamily } from "./cartesianTypes";
 
@@ -13,7 +14,9 @@ export function ordinalLineCategory(
   axis: ResolvedApplicationAxis,
   family: CartesianFamily | "waterfall",
 ): boolean {
-  return (family === "line" || isAreaFamily(family)) && axis.fields.type === "category";
+  return (
+    (isLineFamily(family) || isAreaFamily(family)) && axis.fields.type === "category"
+  );
 }
 
 function numberExtent(snapshot: ChartSnapshot, pixels: number) {
@@ -51,9 +54,11 @@ function safeAreaExtent(min: number, max: number, pixels: number) {
   const initial = niceNumberExtent(min, max, pixels);
   // Refit tick density after outward rounding expands the visible domain.
   const nice = niceNumberExtent(initial.min ?? min, initial.max ?? max, pixels);
-  return nice.interval !== undefined && nice.interval > 0 &&
+  return nice.interval !== undefined &&
+    nice.interval > 0 &&
     [nice.min, nice.max, nice.interval].every(Number.isFinite)
-    ? nice : { min, max };
+    ? nice
+    : { min, max };
 }
 
 export function continuousCategory(axis: ResolvedApplicationAxis): boolean {
@@ -87,24 +92,39 @@ function rotation(
   return overlap ? 25 : 0;
 }
 function areaNumericPixels(
-  category: ResolvedApplicationAxis, snapshot: ChartSnapshot, display: ChartDisplayPolicy,
+  category: ResolvedApplicationAxis,
+  snapshot: ChartSnapshot,
+  display: ChartDisplayPolicy,
   viewport: NonNullable<CartesianMappingContext["viewport"]>,
 ): number {
   const horizontal = ["top", "bottom"].includes(category.fields.position);
-  const angle = rotation(category, snapshot, display, viewport) * Math.PI / 180;
-  const labelSize = Math.max(0, ...snapshot.rows.map(row => {
-    const text = category.fields.type === "time" ? timeLabel(row.category, category.fields.timeFormat)
-      : String(display.category(row.category));
-    const size = measureText(text, category.labels);
-    return horizontal ? Math.abs(size.width * Math.sin(angle)) + Math.abs(size.height * Math.cos(angle))
-      : Math.abs(size.width * Math.cos(angle)) + Math.abs(size.height * Math.sin(angle));
-  }));
+  const angle = (rotation(category, snapshot, display, viewport) * Math.PI) / 180;
+  const labelSize = Math.max(
+    0,
+    ...snapshot.rows.map((row) => {
+      const text =
+        category.fields.type === "time"
+          ? timeLabel(row.category, category.fields.timeFormat)
+          : String(display.category(row.category));
+      const size = measureText(text, category.labels);
+      return horizontal
+        ? Math.abs(size.width * Math.sin(angle)) +
+            Math.abs(size.height * Math.cos(angle))
+        : Math.abs(size.width * Math.cos(angle)) +
+            Math.abs(size.height * Math.sin(angle));
+    }),
+  );
   // ECharts outerBoundsContain shrinks the grid for outward labels, ticks and names.
   const labels = category.labels.padding + labelSize;
   const ticks = category.ticks.enabled ? category.ticks.length : 0;
-  const title = category.title.enabled && category.title.text
-    ? category.title.spacing + measureText(category.title.text, category.title).height : 0;
-  return Math.max(1, (horizontal ? viewport.height : viewport.width) - Math.max(labels, ticks, title));
+  const title =
+    category.title.enabled && category.title.text
+      ? category.title.spacing + measureText(category.title.text, category.title).height
+      : 0;
+  return Math.max(
+    1,
+    (horizontal ? viewport.height : viewport.width) - Math.max(labels, ticks, title),
+  );
 }
 function axisOptions(
   axis: ResolvedApplicationAxis,
@@ -218,9 +238,15 @@ export function applicationAxes(
   const n = {
     ...axisOptions(number, snapshot, display, false, viewport, family),
     ...extent,
-    ...(isAreaFamily(family) && extent.min !== undefined && extent.max !== undefined && extent.interval === undefined
-      ? safeAreaExtent(extent.min, extent.max,
-          areaNumericPixels(category, snapshot, display, viewport))
+    ...((isAreaFamily(family) || isStackedLineFamily(family)) &&
+    extent.min !== undefined &&
+    extent.max !== undefined &&
+    extent.interval === undefined
+      ? safeAreaExtent(
+          extent.min,
+          extent.max,
+          areaNumericPixels(category, snapshot, display, viewport),
+        )
       : {}),
   };
   return category.fields.position === "top" || category.fields.position === "bottom"

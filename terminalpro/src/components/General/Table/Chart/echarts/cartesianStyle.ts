@@ -1,5 +1,6 @@
 import type { SnapshotDiagnostic } from "../compatibility/snapshotTypes";
 import { applicationDiagnostics } from "./cartesianApplicationValidation";
+import { isLineFamily } from "./cartesianLineTypes";
 import type {
   CaptionAppearance,
   CaptionTypography,
@@ -182,7 +183,7 @@ function validate(input: unknown, family: CartesianFamily): StyleValidation {
   if (diagnostics.length) return { status: "invalid", diagnostics };
   const style = input as unknown as ResolvedCartesianStyle;
   if (
-    family === "line" &&
+    isLineFamily(family) &&
     style.application === undefined &&
     style.line?.markers.enabled &&
     style.line.markers.shape !== "circle"
@@ -252,7 +253,7 @@ export const seriesAppearance: SeriesAppearance = (
   const override = style.series[seriesId];
   const palette = style.palette[paletteIndex % style.palette.length];
   const width = override?.strokeWidth ?? override?.lineWidth;
-  if (family !== "line")
+  if (!isLineFamily(family))
     return {
       itemStyle: {
         color: override?.fill ?? override?.color,

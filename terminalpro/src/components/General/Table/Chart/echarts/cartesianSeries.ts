@@ -8,10 +8,11 @@ import {
   ordinalLineCategory,
 } from "./cartesianAxes";
 import { fontStyle } from "./cartesianDisplay";
+import { isLineFamily } from "./cartesianLineTypes";
 import { markerDimensions, markerSymbol } from "./cartesianMarkers";
 import { seriesAppearance } from "./cartesianStyle";
-import { isNormalizedFamily } from "./cartesianTypes";
 import type { CartesianFamily, ResolvedCartesianStyle } from "./cartesianTypes";
+import { isNormalizedFamily } from "./cartesianTypes";
 
 function alpha(value: string, opacity: number): string {
   if (opacity === 1) return value;
@@ -46,6 +47,7 @@ export function applicationSeries(
   snapshot: ChartSnapshot,
   family: CartesianFamily,
   display: ChartDisplayPolicy,
+  drawn: ChartSnapshot = snapshot,
 ) {
   const a = style.application;
   if (!a) return {};
@@ -59,7 +61,7 @@ export function applicationSeries(
     override?.stroke ??
     override?.color ??
     a.palette.strokes[index % a.palette.strokes.length];
-  const line = family === "line";
+  const line = isLineFamily(family);
   const width = override?.strokeWidth ?? override?.lineWidth ?? s.strokeWidth;
   return {
     itemStyle: {
@@ -82,6 +84,9 @@ export function applicationSeries(
       show: s.labels.enabled,
       position: line ? "top" : "inside",
       formatter: (params: { dataIndex: number }) => {
+        const admitted = drawn.rows[params.dataIndex]?.values[column.id];
+        if (admitted === null || admitted === undefined || !Number.isFinite(admitted))
+          return "";
         const value = snapshot.rows[params.dataIndex]?.values[column.id];
         return typeof value === "number" ? String(display.seriesLabel(value)) : "";
       },
@@ -123,9 +128,9 @@ export function cartesianSeries(
       name: column.id,
       data: observationData(drawn, column, style, family),
       ...seriesAppearance(style, column.id, index, family),
-      ...applicationSeries(style, column, index, snapshot, family, display),
+      ...applicationSeries(style, column, index, snapshot, family, display, drawn),
     };
-    if (family === "line") return { ...common, type: "line" } as LineSeriesOption;
+    if (isLineFamily(family)) return { ...common, type: "line" } as LineSeriesOption;
     return {
       ...common,
       type: "bar",
