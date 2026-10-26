@@ -334,3 +334,88 @@ it("keeps amount axes finite when the admitted endpoint span overflows", () => {
   expect(axes.yAxis.max).toBe(Number.MAX_VALUE);
   expect(axes.yAxis.interval).toBeUndefined();
 });
+
+it.each([
+  "stackedLine",
+  "normalizedLine",
+] as const)("paints %s missing-data topology with the saved connection override", (family) => {
+  const source = input(
+    [
+      [10, 5],
+      [null, 5],
+      [20, 5],
+    ],
+    ["A", "B", "C"],
+  );
+  const style = applicationStyle();
+  const context = mappingContext();
+  const projection = projectLineStack({ ...source, family });
+  const chart = init(null, undefined, {
+    renderer: "svg",
+    ssr: true,
+    width: 800,
+    height: 500,
+  });
+  try {
+    for (const connect of [true, false]) {
+      style.application.series.connectMissingData = connect;
+      chart.setOption({
+        animation: false,
+        ...applicationAxes(
+          style.application.axes.category,
+          style.application.axes.number,
+          source.snapshot,
+          context.display,
+          context.viewport!,
+          family,
+          projection.extent,
+        ),
+        series: cartesianSeries(
+          source.snapshot,
+          source.columns,
+          family,
+          style,
+          context.display,
+          projection.drawn,
+        ),
+      });
+      const svg = chart.renderToSVGString();
+      expect(svg).not.toMatch(/NaN|Infinity/);
+      const document = new DOMParser().parseFromString(svg, "image/svg+xml");
+      const stroke = document.querySelectorAll(
+        'path[fill="none"][stroke="#123456"][stroke-width="3"]',
+      );
+      expect(stroke).toHaveLength(1);
+      const path = stroke[0].getAttribute("d")!;
+      // Public SVG commands distinguish an actual bridge from two isolated moves.
+      expect(path.match(/[ML]/g)).toEqual(connect ? ["M", "L"] : ["M", "M"]);
+      const coordinates = path.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi)!.map(Number);
+      expect(coordinates).toHaveLength(4);
+      const endpoints = [
+        [0, family === "stackedLine" ? 10 : (100 * 10) / 15],
+        [2, family === "stackedLine" ? 20 : 80],
+      ];
+      endpoints.forEach((endpoint, index) => {
+        const pixel = chart.convertToPixel({ gridIndex: 0 }, endpoint) as number[];
+        // ECharts serializes SVG path coordinates to one decimal place.
+        expect(coordinates[index * 2]).toBe(Number(pixel[0].toFixed(1)));
+        expect(coordinates[index * 2 + 1]).toBe(Number(pixel[1].toFixed(1)));
+      });
+      const markers = document.querySelectorAll(
+        'path[ecmeta_series_index="0"][ecmeta_data_index]',
+      );
+      expect(
+        [...markers].map((marker) => marker.getAttribute("ecmeta_data_index")),
+      ).toEqual(["0", "2"]);
+      const labels = [...document.querySelectorAll("text")]
+        .map((text) => text.textContent)
+        .filter((text) => text?.startsWith("label:"));
+      expect(labels.filter((text) => text === "label:10")).toHaveLength(1);
+      expect(labels.filter((text) => text === "label:20")).toHaveLength(1);
+      expect(labels).toHaveLength(5);
+      expect(svg).not.toContain("label:null");
+    }
+  } finally {
+    chart.dispose();
+  }
+});
