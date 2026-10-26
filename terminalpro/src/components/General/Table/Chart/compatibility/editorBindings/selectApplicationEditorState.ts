@@ -4,6 +4,7 @@ import type {
 } from "../../application/appearanceModel";
 import { isXyChartFamily } from "../../application/xySessionTypes";
 import { isAreaFamily } from "../../echarts/cartesianAreaTypes";
+import { isLineFamily } from "../../echarts/cartesianLineTypes";
 import { isCartesianFamily } from "../../echarts/cartesianTypes";
 import {
   displayFont,
@@ -55,13 +56,12 @@ function axisState(input: EditorSelectionInput, axis: ApplicationAxisId) {
 }
 function seriesControls(input: EditorSelectionInput) {
   const series = input.style.application.series;
-  const fields =
-    input.family === "line"
-      ? (["strokeWidth", "lineDash", "strokeOpacity"] as const)
-      : (["strokeWidth", "lineDash", "strokeOpacity", "fillOpacity"] as const);
+  const fields = isLineFamily(input.family)
+    ? (["strokeWidth", "lineDash", "strokeOpacity"] as const)
+    : (["strokeWidth", "lineDash", "strokeOpacity", "fillOpacity"] as const);
   const labels = {
     strokeWidth:
-      input.family === "line" ||
+      isLineFamily(input.family) ||
       isAreaFamily(input.family) ||
       input.family === "rangeArea"
         ? "Line Width"
@@ -89,6 +89,7 @@ export const selectApplicationEditorState: SelectApplicationEditorState = (input
     if (
       !isCartesianFamily(input.family) &&
       !isAreaFamily(input.family) &&
+      !isLineFamily(input.family) &&
       !isXyChartFamily(input.family) &&
       input.family !== "histogram" &&
       input.family !== "rangeBar" &&

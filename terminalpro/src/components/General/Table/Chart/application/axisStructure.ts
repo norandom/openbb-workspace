@@ -4,6 +4,7 @@ import set from "lodash/set";
 import { keys, record } from "../compatibility/editorBindings/validation";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import { isAreaFamily } from "../echarts/cartesianAreaTypes";
+import { isLineFamily } from "../echarts/cartesianLineTypes";
 import { isCartesianFamily } from "../echarts/cartesianTypes";
 import type {
   ApplicationConcreteAxis,
@@ -14,7 +15,11 @@ import type {
 
 const types = ["number", "category", "time", "grouped-category"];
 function selectedAxis(input: AxisStructureInput): ApplicationConcreteAxis {
-  if (!isCartesianFamily(input.family) && input.family !== "waterfall")
+  if (
+    !isCartesianFamily(input.family) &&
+    !isLineFamily(input.family) &&
+    input.family !== "waterfall"
+  )
     throw new Error("Invalid Cartesian family");
   const event = record(input.event);
   keys(event, ["panel", "axis", "edit"]);
@@ -49,7 +54,7 @@ function transfer(
       ? "waterfall"
       : isAreaFamily(input.family)
         ? "area"
-        : input.family === "line"
+        : isLineFamily(input.family)
           ? "line"
           : "bar";
   const source = get(input.savedOptions, [family, "axes", axis.type]);

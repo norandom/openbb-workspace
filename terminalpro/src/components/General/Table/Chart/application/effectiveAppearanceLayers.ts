@@ -2,6 +2,7 @@ import merge from "lodash.merge";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import { selectOptionBaseline } from "../compatibility/optionState";
 import { isAreaFamily } from "../echarts/cartesianAreaTypes";
+import { isLineFamily } from "../echarts/cartesianLineTypes";
 import { composeAppearanceOptions } from "./appearanceComposition";
 import type { AppearanceInput } from "./appearanceModel";
 import { appearanceDefaults } from "./effectiveAppearanceDefaults";
@@ -23,7 +24,7 @@ export function appearanceLayers(input: AppearanceInput): RuntimeOptions[] {
   if (!selected.valid) throw new Error(selected.error);
   const family = isAreaFamily(input.family)
     ? "area"
-    : input.family === "line"
+    : isLineFamily(input.family)
       ? "line"
       : "bar";
   const overrides = [
@@ -35,7 +36,7 @@ export function appearanceLayers(input: AppearanceInput): RuntimeOptions[] {
   const supplied = merge({}, ...overrides);
   const defaults = appearanceDefaults(input);
   const series = object(defaults.series);
-  if (input.family !== "line" && at(supplied, "series.stroke") !== undefined)
+  if (!isLineFamily(input.family) && at(supplied, "series.stroke") !== undefined)
     series.strokeWidth = 2;
   if (at(supplied, "series.marker.stroke") !== undefined)
     object(series.marker).strokeWidth = 1;

@@ -1,6 +1,7 @@
 import { isPieChartFamily } from "../../application/pieSessionTypes";
 import { isXyChartFamily } from "../../application/xySessionTypes";
 import { isAreaFamily } from "../../echarts/cartesianAreaTypes";
+import { isLineFamily } from "../../echarts/cartesianLineTypes";
 import { isCartesianFamily } from "../../echarts/cartesianTypes";
 import type { RuntimeOptions } from "../legacyTypes";
 import type { ApplicationEditorEvent, MapApplicationEditorEvent } from "./types";
@@ -123,6 +124,7 @@ export const mapApplicationEditorEvent: MapApplicationEditorEvent = (event, fami
     if (
       !isCartesianFamily(family) &&
       !isAreaFamily(family) &&
+      !isLineFamily(family) &&
       !isXyChartFamily(family) &&
       family !== "histogram" &&
       family !== "rangeBar" &&
@@ -175,7 +177,7 @@ export const mapApplicationEditorEvent: MapApplicationEditorEvent = (event, fami
                   ? family
                   : isAreaFamily(family)
                     ? "area"
-                    : family === "line"
+                    : isLineFamily(family)
                       ? "line"
                       : "bar"]: eventPatch(event),
       },

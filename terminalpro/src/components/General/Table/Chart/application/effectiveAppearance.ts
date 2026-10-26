@@ -1,6 +1,7 @@
 import merge from "lodash.merge";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import { isAreaFamily } from "../echarts/cartesianAreaTypes";
+import { isLineFamily } from "../echarts/cartesianLineTypes";
 import { isCartesianFamily } from "../echarts/cartesianTypes";
 import type {
   AppearanceInput,
@@ -20,7 +21,11 @@ import {
 } from "./effectiveAppearanceValues";
 
 function validateInput(input: AppearanceInput): void {
-  if (!isCartesianFamily(input.family) && !isAreaFamily(input.family))
+  if (
+    !isCartesianFamily(input.family) &&
+    !isAreaFamily(input.family) &&
+    !isLineFamily(input.family)
+  )
     throw new Error("Unsupported appearance family");
   number(input.precision, 0, 20);
   if (!Number.isInteger(input.precision))
@@ -87,7 +92,7 @@ export function resolveCommonAppearance(
     ...resolveAppearanceChrome(
       sourceLayers,
       input.theme.palette,
-      input.family === "line" ? series.markers.strokeWidth : series.strokeWidth,
+      isLineFamily(input.family) ? series.markers.strokeWidth : series.strokeWidth,
     ),
     axes: {
       category: resolveAppearanceAxis(sourceLayers, category),

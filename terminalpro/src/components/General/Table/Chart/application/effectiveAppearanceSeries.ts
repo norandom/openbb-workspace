@@ -1,3 +1,4 @@
+import { isLineFamily } from "../echarts/cartesianLineTypes";
 import type { CartesianFamily } from "../echarts/cartesianTypes";
 import type { ResolvedApplicationSeries } from "./appearanceModel";
 import {
@@ -6,8 +7,8 @@ import {
   dash,
   font,
   number,
-  text,
   type ReadAppearance,
+  text,
 } from "./effectiveAppearanceValues";
 
 export function resolveAppearanceSeries(
@@ -45,7 +46,7 @@ export function paletteSeries(
 ) {
   return {
     fill: text(read("fill") ?? fill),
-    stroke: text(read("stroke") ?? (family === "line" ? fill : stroke)),
+    stroke: text(read("stroke") ?? (isLineFamily(family) ? fill : stroke)),
     strokeWidth: series.strokeWidth,
     markerFill: text(read("marker.fill") ?? fill),
     markerStroke: text(read("marker.stroke") ?? stroke),

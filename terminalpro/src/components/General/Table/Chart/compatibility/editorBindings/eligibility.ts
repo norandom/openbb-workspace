@@ -1,5 +1,6 @@
 import type { ApplicationAxisId } from "../../application/appearanceModel";
 import { isAreaFamily } from "../../echarts/cartesianAreaTypes";
+import { isLineFamily } from "../../echarts/cartesianLineTypes";
 import type { CartesianFamily } from "../../echarts/cartesianTypes";
 import type { EditorEligibility } from "./types";
 
@@ -24,10 +25,13 @@ export function deriveEditorEligibility(
   const common = { position: true, grid: true, ticks: true };
   return {
     legend: true,
-    shadow: input.family !== "line" && input.family !== "rangeBar" && input.family !== "waterfall",
+    shadow:
+      !isLineFamily(input.family) &&
+      input.family !== "rangeBar" &&
+      input.family !== "waterfall",
     labels: input.family !== "waterfall",
     markers:
-      input.family === "line" ||
+      isLineFamily(input.family) ||
       isAreaFamily(input.family) ||
       input.family === "rangeArea",
     connectMissingData: input.family === "line" || input.family === "rangeArea",
@@ -41,7 +45,10 @@ export function deriveEditorEligibility(
           !input.categorySeriesSwitched,
         timeFormat: category === "time",
         ticks: input.family !== "rangeBar" && input.family !== "waterfall",
-        tickLength: input.family !== "rangeBar" && input.family !== "waterfall" && category !== "grouped-category",
+        tickLength:
+          input.family !== "rangeBar" &&
+          input.family !== "waterfall" &&
+          category !== "grouped-category",
         autoRotate: category !== "grouped-category",
       },
       number: {

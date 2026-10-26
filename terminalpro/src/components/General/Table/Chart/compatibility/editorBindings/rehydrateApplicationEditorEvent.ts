@@ -2,13 +2,14 @@ import type {
   ApplicationAxisId,
   ResolvedFontStyle,
 } from "../../application/appearanceModel";
+import { isLineFamily } from "../../echarts/cartesianLineTypes";
+import { mapApplicationEditorEvent } from "./mapApplicationEditorEvent";
 import type {
   ApplicationEditorEvent,
   ApplicationEditorIntent,
   RehydrateApplicationEditorEvent,
   RehydrateEditorEventInput,
 } from "./types";
-import { mapApplicationEditorEvent } from "./mapApplicationEditorEvent";
 import { binding, keys, record } from "./validation";
 
 function fontContext(font: ResolvedFontStyle) {
@@ -28,7 +29,7 @@ function validateEligibility(
     throw new Error("Editor panel is no longer eligible");
   if (
     intent.panel === "series" &&
-    input.selection.family === "line" &&
+    isLineFamily(input.selection.family) &&
     intent.edit.field === "fillOpacity"
   )
     throw new Error("Line fill opacity is not an original control");
@@ -57,9 +58,13 @@ function hydrate(
     const caption = intent.edit.caption;
     const axis: ApplicationAxisId | undefined =
       caption === "horizontalAxisTitle"
-        ? (input.bindings.category.direction === "x" ? "category" : "number")
+        ? input.bindings.category.direction === "x"
+          ? "category"
+          : "number"
         : caption === "verticalAxisTitle"
-          ? (input.bindings.category.direction === "y" ? "category" : "number")
+          ? input.bindings.category.direction === "y"
+            ? "category"
+            : "number"
           : undefined;
     const font = axis
       ? appearance.axes[axis].title
