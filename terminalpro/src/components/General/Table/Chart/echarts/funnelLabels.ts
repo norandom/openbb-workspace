@@ -70,6 +70,8 @@ function textGroup(
   area: FunnelRect,
   x: number,
   y: number,
+  align: "left" | "center" | "right" = "center",
+  verticalAlign: "top" | "middle" | "bottom" = "middle",
 ) {
   if (!area.width || !area.height || !font.enabled) return;
   return {
@@ -86,24 +88,46 @@ function textGroup(
           fill: font.color,
           x,
           y,
-          align: "center" as const,
-          verticalAlign: "middle" as const,
+          align,
+          verticalAlign,
         },
       },
     ],
   };
 }
+function stageLabelClip(input: FunnelRenderInput, area: FunnelRect): FunnelRect {
+  if (!area.width || !area.height) return area;
+  const padding = input.style.seriesAreaPadding;
+  const horizontal = input.style.direction === "horizontal";
+  const start = horizontal ? area.x : area.y;
+  const length = horizontal ? area.width : area.height;
+  const before = horizontal ? padding.left : padding.top;
+  const after = horizontal ? padding.right : padding.bottom;
+  const limit = horizontal
+    ? input.context.viewport.width
+    : input.context.viewport.height;
+  const low = Math.max(0, start - before);
+  const high = Math.min(limit, start + length + after);
+  // Endpoint labels may use reserved axial padding without widening their strip.
+  return horizontal
+    ? { ...area, x: low, width: Math.max(0, high - low) }
+    : { ...area, y: low, height: Math.max(0, high - low) };
+}
 export function funnelStageLabels(input: FunnelRenderInput, g: FunnelGeometry) {
   const horizontal = input.style.direction === "horizontal";
   const area = g.stageLabelArea;
+  const clip = stageLabelClip(input, area);
+  const before = input.style.stageLabel.placement === "before";
   return input.data.stages.flatMap((stage, index) => {
     const p = g.positions[index];
     const label = textGroup(
       String(input.context.display.category(stage.category)),
       input.style.stageLabel,
-      area,
-      horizontal ? p[0] : area.x + area.width / 2,
-      horizontal ? area.y + area.height / 2 : p[1],
+      clip,
+      horizontal ? p[0] : before ? area.x + area.width : area.x,
+      horizontal ? (before ? area.y + area.height : area.y) : p[1],
+      horizontal ? "center" : before ? "right" : "left",
+      horizontal ? (before ? "bottom" : "top") : "middle",
     );
     return label ? [label] : [];
   });

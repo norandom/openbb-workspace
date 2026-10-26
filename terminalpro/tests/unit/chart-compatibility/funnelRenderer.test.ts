@@ -1,10 +1,119 @@
-import { init } from "echarts";
+import { graphic, init } from "echarts";
 import { describe, expect, it } from "vitest";
 import { translateFunnel } from "../../../src/components/General/Table/Chart/echarts/funnel";
 import { funnelGeometry } from "../../../src/components/General/Table/Chart/echarts/funnelGeometry";
+import {
+  funnelNumericLabel,
+  funnelStageLabels,
+} from "../../../src/components/General/Table/Chart/echarts/funnelLabels";
 import { fixture } from "./funnelFixture";
 
 describe("inactive Funnel ECharts rendering", () => {
+  it.each([
+    "funnel",
+    "coneFunnel",
+    "pyramid",
+  ] as const)("anchors %s stage labels toward the plot on either side and direction", (family) => {
+    for (const direction of ["vertical", "horizontal"] as const)
+      for (const placement of ["before", "after"] as const) {
+        const base = fixture(family, [8, 4, 2]);
+        const input = {
+          ...base,
+          style: {
+            ...base.style,
+            direction,
+            seriesAreaPadding: { top: 20, bottom: 17, left: 15, right: 13 },
+            stageLabel: { ...base.style.stageLabel, placement },
+          },
+        };
+        const geometry = funnelGeometry(input);
+        const unchanged = structuredClone(geometry);
+        const numeric = funnelNumericLabel(input, geometry, 0);
+        const labels = funnelStageLabels(input, geometry);
+        expect(labels).toHaveLength(3);
+        const area = geometry.stageLabelArea;
+        for (const [index, group] of labels.entries()) {
+          const text = group.children[0].style;
+          const clip = group.clipPath.shape;
+          if (direction === "vertical") {
+            expect(text.align).toBe(placement === "before" ? "right" : "left");
+            expect(text.verticalAlign).toBe("middle");
+            expect(text.x).toBe(placement === "before" ? area.x + area.width : area.x);
+            expect(text.y).toBe(geometry.positions[index][1]);
+            expect(clip.x).toBe(area.x);
+            expect(clip.width).toBe(area.width);
+            expect(clip.y).toBe(area.y - 20);
+            expect(clip.height).toBe(area.height + 37);
+          } else {
+            expect(text.align).toBe("center");
+            expect(text.verticalAlign).toBe(placement === "before" ? "bottom" : "top");
+            expect(text.y).toBe(placement === "before" ? area.y + area.height : area.y);
+            expect(text.x).toBe(geometry.positions[index][0]);
+            expect(clip.y).toBe(area.y);
+            expect(clip.height).toBe(area.height);
+            expect(clip.x).toBe(area.x - 15);
+            expect(clip.width).toBe(area.width + 28);
+          }
+          expect(clip.x).toBeGreaterThanOrEqual(0);
+          expect(clip.y).toBeGreaterThanOrEqual(0);
+          expect(clip.x + clip.width).toBeLessThanOrEqual(input.context.viewport.width);
+          expect(clip.y + clip.height).toBeLessThanOrEqual(
+            input.context.viewport.height,
+          );
+        }
+        expect(geometry).toEqual(unchanged);
+        expect(funnelNumericLabel(input, geometry, 0)).toEqual(numeric);
+        expect(numeric!.children[0].style).toMatchObject({
+          align: "center",
+          verticalAlign: "middle",
+        });
+      }
+  });
+  it("fits measured vertical Cone endpoint glyphs inside reserved axial padding", () => {
+    const base = fixture("coneFunnel", [100, 80, 60, 40, 20]);
+    const names = [
+      "Revenue",
+      "Gross profit",
+      "Operating income",
+      "Pretax income",
+      "Net income",
+    ];
+    const input = {
+      ...base,
+      data: {
+        ...base.data,
+        stages: base.data.stages.map((stage, index) => ({
+          ...stage,
+          category: names[index],
+        })),
+      },
+      style: {
+        ...base.style,
+        seriesAreaPadding: { top: 20, bottom: 20, left: 0, right: 0 },
+      },
+    };
+    const geometry = funnelGeometry(input);
+    const result = translateFunnel(input);
+    if (result.status !== "supported") throw Error("unsupported");
+    const labels = result.options.graphic as ReturnType<typeof funnelStageLabels>;
+    expect(labels).toHaveLength(5);
+    for (const [index, label] of labels.entries()) {
+      const text = label.children[0].style;
+      const bounds = new graphic.Text({ style: text }).getBoundingRect();
+      const clip = label.clipPath.shape;
+      expect(text.text).toBe(names[index]);
+      expect(text.y).toBe(geometry.positions[index][1]);
+      expect(bounds.x).toBeGreaterThanOrEqual(clip.x - 1e-8);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(clip.x + clip.width + 1e-8);
+      expect(bounds.y).toBeGreaterThanOrEqual(clip.y);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(clip.y + clip.height);
+    }
+    expect(labels[0].children[0].style.y).toBe(geometry.plot.y);
+    expect(labels.at(-1)!.children[0].style.y).toBe(
+      geometry.plot.y + geometry.plot.height,
+    );
+    expect(labels[0].clipPath.shape.y).toBe(geometry.plot.y - 20);
+  });
   it("uses actual engine hit testing for final/zero stages and leaves missing strips empty", () => {
     for (const family of ["funnel", "coneFunnel"] as const)
       for (const direction of ["vertical", "horizontal"] as const) {
