@@ -118,15 +118,17 @@ function magnitude(input: FunnelRenderInput, plot: FunnelRect, index: number) {
       center: point(plot, horizontal, a, 0.5),
     };
   }
-  const gap = input.style.spacingRatio / (2 * n);
-  const a = index / n + gap;
-  const b = (index + 1) / n - gap;
+  // Native Funnel bands have inner spacing only; a singleton fills its band.
+  const spacing = n > 1 ? input.style.spacingRatio : 0;
+  const denominator = n - spacing;
+  const a = index / denominator;
+  const b = index === n - 1 ? 1 : (index + 1 - spacing) / denominator;
   return {
     points: polygon(plot, horizontal, a, b, ratio, ratio),
-    center: point(plot, horizontal, (index + 0.5) / n, 0.5),
+    center: point(plot, horizontal, (a + b) / 2, 0.5),
     connector:
       input.style.dropOff.enabled && next != null
-        ? polygon(plot, horizontal, b, (index + 1) / n + gap, ratio, next)
+        ? polygon(plot, horizontal, b, (index + 1) / denominator, ratio, next)
         : undefined,
   };
 }

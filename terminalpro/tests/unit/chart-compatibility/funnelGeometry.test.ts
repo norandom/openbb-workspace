@@ -4,12 +4,109 @@ import { funnelGeometry } from "../../../src/components/General/Table/Chart/echa
 import { fixture } from "./funnelFixture";
 
 describe("Funnel finite geometry", () => {
+  it.each([
+    "vertical",
+    "horizontal",
+  ] as const)("matches native zero-outer five-band spacing and centers in %s", (direction) => {
+    const input = fixture("funnel", [8, 7, 6, 5, 4]);
+    const g = funnelGeometry({ ...input, style: { ...input.style, direction } });
+    const axis = direction === "vertical" ? 1 : 0;
+    const start = direction === "vertical" ? g.plot.y : g.plot.x;
+    const length = direction === "vertical" ? g.plot.height : g.plot.width;
+    // Native BandScale n=5, inner=1/4, outer=0: bandwidth=3L/19,
+    // gap=L/19, step=4L/19; both plot endpoints are occupied.
+    expect(g.stages[0].points[0][axis]).toBe(start);
+    expect(g.stages[4].points[2][axis]).toBe(start + length);
+    for (const [index, stage] of g.stages.entries()) {
+      const a = stage.points[0][axis];
+      const b = stage.points[2][axis];
+      expect(a).toBeCloseTo(start + (4 * index * length) / 19, 10);
+      expect(b - a).toBeCloseTo((3 * length) / 19, 10);
+      expect(stage.center[axis]).toBeCloseTo((a + b) / 2, 10);
+      expect(g.positions[index]).toEqual(stage.center);
+      if (index < 4) {
+        expect(stage.connector![0][axis]).toBe(b);
+        expect(stage.connector![2][axis] - b).toBeCloseTo(length / 19, 10);
+        expect(stage.connector![2][axis]).toBe(g.stages[index + 1].points[0][axis]);
+      }
+      for (const [x, y] of [
+        ...stage.points,
+        ...(stage.connector ?? []),
+        stage.center,
+      ]) {
+        expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+        expect(x).toBeGreaterThanOrEqual(g.plot.x);
+        expect(x).toBeLessThanOrEqual(g.plot.x + g.plot.width);
+        expect(y).toBeGreaterThanOrEqual(g.plot.y);
+        expect(y).toBeLessThanOrEqual(g.plot.y + g.plot.height);
+      }
+    }
+  });
+  it("fills singleton bands and bounds touching or fully spaced pairs", () => {
+    for (const direction of ["vertical", "horizontal"] as const) {
+      for (const count of [1, 2])
+        for (const spacingRatio of [0, 0.25, 1]) {
+          const input = fixture("funnel", count === 1 ? [8] : [8, 4]);
+          if (input.style.family !== "funnel") throw Error("fixture");
+          const g = funnelGeometry({
+            ...input,
+            style: { ...input.style, direction, spacingRatio },
+          });
+          const axis = direction === "vertical" ? 1 : 0;
+          const start = direction === "vertical" ? g.plot.y : g.plot.x;
+          const length = direction === "vertical" ? g.plot.height : g.plot.width;
+          expect(g.stages[0].points[0][axis]).toBe(start);
+          expect(g.stages.at(-1)!.points[2][axis]).toBe(start + length);
+          for (const stage of g.stages) {
+            const a = stage.points[0][axis];
+            const b = stage.points[2][axis];
+            const expectedWidth =
+              count === 1 ? length : (length * (1 - spacingRatio)) / (2 - spacingRatio);
+            expect(b - a).toBeCloseTo(expectedWidth, 10);
+            expect(stage.center[axis]).toBeCloseTo((a + b) / 2, 10);
+            expect(stage.points.flat().every(Number.isFinite)).toBe(true);
+            expect(stage.hitArea).toBeDefined();
+          }
+          if (count === 1) expect(g.stages[0].connector).toBeUndefined();
+          else
+            expect(
+              g.stages[0].connector![2][axis] - g.stages[0].connector![0][axis],
+            ).toBeCloseTo(
+              spacingRatio === 0 ? 0 : (length * spacingRatio) / (2 - spacingRatio),
+              10,
+            );
+        }
+    }
+  });
+  it("does not divide an empty stage domain or draw a zero-sized plot", () => {
+    const input = fixture("funnel", [8]);
+    if (input.data.family !== "funnel") throw Error("fixture");
+    const empty = funnelGeometry({
+      ...input,
+      data: { ...input.data, stages: [], magnitudeRatios: [] },
+    });
+    expect(empty.stages).toEqual([]);
+    expect(empty.positions).toEqual([]);
+    const zero = funnelGeometry({
+      ...input,
+      context: { ...input.context, viewport: { width: 0, height: 0 } },
+    });
+    expect(zero.stages).toEqual([]);
+    expect(zero.positions.flat().every(Number.isFinite)).toBe(true);
+  });
   it("retains missing positions, signed magnitudes and separate adjacent dropoffs", () => {
     const g = funnelGeometry(fixture("funnel", [-8, 4, null, 0, 2]));
     expect(g.stages.map((s) => s.index)).toEqual([0, 1, 3, 4]);
     expect(g.stages.filter((s) => s.connector).map((s) => s.index)).toEqual([0, 3]);
     expect(g.stages[0].points[1][0] - g.stages[0].points[0][0]).toBe(g.plot.width);
     expect(g.stages[2].points[1][0] - g.stages[2].points[0][0]).toBe(0);
+    expect(g.positions).toHaveLength(5);
+    expect(g.positions[2][1]).toBeCloseTo(g.plot.y + g.plot.height / 2, 10);
+    for (const stage of g.stages.filter((stage) => stage.connector)) {
+      expect(stage.connector![0][1]).toBe(stage.points[2][1]);
+      const next = g.stages.find((next) => next.index === stage.index + 1)!;
+      expect(stage.connector![2][1]).toBe(next.points[0][1]);
+    }
   });
   it("uses Pyramid axial fractions rather than equal area and respects reverse", () => {
     const i = fixture("pyramid", [1, 1]);
