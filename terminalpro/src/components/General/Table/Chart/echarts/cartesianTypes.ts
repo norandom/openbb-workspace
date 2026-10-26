@@ -1,8 +1,9 @@
+import type { EChartsOption } from "echarts";
 import type { ResolvedApplicationAppearance } from "../application/appearanceModel";
 import type { ChartDisplayPolicy } from "../application/types";
-import type { EChartsOption } from "echarts";
 import type { ChartSnapshot, SnapshotDiagnostic } from "../compatibility/snapshotTypes";
-import { isAreaFamily, type AreaFamily } from "./cartesianAreaTypes";
+import { type AreaFamily, isAreaFamily } from "./cartesianAreaTypes";
+import type { LineFamily } from "./cartesianLineTypes";
 
 export type CartesianFamily =
   | AreaFamily
@@ -12,7 +13,7 @@ export type CartesianFamily =
   | "stackedBar"
   | "normalizedColumn"
   | "normalizedBar"
-  | "line";
+  | LineFamily;
 
 export function isHorizontalBarFamily(family: string): boolean {
   return family === "groupedBar" || family === "stackedBar";
@@ -21,11 +22,21 @@ export function isHorizontalCartesianFamily(family: string): boolean {
   return isHorizontalBarFamily(family) || family === "normalizedBar";
 }
 export function isNormalizedFamily(family: string): boolean {
-  return family === "normalizedColumn" || family === "normalizedBar" || family === "normalizedArea";
+  return (
+    family === "normalizedColumn" ||
+    family === "normalizedBar" ||
+    family === "normalizedArea"
+  );
 }
 export function isCartesianFamily(family: string): family is CartesianFamily {
-  return family === "groupedColumn" || family === "stackedColumn" ||
-    family === "line" || isHorizontalCartesianFamily(family) || isNormalizedFamily(family) || isAreaFamily(family);
+  return (
+    family === "groupedColumn" ||
+    family === "stackedColumn" ||
+    family === "line" ||
+    isHorizontalCartesianFamily(family) ||
+    isNormalizedFamily(family) ||
+    isAreaFamily(family)
+  );
 }
 export interface CartesianSeriesStyle {
   readonly color?: string;
@@ -150,7 +161,14 @@ export interface CartesianMappingContext {
   readonly viewport?: { readonly width: number; readonly height: number };
 }
 
-export type SetupAggregation = "sum" | "first" | "last" | "min" | "max" | "count" | "avg";
+export type SetupAggregation =
+  | "sum"
+  | "first"
+  | "last"
+  | "min"
+  | "max"
+  | "count"
+  | "avg";
 export type OrdinarySetupProjection =
   | { readonly kind: "ordinary-aggregate"; readonly aggFunc: SetupAggregation }
   | { readonly kind: "ordinary-switch"; readonly aggFunc?: SetupAggregation };
