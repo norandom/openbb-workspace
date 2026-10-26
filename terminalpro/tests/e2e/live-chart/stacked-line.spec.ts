@@ -196,6 +196,7 @@ async function endpoints(
   values: number[][],
   normalized: boolean,
   painted = true,
+  minimumTickMagnitude = 1e9,
 ) {
   const ticks = drawing.text
     .flatMap((t) => {
@@ -206,7 +207,9 @@ async function endpoints(
         ({ B: 1e9, M: 1e6, K: 1e3, T: 1e12, "%": 1, "": 1 }[match[2]] ?? 1);
       return [{ ...t, value }];
     })
-    .filter((t) => (normalized ? t.text.includes("%") : Math.abs(t.value) > 1e9));
+    .filter((t) =>
+      normalized ? t.text.includes("%") : Math.abs(t.value) > minimumTickMagnitude,
+    );
   const left = Math.min(...ticks.map((t) => t.x));
   const axis = ticks
     .filter((t) => Math.abs(t.x - left) < 30)
@@ -663,3 +666,311 @@ async function clickLegend(page: Page, widget: Locator, label: string) {
     box.y + text.bounds.y + text.bounds.height / 2,
   );
 }
+
+async function controlGeometry(
+  page: Page,
+  widget: Locator,
+  categories: string[],
+  coordinates: number[][],
+  raw: Record<string, number>[],
+  normalized: boolean,
+  legend: string[],
+) {
+  await tooltipControls(page, widget, "shared");
+  await stablePie(page, widget);
+  const drawing = await currentPie(page, widget);
+  let previousLegendX = Number.NEGATIVE_INFINITY;
+  for (const label of legend) {
+    const item = drawing.text.find((item) => item.text === label);
+    expect(item, `visible legend ${label}`).toBeDefined();
+    expect(
+      item!.bounds.x,
+      "short legend follows selected series order",
+    ).toBeGreaterThan(previousLegendX);
+    previousLegendX = item!.bounds.x;
+  }
+  const geometry = await endpoints(
+    page,
+    widget,
+    drawing,
+    categories,
+    coordinates,
+    normalized,
+    true,
+    0,
+  );
+  const box = await widget.locator("canvas").first().boundingBox();
+  if (!box) throw new Error("Control comparison canvas required");
+  const tooltips = [];
+  for (const [index, row] of geometry.entries()) {
+    const texts = new Set<string>();
+    for (const point of row.points) {
+      await page.mouse.move(0, 0);
+      await page.mouse.move(box.x + point.x, box.y + point.y);
+      const tip = nativeTooltip(widget).last();
+      await expect(tip).toBeVisible();
+      texts.add(await tip.innerText());
+    }
+    const text = [...texts].join("\n");
+    expect(text).toContain(categories[index]);
+    for (const [label, value] of Object.entries(raw[index]))
+      expect(text).toMatch(new RegExp(`${label}:\\s*${value}(?![\\d.])`));
+    tooltips.push([...texts]);
+  }
+  await page.mouse.move(0, 0);
+  return { geometry, tooltips };
+}
+
+for (const [variant, token] of [
+  ["Stacked Line", "stackedLine"],
+  ["100% Stacked Line", "normalizedLine"],
+] as const) {
+  test(`Stacked Line candidate ${variant} aggregate and category-series arithmetic`, async ({
+    page,
+  }, info) => {
+    test.setTimeout(180000);
+    const identity = candidateIdentity();
+    const diagnostics = await observeApplication(page);
+    const csv = "Category,Revenue,Cost\nA,11,3\nA,7,5\nB,-2,4\nA,,\n";
+    const records: unknown[] = [];
+    const normalized = token === "normalizedLine";
+    await observePie(page);
+    try {
+      await loginDisposableWorkspace(page);
+      const { widget } = await importOrdinaryTable(page, {
+        csv,
+        name: `${variant} setup arithmetic`,
+        expectedValue: "11",
+      });
+      await widget.locator("#chart-view-button").click();
+      await growPieWidget(page, widget, info);
+      let editor = await openEditor(page, widget);
+      await selectFamily(editor, variant);
+      await setup(editor, "Category", ["Revenue", "Cost"]);
+      await toggle(editor, "Switch Category / Series", false);
+      await toggle(editor, "Aggregate", true);
+      const method = editor.getByRole("combobox", {
+        name: "Aggregation method",
+        exact: true,
+      });
+      await expect(method).toHaveValue("sum");
+      await collapse(editor);
+      // Aggregate precedes stacking: A is [18,8], B is [-2,4].
+      records.push({
+        sum: await controlGeometry(
+          page,
+          widget,
+          ["A", "B"],
+          normalized
+            ? [
+                [900 / 13, 100],
+                [-100, 100],
+              ]
+            : [
+                [18, 26],
+                [-2, 2],
+              ],
+          [
+            { Revenue: 18, Cost: 8 },
+            { Revenue: -2, Cost: 4 },
+          ],
+          normalized,
+          ["Revenue", "Cost"],
+        ),
+      });
+      editor = await openEditor(page, widget);
+      await editor.getByRole("tab", { name: "Set Up", exact: true }).click();
+      await editor
+        .getByRole("combobox", { name: "Aggregation method", exact: true })
+        .selectOption("avg");
+      await collapse(editor);
+      // Missing A observations do not enter the mean denominator: [9,4].
+      records.push({
+        average: await controlGeometry(
+          page,
+          widget,
+          ["A", "B"],
+          normalized
+            ? [
+                [900 / 13, 100],
+                [-100, 100],
+              ]
+            : [
+                [9, 13],
+                [-2, 2],
+              ],
+          [
+            { Revenue: 9, Cost: 4 },
+            { Revenue: -2, Cost: 4 },
+          ],
+          normalized,
+          ["Revenue", "Cost"],
+        ),
+      });
+      editor = await openEditor(page, widget);
+      await editor.getByRole("tab", { name: "Set Up", exact: true }).click();
+      await toggle(editor, "Switch Category / Series", true);
+      await collapse(editor);
+      // Transpose makes Revenue/Cost categories and A/B ordered series.
+      records.push({
+        switched: await controlGeometry(
+          page,
+          widget,
+          ["Revenue", "Cost"],
+          normalized
+            ? [
+                [100, 700 / 9],
+                [50, 100],
+              ]
+            : [
+                [9, 7],
+                [4, 8],
+              ],
+          [
+            { A: 9, B: -2 },
+            { A: 4, B: 4 },
+          ],
+          normalized,
+          ["A", "B"],
+        ),
+      });
+      const model = await saved(page);
+      expect(model).toMatchObject({
+        chartType: token,
+        aggFunc: "avg",
+        switchCategorySeries: true,
+        cellRange: { columns: ["Category", "Revenue", "Cost"] },
+      });
+      records.push({ saved: model });
+      await clickLegend(page, widget, "B");
+      const hidden = await controlGeometry(
+        page,
+        widget,
+        ["Revenue", "Cost"],
+        normalized ? [[100], [100]] : [[9], [4]],
+        [{ A: 9 }, { A: 4 }],
+        normalized,
+        ["A", "B"],
+      );
+      for (const tips of hidden.tooltips) expect(tips.join("\n")).not.toMatch(/B:/);
+      records.push({ hidden });
+      await clickLegend(page, widget, "B");
+      records.push({
+        restored: await controlGeometry(
+          page,
+          widget,
+          ["Revenue", "Cost"],
+          normalized
+            ? [
+                [100, 700 / 9],
+                [50, 100],
+              ]
+            : [
+                [9, 7],
+                [4, 8],
+              ],
+          [
+            { A: 9, B: -2 },
+            { A: 4, B: 4 },
+          ],
+          normalized,
+          ["A", "B"],
+        ),
+      });
+      expectApplicationDiagnostics(diagnostics);
+    } finally {
+      await writeFile(
+        info.outputPath("setup-controls.json"),
+        JSON.stringify({ identity, csv, records, diagnostics }, null, 2),
+      );
+    }
+  });
+}
+
+test("Stacked Line candidate signed amount geometry and legend order", async ({
+  page,
+}, info) => {
+  test.setTimeout(180000);
+  const identity = candidateIdentity();
+  const diagnostics = await observeApplication(page);
+  const csv =
+    "Category,Primary,Secondary,Third\nMixed,60,-80,20\nNegative,-20,-30,0\nZero,0,0,0\nMissing,,20,10\n";
+  const records: unknown[] = [];
+  await observePie(page);
+  try {
+    await loginDisposableWorkspace(page);
+    const { widget } = await importOrdinaryTable(page, {
+      csv,
+      name: "Signed cumulative amount discriminator",
+      expectedValue: "Mixed",
+    });
+    await widget.locator("#chart-view-button").click();
+    await growPieWidget(page, widget, info);
+    let editor = await openEditor(page, widget);
+    await selectFamily(editor, "Stacked Line");
+    await setup(editor, "Category", ["Primary", "Secondary", "Third"]);
+    await collapse(editor);
+    const categories = ["Mixed", "Negative", "Zero", "Missing"];
+    const raw = [
+      { Primary: 60, Secondary: -80, Third: 20 },
+      { Primary: -20, Secondary: -30, Third: 0 },
+      { Primary: 0, Secondary: 0, Third: 0 },
+      { Secondary: 20, Third: 10 },
+    ];
+    const initial = await controlGeometry(
+      page,
+      widget,
+      categories,
+      [
+        [60, -20, 0],
+        [-20, -50, -50],
+        [0, 0, 0],
+        [20, 30],
+      ],
+      raw,
+      false,
+      ["Primary", "Secondary", "Third"],
+    );
+    expect(initial.tooltips[3].join("\n")).not.toMatch(/Primary:/);
+    records.push({ initial });
+    await clickLegend(page, widget, "Secondary");
+    const hidden = await controlGeometry(
+      page,
+      widget,
+      ["Mixed"],
+      [[60, 80]],
+      [{ Primary: 60, Third: 20 }],
+      false,
+      ["Primary", "Secondary", "Third"],
+    );
+    expect(hidden.tooltips[0].join("\n")).not.toMatch(/Secondary:/);
+    records.push({ hidden });
+    await clickLegend(page, widget, "Secondary");
+    editor = await openEditor(page, widget);
+    await editor.getByRole("tab", { name: "Set Up", exact: true }).click();
+    await reorder(editor, "Third", "ArrowUp");
+    await reorder(editor, "Third", "ArrowUp");
+    await collapse(editor);
+    records.push({
+      reordered: await controlGeometry(
+        page,
+        widget,
+        ["Mixed"],
+        [[20, 80, 0]],
+        [{ Third: 20, Primary: 60, Secondary: -80 }],
+        false,
+        ["Third", "Primary", "Secondary"],
+      ),
+    });
+    expect(await saved(page)).toMatchObject({
+      chartType: "stackedLine",
+      cellRange: { columns: ["Category", "Third", "Primary", "Secondary"] },
+    });
+    expectApplicationDiagnostics(diagnostics);
+  } finally {
+    await writeFile(
+      info.outputPath("signed-amount.json"),
+      JSON.stringify({ identity, csv, records, diagnostics }, null, 2),
+    );
+  }
+});
