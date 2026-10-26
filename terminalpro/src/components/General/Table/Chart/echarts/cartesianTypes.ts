@@ -3,7 +3,7 @@ import type { ResolvedApplicationAppearance } from "../application/appearanceMod
 import type { ChartDisplayPolicy } from "../application/types";
 import type { ChartSnapshot, SnapshotDiagnostic } from "../compatibility/snapshotTypes";
 import { type AreaFamily, isAreaFamily } from "./cartesianAreaTypes";
-import type { LineFamily } from "./cartesianLineTypes";
+import { isLineFamily, type LineFamily } from "./cartesianLineTypes";
 
 export type CartesianFamily =
   | AreaFamily
@@ -32,7 +32,7 @@ export function isCartesianFamily(family: string): family is CartesianFamily {
   return (
     family === "groupedColumn" ||
     family === "stackedColumn" ||
-    family === "line" ||
+    isLineFamily(family) ||
     isHorizontalCartesianFamily(family) ||
     isNormalizedFamily(family) ||
     isAreaFamily(family)

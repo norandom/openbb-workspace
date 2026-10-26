@@ -1,12 +1,20 @@
 import type { EChartsOption } from "echarts";
-import { isNormalizedFamily, type CartesianMappingContext } from "../echarts/cartesianTypes";
-import { isAreaFamily } from "../echarts/cartesianAreaTypes";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import { translateCartesian } from "../echarts/cartesian";
-import { cartesianNavigator } from "../echarts/cartesianNavigator";
+import { isAreaFamily } from "../echarts/cartesianAreaTypes";
 import { cartesianBarColors } from "../echarts/cartesianBarColors";
-import { selectApplicationSession } from "./applicationSessionSelection";
+import {
+  isStackedLineFamily,
+  LineStackOverflowError,
+} from "../echarts/cartesianLineTypes";
+import { cartesianNavigator } from "../echarts/cartesianNavigator";
+import {
+  type CartesianMappingContext,
+  isNormalizedFamily,
+} from "../echarts/cartesianTypes";
+import { invalidSession } from "./applicationSessionEdit";
 import { contextFor } from "./applicationSessionRuntime";
+import { selectApplicationSession } from "./applicationSessionSelection";
 import type {
   ApplicationSessionInputs,
   ApplicationSessionReady,
@@ -14,7 +22,6 @@ import type {
 } from "./applicationSessionTypes";
 import { SETUP_AGGREGATIONS } from "./setupTypes";
 import type { ChartDisplayPolicy, SessionResult } from "./types";
-import { invalidSession } from "./applicationSessionEdit";
 
 export function countDisplayPolicy(source: ChartDisplayPolicy): ChartDisplayPolicy {
   const number = (value: Parameters<ChartDisplayPolicy["numericAxis"]>[0]) => value;
@@ -54,23 +61,58 @@ export function projectApplicationSession(
       observations: { kind: "raw-observations" },
       viewport,
       setupProjection: projected.setupProjection,
-      display: projected.observationKind === "count"
-        ? countDisplayPolicy(inputs.display) : inputs.display,
+      display:
+        projected.observationKind === "count"
+          ? countDisplayPolicy(inputs.display)
+          : inputs.display,
     };
-    const translated = translateCartesian(projected.snapshot, family, selected.style, mapping);
+    const translated = translateCartesian(
+      projected.snapshot,
+      family,
+      selected.style,
+      mapping,
+    );
     if (translated.status !== "supported")
       return {
         status: translated.status === "invalid" ? "invalid" : "unresolved",
         diagnostics: translated.diagnostics,
       };
-    const decorate = (options: EChartsOption) => cartesianBarColors(
-      options, projected.snapshot, family, barFill, theme, selected.style,
-    );
+    const decorate = (options: EChartsOption) =>
+      cartesianBarColors(
+        options,
+        projected.snapshot,
+        family,
+        barFill,
+        theme,
+        selected.style,
+      );
     const overview = decorate(translated.options);
-    const projectLegendSelection = (legendSelection: Readonly<Record<string, boolean>>) => {
-      const main = translateCartesian(projected.snapshot, family, selected.style, { ...mapping, legendSelection });
-      if (main.status !== "supported") throw new Error("Invalid chart legend projection");
-      return cartesianNavigator(decorate(main.options), navigator, miniature, theme, viewport, overview);
+    const projectLegendSelection = (
+      legendSelection: Readonly<Record<string, boolean>>,
+    ) => {
+      const main = translateCartesian(projected.snapshot, family, selected.style, {
+        ...mapping,
+        legendSelection,
+      });
+      if (main.status !== "supported") {
+        const overflow = main.diagnostics.find(
+          (issue) => issue.code === "line-stack-overflow",
+        );
+        if (overflow) {
+          const error = new LineStackOverflowError();
+          error.message = `${overflow.code}: ${overflow.message}`;
+          throw error;
+        }
+        throw new Error("Invalid chart legend projection");
+      }
+      return cartesianNavigator(
+        decorate(main.options),
+        navigator,
+        miniature,
+        theme,
+        viewport,
+        overview,
+      );
     };
     const descriptor = (id: string) =>
       inputs.columns.find((column) => column.id === id);
@@ -81,10 +123,18 @@ export function projectApplicationSession(
         stamp: state.local.stamp,
         revision: state.local.stamp.renderRevision,
         options: cartesianNavigator(overview, navigator, miniature, theme, viewport),
-        ...(isNormalizedFamily(family) || isAreaFamily(family) ? {
-          legendScope: JSON.stringify([state.local.stamp.address.stateAddress, state.local.stamp.generation, family]),
-          projectLegendSelection,
-        } : {}),
+        ...(isNormalizedFamily(family) ||
+        isAreaFamily(family) ||
+        isStackedLineFamily(family)
+          ? {
+              legendScope: JSON.stringify([
+                state.local.stamp.address.stateAddress,
+                state.local.stamp.generation,
+                family,
+              ]),
+              projectLegendSelection,
+            }
+          : {}),
         editor: selected.editor,
         model: selected.baseline.model,
         snapshot: projected.snapshot,

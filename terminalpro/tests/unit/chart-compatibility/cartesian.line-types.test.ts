@@ -9,13 +9,13 @@ import {
   isNormalizedFamily,
 } from "../../../src/components/General/Table/Chart/echarts/cartesianTypes";
 
-it("identifies line families without admitting incomplete runtime variants", () => {
+it("identifies integrated line families without using bar normalization admission", () => {
   expect(isLineFamily("line")).toBe(true);
   expect(isStackedLineFamily("line")).toBe(false);
   for (const family of ["stackedLine", "normalizedLine"]) {
     expect(isLineFamily(family)).toBe(true);
     expect(isStackedLineFamily(family)).toBe(true);
-    expect(isCartesianFamily(family)).toBe(false);
+    expect(isCartesianFamily(family)).toBe(true);
     expect(isNormalizedFamily(family)).toBe(false);
   }
   expect(isLineFamily("stackedArea")).toBe(false);

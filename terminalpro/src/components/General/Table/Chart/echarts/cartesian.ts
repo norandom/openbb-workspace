@@ -10,13 +10,16 @@ import {
   sourceDiagnostics,
   unitDiagnostics,
 } from "./cartesianAdmission";
-import { isAreaFamily } from "./cartesianAreaTypes";
 import { projectArea } from "./cartesianArea";
 import { cartesianAreaSeries } from "./cartesianAreaSeries";
+import { isAreaFamily } from "./cartesianAreaTypes";
 import { applicationAxes } from "./cartesianAxes";
 import { fallbackDisplay, normalizedDisplay } from "./cartesianDisplay";
 import { cartesianGrid } from "./cartesianGrid";
 import { applicationLayout } from "./cartesianLayout";
+import { projectLineStack } from "./cartesianLineStack";
+import { isStackedLineFamily, LineStackOverflowError } from "./cartesianLineTypes";
+import { normalizedCoordinates, normalizedExtent } from "./cartesianNormalization";
 import { cartesianSeries } from "./cartesianSeries";
 import { captionAppearance, validateCartesianStyle } from "./cartesianStyle";
 import { cartesianTooltip } from "./cartesianTooltip";
@@ -26,11 +29,10 @@ import type {
   ResolvedCartesianStyle,
   TranslateCartesian,
 } from "./cartesianTypes";
-import { normalizedCoordinates, normalizedExtent } from "./cartesianNormalization";
 import {
   isCartesianFamily,
-  isNormalizedFamily,
   isHorizontalCartesianFamily,
+  isNormalizedFamily,
 } from "./cartesianTypes";
 
 function applicationSupport(
@@ -94,18 +96,43 @@ function buildOptions(
   style: ResolvedCartesianStyle,
   context: CartesianMappingContext | undefined,
 ): EChartsOption {
-  const area = isAreaFamily(family) ? projectArea({ snapshot, columns, family,
-    connectMissingData: style.application?.series.connectMissingData ?? style.line?.connectMissingData ?? false,
-    legendSelection: context?.legendSelection }) : undefined;
-  const normalized = isNormalizedFamily(family) || family === "normalizedArea";
-  const drawn = normalized && !area
-    ? normalizedCoordinates(snapshot, columns, context?.legendSelection)
-    : snapshot;
-  const extent = area ? area.extent : normalized ? normalizedExtent(drawn) : {};
+  const categoryType = style.application?.axes.category.fields.type;
+  const line = isStackedLineFamily(family)
+    ? projectLineStack({
+        snapshot,
+        columns,
+        family,
+        legendSelection: context?.legendSelection,
+        categoryAxisType:
+          categoryType === "number" || categoryType === "time"
+            ? categoryType
+            : "category",
+      })
+    : undefined;
+  const area = isAreaFamily(family)
+    ? projectArea({
+        snapshot,
+        columns,
+        family,
+        connectMissingData:
+          style.application?.series.connectMissingData ??
+          style.line?.connectMissingData ??
+          false,
+        legendSelection: context?.legendSelection,
+      })
+    : undefined;
+  const normalized = isNormalizedFamily(family) || family === "normalizedLine";
+  const drawn =
+    line?.drawn ??
+    (normalized && !area
+      ? normalizedCoordinates(snapshot, columns, context?.legendSelection)
+      : snapshot);
+  const extent =
+    line?.extent ?? (area ? area.extent : normalized ? normalizedExtent(drawn) : {});
   const captions = captionAppearance(style);
   const rawDisplay = context?.display ?? fallbackDisplay(style.precision);
   const display = normalized
-    ? normalizedDisplay(rawDisplay, "interval" in extent)
+    ? normalizedDisplay(rawDisplay, line ? line.empty : "interval" in extent)
     : rawDisplay;
   const labels = new Map(columns.map((column) => [column.id, column.label]));
   const legacy = {
@@ -151,8 +178,9 @@ function buildOptions(
         formatter: (value: number) => String(display.numericAxis(value)),
       },
     },
-    tooltip: cartesianTooltip(snapshot, columns, style, display),
-    series: area ? cartesianAreaSeries(snapshot, columns, style, display, area)
+    tooltip: cartesianTooltip(snapshot, columns, style, display, line?.drawn),
+    series: area
+      ? cartesianAreaSeries(snapshot, columns, style, display, area)
       : cartesianSeries(snapshot, columns, family, style, display, drawn),
   } satisfies EChartsOption;
   if (!style.application || !context?.viewport) {
@@ -256,7 +284,12 @@ export const translateCartesian: TranslateCartesian = (
         context,
       ),
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof LineStackOverflowError)
+      return {
+        status: "invalid",
+        diagnostics: [mappingIssue(error.code, ["rows"], error.message)],
+      };
     return {
       status: "invalid",
       diagnostics: [

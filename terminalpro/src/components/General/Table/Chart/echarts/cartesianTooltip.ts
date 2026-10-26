@@ -12,15 +12,28 @@ function tooltipContent(
   display: ChartDisplayPolicy,
   mode: string,
   params: unknown,
+  drawn?: ChartSnapshot,
 ): string {
-  const entries = (Array.isArray(params) ? params : [params]).filter(record).filter(p => (p.seriesId === undefined && p.seriesName === undefined) || columns.some(c => c.id === p.seriesId || c.id === p.seriesName));
+  const entries = (Array.isArray(params) ? params : [params])
+    .filter(record)
+    .filter(
+      (p) =>
+        (p.seriesId === undefined && p.seriesName === undefined) ||
+        columns.some((c) => c.id === p.seriesId || c.id === p.seriesName),
+    );
   const entry = entries.find((p) => typeof p.dataIndex === "number");
   const row = entry ? snapshot.rows[entry.dataIndex as number] : undefined;
   if (!row) return "";
-  const selected =
+  const selected = (
     mode === "shared"
       ? columns
-      : columns.filter((c) => c.id === entry?.seriesId || c.id === entry?.seriesName);
+      : columns.filter((c) => c.id === entry?.seriesId || c.id === entry?.seriesName)
+  ).filter((column) => {
+    if (!drawn) return true;
+    const endpoint = drawn.rows[entry!.dataIndex as number]?.values[column.id];
+    return typeof endpoint === "number" && Number.isFinite(endpoint);
+  });
+  if (drawn && selected.length === 0) return "";
   const lines = selected.map((column) => {
     const value = row.values[column.id];
     return `${escapeHtml(column.label)}: ${typeof value === "number" ? escapeHtml(display.tooltipNumber(value)) : "—"}`;
@@ -35,6 +48,7 @@ export function cartesianTooltip(
   columns: readonly SnapshotColumn[],
   style: ResolvedCartesianStyle,
   display: ChartDisplayPolicy,
+  drawn?: ChartSnapshot,
 ): TooltipComponentOption {
   const state = style.application?.tooltip;
   const mode = state?.mode ?? "shared";
@@ -42,6 +56,7 @@ export function cartesianTooltip(
     show: state?.enabled ?? true,
     trigger: mode === "shared" ? "axis" : "item",
     renderMode: "html",
-    formatter: (params) => tooltipContent(snapshot, columns, display, mode, params),
+    formatter: (params) =>
+      tooltipContent(snapshot, columns, display, mode, params, drawn),
   };
 }
