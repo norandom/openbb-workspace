@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { resolveFunnelAppearance } from "../../../src/components/General/Table/Chart/application/funnelAppearance";
+import type { FunnelAppearanceInput } from "../../../src/components/General/Table/Chart/application/funnelAppearanceTypes";
 import {
   mapFunnelEditorIntent,
   projectFunnelEditorState,
 } from "../../../src/components/General/Table/Chart/application/funnelEditor";
-import type { FunnelAppearanceInput } from "../../../src/components/General/Table/Chart/application/funnelAppearanceTypes";
 import type { FunnelFamily } from "../../../src/components/General/Table/Chart/compatibility/funnelContracts";
 export function fixture(family: FunnelFamily = "funnel") {
   return {
@@ -46,6 +46,38 @@ export function resolved(family: FunnelFamily = "funnel", input = fixture(family
   return result.value;
 }
 describe("Funnel appearance and native option controls", () => {
+  it.each([
+    "funnel",
+    "coneFunnel",
+    "pyramid",
+  ] as const)("retains original ordinary %s numeric-label defaults and explicit choices", (family) => {
+    // Reference 38dffc3: utils.tsx createDefaultSeries label.enabled=false;
+    // hooks/useChartOptions.tsx fallback retains it for all three native scopes.
+    const native = family === "coneFunnel" ? "cone-funnel" : family;
+    expect(resolved(family).label.enabled).toBe(false);
+    expect(resolved(family).stageLabel.enabled).toBe(true);
+    for (const enabled of [true, false]) {
+      const source = fixture(family);
+      source.generated = { [native]: { series: { label: { enabled } } } };
+      expect(resolved(family, source).label.enabled).toBe(enabled);
+      source.generated = { [native]: { series: { label: { enabled: !enabled } } } };
+      source.baseline.options = { [native]: { series: { label: { enabled } } } };
+      const style = resolved(family, source);
+      expect(style.label.enabled).toBe(enabled);
+      expect(projectFunnelEditorState(style).labels.value.enabled).toBe(enabled);
+      expect(
+        mapFunnelEditorIntent(style, {
+          panel: "labels",
+          edit: { field: "enabled", value: !enabled },
+        }),
+      ).toEqual({
+        valid: true,
+        value: {
+          eventOptions: { [native]: { series: { label: { enabled: !enabled } } } },
+        },
+      });
+    }
+  });
   it.each([
     "funnel",
     "coneFunnel",
@@ -141,8 +173,8 @@ it.each([
 });
 it.each([
   { series: { strokeWidth: -1 } },
-  { series: { lineDash: [2, Infinity] } },
-  { series: { label: { fontSize: NaN } } },
+  { series: { lineDash: [2, Number.POSITIVE_INFINITY] } },
+  { series: { label: { fontSize: Number.NaN } } },
   { series: { fillOpacity: -0.1 } },
   { series: { fills: [] } },
   { series: { strokes: ["invalid"] } },
@@ -201,7 +233,7 @@ it.each([
     panel: "titles",
     edit: { caption: "horizontalAxisTitle", field: "text", value: "forged" },
   },
-  { panel: "series", edit: { field: "strokeWidth", value: Infinity } },
+  { panel: "series", edit: { field: "strokeWidth", value: Number.POSITIVE_INFINITY } },
   { panel: "funnelDropOff", edit: { field: "fillOpacity", value: 1.5 } },
   { panel: "funnelDirection", value: "sideways" },
   { panel: "labels", edit: { field: "color", value: "invalid" } },

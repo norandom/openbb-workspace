@@ -1,16 +1,16 @@
 import { color } from "echarts/core";
 import merge from "lodash.merge";
 import {
-  nativeFunnelType,
-  isFunnelFamily,
   type FunnelFamily,
+  isFunnelFamily,
+  nativeFunnelType,
 } from "../compatibility/funnelContracts";
 import type { RuntimeOptions, ValidationResult } from "../compatibility/legacyTypes";
 import { selectOptionBaseline } from "../compatibility/optionState";
 import { composeAppearanceOptions } from "./appearanceComposition";
-import { appearanceDefaults } from "./effectiveAppearanceDefaults";
-import { resolveAppearanceChrome } from "./effectiveAppearanceChrome";
 import { resolveAppearanceAxis } from "./effectiveAppearanceAxes";
+import { resolveAppearanceChrome } from "./effectiveAppearanceChrome";
+import { appearanceDefaults } from "./effectiveAppearanceDefaults";
 import {
   at,
   bool,
@@ -19,12 +19,13 @@ import {
   font,
   number,
   object,
-  text,
   type ReadAppearance,
+  text,
 } from "./effectiveAppearanceValues";
-import { choice, freezeHierarchy } from "./hierarchyAppearanceValues";
 import type { FunnelAppearanceInput } from "./funnelAppearanceTypes";
 import type { FunnelStroke, ResolvedFunnelStyle } from "./funnelRenderTypes";
+import { choice, freezeHierarchy } from "./hierarchyAppearanceValues";
+
 function paint(value: unknown): string {
   const result = text(value);
   if (!color.parse(result)) throw Error("Invalid Funnel paint");
@@ -63,7 +64,9 @@ function defaults(input: FunnelAppearanceInput, family: FunnelFamily): RuntimeOp
       strokes: input.themePaint.strokes,
       label: {
         ...typography,
-        enabled: true,
+        // Ordinary createDefaultSeries (38dffc3) disables numeric labels for all
+        // variants; generated and saved explicit choices still compose above it.
+        enabled: false,
         color: input.themePaint.numericLabelColor,
         placement: family === "coneFunnel" ? "before" : "center",
         spacing: family === "coneFunnel" ? 4 : 0,
