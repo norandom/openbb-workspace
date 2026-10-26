@@ -6,6 +6,7 @@ import { candidateIdentity, expectedBoxTooltipNumber } from "./box-plot-fixture"
 import { expectApplicationDiagnostics, observeApplication } from "./diagnostics";
 import { expand, openEditor, saveDashboard, selectFamily } from "./editor";
 import { expect, loginDisposableWorkspace, test } from "./fixtures";
+import { directionEffect, dropOffEffect, shadowEffect } from "./funnel-control-effects";
 import { collapse, reorder } from "./hierarchy-controls";
 import { nativeTooltip } from "./hierarchy-observer";
 import { importOrdinaryTable } from "./journey";
@@ -169,6 +170,7 @@ test("Funnel candidate controls expose direction and persist final Pyramid numer
   const identity = candidateIdentity();
   const diagnostics = await observeApplication(page);
   await observePie(page);
+  const effects: unknown[] = [];
   try {
     await loginDisposableWorkspace(page);
     const { widget, dashboardUrl } = await importOrdinaryTable(page, { csv: source.csv, name: "Funnel controls USD", expectedValue: "Net income" });
@@ -181,7 +183,15 @@ test("Funnel candidate controls expose direction and persist final Pyramid numer
       const direction = editor.getByRole("combobox", { name: "Direction", exact: true });
       await direction.selectOption("horizontal");
       await expect(direction).toHaveValue("horizontal");
-      await direction.selectOption("vertical");
+      await collapse(editor);
+      const horizontal = await directionEffect(page, widget, "horizontal");
+      editor = await openEditor(page, widget);
+      await editor.getByRole("tab", { name: "Set Up", exact: true }).click();
+      await editor.getByRole("combobox", { name: "Direction", exact: true }).selectOption("vertical");
+      await collapse(editor);
+      const vertical = await directionEffect(page, widget, "vertical");
+      editor = await openEditor(page, widget);
+      await editor.getByRole("tab", { name: "Set Up", exact: true }).click();
       await toggle(editor, "Aggregate", true);
       await toggle(editor, "Aggregate", false);
       await editor.getByRole("tab", { name: "Customize", exact: true }).click();
@@ -196,6 +206,10 @@ test("Funnel candidate controls expose direction and persist final Pyramid numer
       await collapse(editor);
       let drawing = await currentPie(page, widget);
       expect(drawing.text.map(t => t.text)).toEqual(expect.arrayContaining(stages));
+      const effect: Record<string, unknown> = { variant, horizontal, vertical };
+      effects.push(effect);
+      if (variant === "Funnel") effect.dropOff = await dropOffEffect(page, widget);
+      if (variant !== "Cone Funnel") effect.shadow = await shadowEffect(page, widget, vertical["Gross profit"]);
       await widget.screenshot({ path: info.outputPath(`${variant}-stage-only.png`) });
       editor = await openEditor(page, widget);
       await editor.getByRole("tab", { name: "Customize", exact: true }).click();
@@ -222,7 +236,7 @@ test("Funnel candidate controls expose direction and persist final Pyramid numer
     } finally { await reopened.context.close(); }
     expectApplicationDiagnostics(diagnostics);
   } finally {
-    await writeFile(info.outputPath("controls.json"), JSON.stringify({ identity, source, diagnostics }, null, 2));
+    await writeFile(info.outputPath("controls.json"), JSON.stringify({ identity, source, diagnostics, effects }, null, 2));
   }
 });
 
