@@ -42,9 +42,13 @@ function mapped(
   rows = sessionFixture().capture.rows,
   selection?: Record<string, boolean>,
   mode = "shared",
+  axisType = "category",
 ): any {
   const style = applicationStyle();
   style.application.tooltip.mode = mode as any;
+  style.application.axes.category.fields.type = axisType;
+  style.application.series.markers.enabled = false;
+  style.application.series.labels.enabled = false;
   const result = translateCartesian(
     { ...sessionFixture().capture, rows },
     family,
@@ -55,6 +59,74 @@ function mapped(
   if (result.status !== "supported") throw new Error(JSON.stringify(result));
   return result.options;
 }
+
+it.each([
+  ["stackedLine", "time"],
+  ["normalizedLine", "time"],
+  ["stackedLine", "number"],
+  ["normalizedLine", "number"],
+])("lists separate raw observations at repeated %s %s coordinates", (family, axis) => {
+  const categories =
+    axis === "time" ? ["2025-01-01", "2025-01-01T00:00:00Z", "2025-01-01"] : [1, 1, 1];
+  const rows = categories.map((category, index) => ({
+    id: `row${index}`,
+    category,
+    values: { revenue: index === 2 ? null : (index + 1) * 10, income: index + 1 },
+  }));
+  const options = mapped(family, rows, undefined, "shared", axis);
+  expect(options.tooltip.trigger).toBe("axis");
+  expect(options.series[0].showSymbol).toBe(false);
+  const params = [{ dataIndex: 0, seriesId: "income" }];
+  const expected = categories
+    .map((category, index) =>
+      [
+        `period:${category} (observation ${index + 1})`,
+        ...(index === 2 ? [] : [`Revenue: number:${(index + 1) * 10}`]),
+        `Income: number:${index + 1}`,
+      ].join("<br/>"),
+    )
+    .join("<br/><br/>");
+  expect(options.tooltip.formatter(params)).toBe(expected);
+  expect(options.tooltip.formatter([{ dataIndex: 1, seriesId: "income" }])).toBe(
+    expected,
+  );
+  const hidden = mapped(family, rows, { revenue: false }, "shared", axis);
+  expect(hidden.tooltip.formatter(params)).toBe(
+    categories
+      .map(
+        (category, index) =>
+          `period:${category} (observation ${index + 1})<br/>Income: number:${index + 1}`,
+      )
+      .join("<br/><br/>"),
+  );
+});
+
+it("retains ordinary tooltip formatting outside repeated shared continuous stacks", () => {
+  const rows = [
+    { id: "a", category: 1, values: { revenue: 10, income: 1 } },
+    { id: "b", category: 2, values: { revenue: 20, income: 2 } },
+  ];
+  const params = [{ dataIndex: 1, seriesId: "income" }];
+  expect(
+    mapped("stackedLine", rows, undefined, "shared", "number").tooltip.formatter(
+      params,
+    ),
+  ).toBe("period:2<br/>Revenue: number:20<br/>Income: number:2");
+  const duplicate = rows.map((row) => ({ ...row, category: 1 }));
+  expect(mapped("stackedLine", duplicate).tooltip.formatter(params)).toBe(
+    "period:1<br/>Revenue: number:20<br/>Income: number:2",
+  );
+  expect(
+    mapped("line", duplicate, undefined, "shared", "number").tooltip.formatter(params),
+  ).toBe("period:1<br/>Revenue: number:20<br/>Income: number:2");
+  for (const mode of ["single", "compact"]) {
+    const tooltip = mapped("stackedLine", duplicate, undefined, mode, "number").tooltip;
+    expect(tooltip.trigger).toBe("item");
+    expect(tooltip.formatter(params)).toBe(
+      mode === "compact" ? "Income: number:2" : "period:1<br/>Income: number:2",
+    );
+  }
+});
 
 it.each([
   "stackedLine",
