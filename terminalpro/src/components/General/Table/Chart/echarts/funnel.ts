@@ -1,6 +1,7 @@
 import { color, type EChartsOption } from "echarts";
 import type {
   FunnelRenderInput,
+  ResolvedFunnelStyle,
   TranslateFunnel,
 } from "../application/funnelRenderTypes";
 import { isFunnelFamily } from "../compatibility/funnelContracts";
@@ -70,27 +71,35 @@ function admit(input: FunnelRenderInput) {
   )
     throw Error("Invalid paint");
 }
-/** Inactive options translator; the existing host owns resize, disposal and export. */
+/** Options translator; the existing host owns resize, disposal and export. */
+export function funnelChromeOptions(style: ResolvedFunnelStyle): EChartsOption {
+  const a = style.application;
+  return {
+    animation: false,
+    backgroundColor: a.background.visible ? a.background.fill : "transparent",
+    title: {
+      show: a.title.enabled || a.subtitle.enabled,
+      text: a.title.enabled ? a.title.text : "",
+      subtext: a.subtitle.enabled ? a.subtitle.text : "",
+      textStyle: fontStyle(a.title),
+      subtextStyle: fontStyle(a.subtitle),
+      itemGap: a.title.enabled && a.title.text ? a.title.spacing : 0,
+      padding: 0,
+      top: a.padding.top,
+      left: "center",
+    },
+    series: [],
+    graphic: [],
+    tooltip: { show: false },
+  };
+}
 export const translateFunnel: TranslateFunnel = (input) => {
   try {
     admit(input);
     const g = funnelGeometry(input);
     finite(g);
-    const a = input.style.application;
     const options: EChartsOption = {
-      animation: false,
-      backgroundColor: a.background.visible ? a.background.fill : "transparent",
-      title: {
-        show: a.title.enabled || a.subtitle.enabled,
-        text: a.title.enabled ? a.title.text : "",
-        subtext: a.subtitle.enabled ? a.subtitle.text : "",
-        textStyle: fontStyle(a.title),
-        subtextStyle: fontStyle(a.subtitle),
-        itemGap: a.title.enabled && a.title.text ? a.title.spacing : 0,
-        padding: 0,
-        top: a.padding.top,
-        left: "center",
-      },
+      ...funnelChromeOptions(input.style),
       graphic: funnelStageLabels(input, g) as EChartsOption["graphic"],
       tooltip: funnelTooltip(input, g),
       series: [funnelSeries(input, g)],

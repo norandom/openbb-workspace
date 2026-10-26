@@ -29,6 +29,9 @@ export function applyHistogramEditorTransaction(
     return { status: "stale" };
   const intent = command.intent;
   if (
+    intent.panel === "stageLabels" ||
+    intent.panel === "funnelDirection" ||
+    intent.panel === "funnelDropOff" ||
     intent.panel === "heatmapLine" ||
     intent.panel === "heatmapAxis" ||
     intent.panel === "heatmapAxisLabels" ||

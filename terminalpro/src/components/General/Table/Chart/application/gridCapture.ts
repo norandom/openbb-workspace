@@ -11,22 +11,18 @@ import type {
 } from "../compatibility/snapshotTypes";
 import { captureBoxCategory } from "./boxPlotCapture";
 import {
+  type CaptureGuardResult,
   captureRangeBounds,
   checkCaptureGridModel,
   inspectCaptureApi,
   validateDisplayedCaptureRow,
-  type CaptureGuardResult,
 } from "./gridCaptureGuards";
 import { normalizeHistogramObservation } from "./histogramCapture";
 import { normalizePieObservation } from "./pieCapture";
 import { normalizePolarObservation } from "./polarCapture";
 import { validateSessionStamp } from "./sessionState";
 import { DEFAULT_SETUP_CATEGORY } from "./setupTypes";
-import type {
-  CaptureDisplayedChart,
-  GridCaptureInput,
-  SessionResult,
-} from "./types";
+import type { CaptureDisplayedChart, GridCaptureInput, SessionResult } from "./types";
 
 // WeakMap identity lookup never inspects prototypes or properties of grid throws.
 const failures = new WeakMap<object, SessionResult<never>>();
@@ -53,8 +49,7 @@ function inspectInput(input: GridCaptureInput): ResolvedSnapshotInput {
   if (!object(input) || !object(input.range) || !object(input.api))
     fail("invalid", [], "Expected capture input, range and grid API");
   const stamp = validateSessionStamp(input.stamp, input.stamp);
-  if (stamp.status !== "ready")
-    fail("invalid", ["stamp"], "Invalid session stamp");
+  if (stamp.status !== "ready") fail("invalid", ["stamp"], "Invalid session stamp");
   guardValue(inspectCaptureApi(input.api));
   const result = validateSnapshot(
     {
@@ -70,8 +65,7 @@ function inspectInput(input: GridCaptureInput): ResolvedSnapshotInput {
     },
     input.snapshotPolicy,
   );
-  if (!result.valid)
-    reject({ status: "invalid", diagnostics: result.diagnostics });
+  if (!result.valid) reject({ status: "invalid", diagnostics: result.diagnostics });
   return result.snapshot;
 }
 function readCategory(
@@ -122,11 +116,7 @@ function readCategory(
     typeof category !== "string" &&
     !(typeof category === "number" && Number.isFinite(category))
   )
-    fail(
-      "unresolved",
-      ["rows", index, "category"],
-      "Unsupported category value",
-    );
+    fail("unresolved", ["rows", index, "category"], "Unsupported category value");
   return { category: category as string | number, firstCategoryIsDate: false };
 }
 function readValues(
@@ -144,7 +134,8 @@ function readValues(
     });
     // Missing observations stay absent for source-compatible first/last aggregation.
     if (
-      (input.snapshotPolicy === "box-observations" ||
+      (input.snapshotPolicy === "funnel-observations" ||
+        input.snapshotPolicy === "box-observations" ||
         input.snapshotPolicy === "statistical-observations") &&
       raw === undefined
     )
@@ -159,15 +150,8 @@ function readValues(
           : input.snapshotPolicy === "histogram-observations"
             ? normalizeHistogramObservation(raw)
             : raw;
-    if (
-      value !== null &&
-      !(typeof value === "number" && Number.isFinite(value))
-    )
-      fail(
-        "unresolved",
-        ["rows", index, "values", id],
-        "Unsupported numeric value",
-      );
+    if (value !== null && !(typeof value === "number" && Number.isFinite(value)))
+      fail("unresolved", ["rows", index, "values", id], "Unsupported numeric value");
     values[id] = value as number | null;
   }
   return values;
@@ -186,11 +170,7 @@ function readRows(
   );
   for (let index = start; index <= end; index++) {
     const node = guardValue(
-      validateDisplayedCaptureRow(
-        input.api.getDisplayedRowAtIndex(index),
-        index,
-        ids,
-      ),
+      validateDisplayedCaptureRow(input.api.getDisplayedRowAtIndex(index), index, ids),
     );
     const { firstCategoryIsDate: isDate, ...category } = readCategory(
       input,
@@ -255,8 +235,7 @@ export const captureDisplayedChart: CaptureDisplayedChart = (input) => {
       : { status: "invalid", diagnostics: result.diagnostics };
   } catch (error) {
     const registered =
-      (typeof error === "object" && error !== null) ||
-      typeof error === "function"
+      (typeof error === "object" && error !== null) || typeof error === "function"
         ? failures.get(error)
         : undefined;
     return (

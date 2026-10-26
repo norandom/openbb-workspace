@@ -5,6 +5,11 @@ export type ApplicationEditorMode =
   | { kind: "ordinary" }
   | { kind: "heatmap" }
   | {
+      kind: "funnel";
+      direction: "vertical" | "horizontal";
+      onEdit: (value: "vertical" | "horizontal") => void;
+    }
+  | {
       kind: "radial";
       value: import("../../compatibility/radialContracts").RadialGroupType;
       choices: readonly { value: string; label: string }[];

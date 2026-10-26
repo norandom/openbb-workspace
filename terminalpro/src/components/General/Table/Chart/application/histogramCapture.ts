@@ -1,9 +1,11 @@
+import { isFunnelFamily } from "../compatibility/funnelContracts";
 import type { SnapshotPolicy } from "../compatibility/snapshotTypes";
 import { isPieChartFamily } from "./pieSessionTypes";
 import { isXyChartFamily } from "./xySessionTypes";
 
 export function observationSnapshotPolicy(family: string): SnapshotPolicy | undefined {
   if (family === "radialColumn" || family === "radialBar") return "radial-observations";
+  if (isFunnelFamily(family)) return "funnel-observations";
   if (family === "heatmap") return "heatmap-observations";
   if (family === "nightingale") return "nightingale-observations";
   if (family === "radarLine" || family === "radarArea") return "radar-observations";

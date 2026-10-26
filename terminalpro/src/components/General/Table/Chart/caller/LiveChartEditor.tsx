@@ -18,6 +18,17 @@ export function LiveChartEditor({
   readonly inputs: ApplicationSessionInputs<ApplicationChartFamily>;
   readonly dock: ReturnType<typeof useCallerDock>;
 }) {
+  if (ready.kind === "funnel")
+    return (
+      <ApplicationChartEditor
+        {...dock}
+        kind="funnel"
+        themeResetKey={inputs.theme.name}
+        state={ready.editor}
+        onIntent={session.onIntent}
+        setupProps={{ ...ready.setupProps, onEdit: session.onSetup }}
+      />
+    );
   if (ready.kind === "heatmap")
     return (
       <ApplicationChartEditor

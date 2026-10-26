@@ -10,6 +10,7 @@ import type { ApplicationSessionContext } from "./applicationSessionTypes";
 import type { ResolvedRange, SessionStamp } from "./types";
 
 export type ApplicationChartFamily =
+  | import("../compatibility/funnelContracts").FunnelFamily
   | import("../compatibility/hierarchyContracts").HierarchyChartType
   | import("../compatibility/radialContracts").RadialChartType
   | "heatmap"

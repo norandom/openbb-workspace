@@ -182,6 +182,7 @@ export function projectOrdinarySetup(
 ): SetupResult<SetupProjection> {
   if (
     ![
+      "funnel-observations",
       "heatmap-observations",
       "single-axis",
       "combo-per-axis",

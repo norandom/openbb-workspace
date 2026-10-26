@@ -9,6 +9,7 @@ import {
 import { isPieChartFamily } from "../application/pieSessionTypes";
 import { isRangeChartFamily } from "../application/rangeSessionTypes";
 import { isXyChartFamily } from "../application/xySessionTypes";
+import { isFunnelFamily } from "../compatibility/funnelContracts";
 import { isCartesianFamily } from "../echarts/cartesianTypes";
 import type { ChartEditorTab } from "../editor/ChartEditorDock";
 import { chartTypeGalleryGroups } from "../editor/chartTypeGalleryCatalog";
@@ -56,7 +57,8 @@ export function useCallerDock(
       onSelect: (type: string) => {
         if (
           onSelect &&
-          (isHierarchyChartFamily(type) ||
+          (isFunnelFamily(type) ||
+            isHierarchyChartFamily(type) ||
             isPieChartFamily(type) ||
             isCartesianFamily(type) ||
             isComboChartFamily(type) ||

@@ -25,6 +25,7 @@ import { isXyChartFamily } from "./application/xySessionTypes";
 import { hasCallerSeries } from "./caller/chartInputs";
 import { useCallerDock } from "./caller/useCallerDock";
 import { useCallerSessionInputs } from "./caller/useCallerSessionInputs";
+import { isFunnelFamily } from "./compatibility/funnelContracts";
 
 export { customChartWidgetIds } from "./caller/orientation";
 
@@ -74,7 +75,8 @@ export function ChartViewElement() {
       >
         {inputs.valid &&
         !inputs.value.pendingReason &&
-        (isHierarchyChartFamily(inputs.value.family) ||
+        (isFunnelFamily(inputs.value.family) ||
+          isHierarchyChartFamily(inputs.value.family) ||
           isRadialChartFamily(inputs.value.family) ||
           isRadarChartFamily(inputs.value.family) ||
           inputs.value.family === "nightingale" ||
@@ -90,7 +92,13 @@ export function ChartViewElement() {
           <LiveCallerChart inputs={inputs.value} />
         ) : (
           <PendingCallerChart
-            chartType={inputs.valid ? inputs.value.chartType : undefined}
+            chartType={
+              inputs.valid
+                ? inputs.value.chartType
+                : "chartType" in inputs
+                  ? inputs.chartType
+                  : undefined
+            }
             reason={
               inputs.valid
                 ? (inputs.value.pendingReason ?? "chart family pending renderer parity")
@@ -254,6 +262,7 @@ function LiveCallerChart({
       inputs.family === "nightingale" ||
       isPieChartFamily(inputs.family) ||
       isXyChartFamily(inputs.family) ||
+      isFunnelFamily(inputs.family) ||
       inputs.family === "heatmap" ||
       inputs.family === "histogram" ||
       inputs.family === "boxPlot" ||
@@ -279,6 +288,20 @@ function LiveCallerChart({
           className="h-full w-full"
           style={heatmapEmpty ? { visibility: "hidden" } : undefined}
         />
+        {ready?.kind === "funnel" && ready.notice && (
+          <div
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className={
+              ready.notice.kind === "missing-stages"
+                ? "absolute bottom-0 left-0 right-0 text-xs text-center pointer-events-none"
+                : "absolute inset-0 flex items-center justify-center text-sm pointer-events-none"
+            }
+          >
+            {ready.notice.message}
+          </div>
+        )}
         {(heatmapEmpty ||
           ((ready?.kind === "radial" ||
             ready?.kind === "radar" ||

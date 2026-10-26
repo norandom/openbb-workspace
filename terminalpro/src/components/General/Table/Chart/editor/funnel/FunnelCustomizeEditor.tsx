@@ -36,20 +36,6 @@ export function FunnelCustomizeEditor({ state, onEdit }: FunnelCustomizeEditorPr
         }}
       />
       <ApplicationEditorGroup label="Series">
-        <fieldset aria-label="Direction">
-          <legend>Direction</legend>
-          {(["vertical", "horizontal"] as const).map((value) => (
-            <label key={value}>
-              <input
-                type="radio"
-                name="funnel-direction"
-                checked={state.direction === value}
-                onChange={() => onEdit({ panel: "funnelDirection", value })}
-              />
-              {value === "vertical" ? "Vertical" : "Horizontal"}
-            </label>
-          ))}
-        </fieldset>
         <ChartSeriesStylePanel
           {...state.series}
           onEdit={(edit) => onEdit({ panel: "series", edit })}

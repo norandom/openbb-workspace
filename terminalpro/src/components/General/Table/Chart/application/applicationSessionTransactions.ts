@@ -1,3 +1,4 @@
+import { isFunnelFamily } from "../compatibility/funnelContracts";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import type { ChartSnapshot } from "../compatibility/snapshotTypes";
 import type { ApplicationChartCommand } from "./applicationChartSessionTypes";
@@ -20,6 +21,7 @@ import {
   type ComboSessionContext,
   isComboChartFamily,
 } from "./comboSessionTypes";
+import { applyFunnelSessionTransaction } from "./funnelEditorTransaction";
 import { applyHeatmapSessionTransaction } from "./heatmapSession";
 import { applyHistogramEditorTransaction } from "./histogramEditorTransaction";
 import { applyNightingaleSessionTransaction } from "./nightingaleSessionProjection";
@@ -90,6 +92,14 @@ function applyOrdinaryAppearanceTransaction(
   command: OrdinaryAppearanceCommand,
 ): SessionResult<ApplicationChartCommit> {
   const intent = command.intent;
+  if (isFunnelFamily(context.inputs.family))
+    return applyFunnelSessionTransaction(
+      storage,
+      context as ApplicationSessionContext<
+        import("../compatibility/funnelContracts").FunnelFamily
+      >,
+      command,
+    );
   if (context.inputs.family === "heatmap")
     return applyHeatmapSessionTransaction(
       storage,
@@ -97,6 +107,9 @@ function applyOrdinaryAppearanceTransaction(
       command,
     );
   if (
+    intent.panel === "stageLabels" ||
+    intent.panel === "funnelDirection" ||
+    intent.panel === "funnelDropOff" ||
     intent.panel === "heatmapLine" ||
     intent.panel === "heatmapAxis" ||
     intent.panel === "heatmapAxisLabels" ||

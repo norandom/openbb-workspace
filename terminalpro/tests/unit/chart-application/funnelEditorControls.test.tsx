@@ -2,8 +2,9 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { resolveFunnelAppearance } from "../../../src/components/General/Table/Chart/application/funnelAppearance";
 import { projectFunnelEditorState } from "../../../src/components/General/Table/Chart/application/funnelEditor";
-import { FunnelCustomizeEditor } from "../../../src/components/General/Table/Chart/editor/funnel/FunnelCustomizeEditor";
 import type { FunnelFamily } from "../../../src/components/General/Table/Chart/compatibility/funnelContracts";
+import { FunnelCustomizeEditor } from "../../../src/components/General/Table/Chart/editor/funnel/FunnelCustomizeEditor";
+
 afterEach(cleanup);
 function state(family: FunnelFamily) {
   const result = resolveFunnelAppearance(
@@ -43,7 +44,7 @@ it.each([
   "funnel",
   "coneFunnel",
   "pyramid",
-] as const)("dispatches independent labels and direction for %s with eligible controls", (family) => {
+] as const)("dispatches independent labels for %s with eligible controls", (family) => {
   const onEdit = vi.fn();
   const value = state(family);
   const before = structuredClone(value);
@@ -51,11 +52,10 @@ it.each([
   fireEvent.click(screen.getByRole("button", { name: "Series" }));
   fireEvent.click(screen.getByRole("switch", { name: "Labels" }));
   fireEvent.click(screen.getByRole("switch", { name: "Stage Labels" }));
-  fireEvent.click(screen.getByRole("radio", { name: "Horizontal" }));
+  expect(screen.queryByRole("radio", { name: "Horizontal" })).toBeNull();
   expect(onEdit.mock.calls.map(([intent]) => intent)).toEqual([
     { panel: "labels", edit: { field: "enabled", value: false } },
     { panel: "stageLabels", edit: { field: "enabled", value: false } },
-    { panel: "funnelDirection", value: "horizontal" },
   ]);
   expect(!!screen.queryByRole("switch", { name: "Shadow" })).toBe(
     family !== "coneFunnel",

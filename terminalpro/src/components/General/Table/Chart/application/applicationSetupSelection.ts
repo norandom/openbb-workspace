@@ -1,3 +1,4 @@
+import { isFunnelFamily } from "../compatibility/funnelContracts";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import { selectApplicationSession } from "./applicationSessionSelection";
 import type { ApplicationSessionContext } from "./applicationSessionTypes";
@@ -8,6 +9,7 @@ import {
   type ComboSessionContext,
   isComboChartFamily,
 } from "./comboSessionTypes";
+import { selectFunnelSession } from "./funnelSessionSelection";
 import { selectHeatmapSession } from "./heatmapSession";
 import { selectHistogramSession } from "./histogramSessionSelection";
 import { selectNightingaleSession } from "./nightingaleSessionProjection";
@@ -29,6 +31,17 @@ export function selectApplicationSetup(
   const family = context.inputs.family;
   if (isComboChartFamily(family))
     return selectComboSession(storage, context as ComboSessionContext);
+  if (isFunnelFamily(family))
+    return {
+      status: "ready" as const,
+      stamp: context.local.stamp,
+      value: selectFunnelSession(
+        storage,
+        context as ApplicationSessionContext<
+          import("../compatibility/funnelContracts").FunnelFamily
+        >,
+      ),
+    };
   if (family === "heatmap")
     return {
       status: "ready" as const,

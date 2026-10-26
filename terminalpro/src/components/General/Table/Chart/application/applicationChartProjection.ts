@@ -1,4 +1,5 @@
 import type { ComboChartType } from "../compatibility/comboAssignments";
+import { isFunnelFamily } from "../compatibility/funnelContracts";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import type { ApplicationChartReady } from "./applicationChartSessionTypes";
 import {
@@ -15,6 +16,7 @@ import type {
 import { projectBoxPlotSession } from "./boxPlotSessionProjection";
 import { projectComboSession } from "./comboSessionProjection";
 import { type ApplicationChartFamily, isComboChartFamily } from "./comboSessionTypes";
+import { projectFunnelSession } from "./funnelSessionProjection";
 import { projectHeatmapSession } from "./heatmapSession";
 import { projectHierarchySession } from "./hierarchySessionProjection";
 import { projectHistogramSession } from "./histogramSessionProjection";
@@ -57,6 +59,14 @@ export function projectApplicationChart(
     }
   }
   if (state.capture && !isOrdinaryCapture(state.capture)) return { status: "waiting" };
+  if (isFunnelFamily(inputs.family))
+    return projectFunnelSession(
+      storage,
+      inputs as ApplicationSessionInputs<
+        import("../compatibility/funnelContracts").FunnelFamily
+      >,
+      state,
+    );
   if (inputs.family === "heatmap")
     return projectHeatmapSession(
       storage,

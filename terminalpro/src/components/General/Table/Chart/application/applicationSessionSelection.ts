@@ -5,6 +5,7 @@ import type {
   AxisBinding,
   EditorSelectionInput,
 } from "../compatibility/editorBindings/types";
+import { isFunnelFamily } from "../compatibility/funnelContracts";
 import type {
   ChartModel,
   ChartStorageOutput,
@@ -55,6 +56,7 @@ export function sessionRange<F extends ApplicationChartFamily>(
 }
 export function canSwitchCategorySeries(family: ApplicationChartFamily): boolean {
   return (
+    !isFunnelFamily(family) &&
     !isComboChartFamily(family) &&
     !isXyChartFamily(family) &&
     family !== "histogram" &&

@@ -1,3 +1,4 @@
+import { isFunnelFamily } from "../compatibility/funnelContracts";
 import type { ChartStorageOutput, RuntimeOptions } from "../compatibility/legacyTypes";
 import type { ChartSnapshot } from "../compatibility/snapshotTypes";
 import type { ChartSetupEdit } from "../editor/setup/ChartSetupPanel";
@@ -141,7 +142,8 @@ export function applyApplicationSetupTransaction(
               : {}),
             legendEnabled:
               context.inputs.family === "waterfall" ||
-              context.inputs.family === "heatmap"
+              context.inputs.family === "heatmap" ||
+              isFunnelFamily(context.inputs.family)
                 ? context.local.legendEnabled
                 : transition.selection.seriesIds.length > 1,
           },

@@ -131,7 +131,8 @@ function validate(input: unknown, policy?: SnapshotPolicy): ChartSnapshot {
   checkSelection(
     copy,
     columns,
-    policy === "heatmap-observations" ||
+    policy === "funnel-observations" ||
+      policy === "heatmap-observations" ||
       policy === "xy-coordinates" ||
       policy === "waterfall-observations" ||
       policy === "histogram-observations" ||

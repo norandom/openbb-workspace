@@ -5,6 +5,7 @@ import type {
   ApplicationAxisStructureEvent,
   ApplicationEditorIntent,
 } from "../compatibility/editorBindings/types";
+import { isFunnelFamily } from "../compatibility/funnelContracts";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
 import type { ComboGeometry } from "../echarts/comboTypes";
 import type { ChartSetupEdit } from "../editor/setup/ChartSetupPanel";
@@ -46,11 +47,13 @@ import type { XyEditIntent } from "./xySessionTypes";
 type ReadyFor<F extends ApplicationChartFamily> =
   F extends import("../compatibility/hierarchyContracts").HierarchyChartType
     ? Extract<ApplicationChartReady, { kind: "hierarchy" }>
-    : F extends "heatmap"
-      ? Extract<ApplicationChartReady, { kind: "heatmap" }>
-      : F extends import("../compatibility/pieAssignments").PieChartType
-        ? Extract<ApplicationChartReady, { kind: "pie" }>
-        : Exclude<ApplicationChartReady, { kind: "pie" | "hierarchy" }>;
+    : F extends import("../compatibility/funnelContracts").FunnelFamily
+      ? Extract<ApplicationChartReady, { kind: "funnel" }>
+      : F extends "heatmap"
+        ? Extract<ApplicationChartReady, { kind: "heatmap" }>
+        : F extends import("../compatibility/pieAssignments").PieChartType
+          ? Extract<ApplicationChartReady, { kind: "pie" }>
+          : Exclude<ApplicationChartReady, { kind: "pie" | "hierarchy" }>;
 export function useApplicationChartSession<F extends ApplicationChartFamily>(
   inputs: ApplicationSessionInputs<F>,
 ) {
@@ -141,7 +144,8 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
       if (
         !previous.capture ||
         isHierarchyChartFamily(inputs.family) ||
-        inputs.family === "heatmap"
+        inputs.family === "heatmap" ||
+        isFunnelFamily(inputs.family)
       )
         return { widget, value: previous };
       const context = contextFor(inputs, previous);
@@ -246,6 +250,7 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
         | import("../compatibility/radialContracts").RadialEditIntent
         | import("../compatibility/nightingaleContracts").NightingaleEditIntent
         | import("./hierarchyEditorTypes").HierarchyAcceptedEditIntent
+        | import("./funnelEditorTypes").FunnelEditIntent
         | import("./heatmapTypes").HeatmapEditIntent
         | ApplicationEditorIntent
         | PieEditIntent

@@ -1,4 +1,8 @@
 import type {
+  FunnelEditIntent,
+  FunnelEditorState,
+} from "../application/funnelEditorTypes";
+import type {
   HeatmapEditIntent,
   HeatmapEditorState,
 } from "../application/heatmapTypes";
@@ -11,6 +15,7 @@ import {
   type ApplicationCustomizeEditorProps,
 } from "./ApplicationCustomizeEditor";
 import { ChartEditorDock, type ChartEditorDockProps } from "./ChartEditorDock";
+import { FunnelCustomizeEditor } from "./funnel/FunnelCustomizeEditor";
 import { HeatmapCustomizeEditor } from "./heatmap/HeatmapCustomizeEditor";
 import { HierarchyCustomizeEditor } from "./hierarchy/HierarchyCustomizeEditor";
 import {
@@ -28,6 +33,12 @@ interface OrdinaryChartEditorProps
 export type ApplicationChartEditorProps =
   | OrdinaryChartEditorProps
   | (Omit<ChartEditorDockProps, "setup" | "customize"> & {
+      kind: "funnel";
+      state: FunnelEditorState;
+      setupProps: ChartSetupPanelProps;
+      onIntent: (intent: FunnelEditIntent) => void;
+    })
+  | (Omit<ChartEditorDockProps, "setup" | "customize"> & {
       kind: "heatmap";
       state: HeatmapEditorState;
       setupProps: ChartSetupPanelProps;
@@ -41,6 +52,25 @@ export type ApplicationChartEditorProps =
     });
 /** The session supplies values and commits edits; this composition owns only panel expansion. */
 export function ApplicationChartEditor(props: ApplicationChartEditorProps) {
+  if (props.kind === "funnel") {
+    const { kind: _kind, state, setupProps, onIntent, ...dock } = props;
+    return (
+      <ChartEditorDock
+        {...dock}
+        setup={
+          <ChartSetupPanel
+            {...setupProps}
+            mode={{
+              kind: "funnel",
+              direction: state.direction,
+              onEdit: (value) => onIntent({ panel: "funnelDirection", value }),
+            }}
+          />
+        }
+        customize={<FunnelCustomizeEditor state={state} onEdit={onIntent} />}
+      />
+    );
+  }
   if (props.kind === "heatmap") {
     const { kind: _kind, state, setupProps, onIntent, ...dock } = props;
     return (

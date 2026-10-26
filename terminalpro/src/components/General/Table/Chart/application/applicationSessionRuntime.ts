@@ -1,5 +1,6 @@
 import cloneDeep from "lodash/cloneDeep";
 import isEqual from "lodash.isequal";
+import { isFunnelFamily } from "../compatibility/funnelContracts";
 import type {
   ChartModel,
   ChartStorageOutput,
@@ -66,6 +67,7 @@ export const sessionAppearanceKey = <F extends ApplicationChartFamily>(
     input.precision,
     input.hierarchyThemePalette,
     input.heatmapThemePaint,
+    input.funnelThemePaint,
   ]);
 export const sessionActionKey = (storage: ChartStorageOutput) =>
   JSON.stringify([
@@ -133,6 +135,7 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
         inputs.family === "nightingale" ||
         isPieChartFamily(inputs.family) ||
         inputs.family === "boxPlot" ||
+        isFunnelFamily(inputs.family) ||
         inputs.family === "heatmap" ||
         isHierarchyChartFamily(inputs.family)
       )
@@ -167,6 +170,7 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
       precision: inputs.precision,
       hierarchyThemePalette: cloneDeep(inputs.hierarchyThemePalette),
       heatmapThemePaint: cloneDeep(inputs.heatmapThemePaint),
+      funnelThemePaint: cloneDeep(inputs.funnelThemePaint),
     },
   };
 }
@@ -225,6 +229,7 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
     inputs.family === "nightingale" ||
     isPieChartFamily(inputs.family) ||
     inputs.family === "boxPlot" ||
+    isFunnelFamily(inputs.family) ||
     inputs.family === "heatmap" ||
     isHierarchyChartFamily(inputs.family)
       ? undefined
@@ -235,6 +240,7 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
     inputs.family === "nightingale" ||
     isPieChartFamily(inputs.family) ||
     inputs.family === "boxPlot" ||
+    isFunnelFamily(inputs.family) ||
     inputs.family === "heatmap" ||
     isHierarchyChartFamily(inputs.family)
       ? undefined
@@ -286,6 +292,7 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
       precision: inputs.precision,
       hierarchyThemePalette: cloneDeep(inputs.hierarchyThemePalette),
       heatmapThemePaint: cloneDeep(inputs.heatmapThemePaint),
+      funnelThemePaint: cloneDeep(inputs.funnelThemePaint),
     },
     capture: dataChanged ? undefined : state.capture,
     pendingFamily: undefined,
@@ -299,6 +306,7 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
       range,
       stamp: nextSessionStamp(state.local.stamp, dataChanged ? "data" : "render"),
       ...(!isHierarchyChartFamily(inputs.family) &&
+      !isFunnelFamily(inputs.family) &&
       inputs.family !== "heatmap" &&
       (dataChanged || modelChanged)
         ? {

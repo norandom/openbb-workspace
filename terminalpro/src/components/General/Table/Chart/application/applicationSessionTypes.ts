@@ -45,6 +45,7 @@ export interface ApplicationSessionInputs<
   readonly categoryColumnId: string;
   readonly columns: readonly SnapshotColumn[];
   readonly theme: ApplicationThemeInput;
+  readonly funnelThemePaint?: import("./funnelRenderTypes").FunnelThemePaint;
   readonly heatmapThemePaint?: import("./heatmapTypes").HeatmapThemePaint;
   readonly hierarchyThemePalette?: import("./hierarchyAppearanceTypes").HierarchyPalette;
   readonly generated: RuntimeOptions;
@@ -118,7 +119,12 @@ export interface ApplicationSessionState {
   readonly actionKey: string;
   readonly appearance: Pick<
     ApplicationSessionInputs,
-    "theme" | "generated" | "precision" | "hierarchyThemePalette" | "heatmapThemePaint"
+    | "theme"
+    | "generated"
+    | "precision"
+    | "hierarchyThemePalette"
+    | "heatmapThemePaint"
+    | "funnelThemePaint"
   >;
   readonly error?: string;
 }

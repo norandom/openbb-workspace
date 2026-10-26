@@ -9,10 +9,12 @@ import { useAgGridContext } from "../../hooks/useTableContext";
 import type { ApplicationChartFamily } from "../application/comboSessionTypes";
 import { createChartDisplayPolicy } from "../application/financialFormatting";
 import type { IndexColumnDefinition } from "../application/types";
+import { isFunnelFamily } from "../compatibility/funnelContracts";
 import type { RuntimeOptions } from "../compatibility/legacyTypes";
 import { useAgThemes } from "../themes";
 import { getFiscalPeriodString } from "../utils";
 import { resolveCallerChart } from "./chartInputs";
+import { projectFunnelThemePaint } from "./funnelThemePaint";
 import { callerGeneratedOptions } from "./generatedOptions";
 import { heatmapThemePaint } from "./heatmapThemePaint";
 import { projectHierarchyThemePalette } from "./hierarchyThemePalette";
@@ -75,45 +77,66 @@ export function useCallerSessionInputs() {
     ],
   );
   if (result.valid === false) return result;
-  const theme = projectCallerTheme(
-    mode,
-    themes.chartThemes,
-    themes.customChartThemes,
-    chartType,
-  );
-  return {
-    valid: true as const,
-    value: {
-      ...result.value,
-      family: chartType as ApplicationChartFamily,
-      api,
-      address: {
-        widgetId,
-        stateKey,
-        stateAddress: JSON.stringify([widgetId, stateKey]),
-      },
-      dataRevision: (gridState?.dataRevision ?? 0) + (gridState?.displayRevision ?? 0),
-      ...(chartType === "heatmap"
-        ? {
-            heatmapThemePaint: heatmapThemePaint(
-              themes.customChartThemes[themes.chartThemes[0] ?? `openbb-${mode}`]
-                ?.palette,
-              theme.colors.base === "ag-default-dark",
-              theme.colors.chartBackgroundColor,
-            ),
-          }
-        : {}),
-      hierarchyThemePalette: projectHierarchyThemePalette(
+  const funnel = isFunnelFamily(chartType)
+    ? projectFunnelThemePaint(
         mode,
         themes.chartThemes,
         themes.customChartThemes,
-      ),
-      theme,
-      generated:
-        (dataOnlyOptions(gridState?.chartThemeOverrides) as RuntimeOptions) ??
-        callerGeneratedOptions(widgetFromJSON?.data?.table?.chartView),
-      precision,
-      display,
-    },
-  };
+        chartType,
+      )
+    : undefined;
+  if (funnel?.valid === false)
+    return { valid: false as const, error: funnel.error, chartType };
+  try {
+    const theme = projectCallerTheme(
+      mode,
+      themes.chartThemes,
+      themes.customChartThemes,
+      chartType,
+    );
+    return {
+      valid: true as const,
+      value: {
+        ...result.value,
+        family: chartType as ApplicationChartFamily,
+        ...(funnel?.valid ? { funnelThemePaint: funnel.value } : {}),
+        api,
+        address: {
+          widgetId,
+          stateKey,
+          stateAddress: JSON.stringify([widgetId, stateKey]),
+        },
+        dataRevision:
+          (gridState?.dataRevision ?? 0) + (gridState?.displayRevision ?? 0),
+        ...(chartType === "heatmap"
+          ? {
+              heatmapThemePaint: heatmapThemePaint(
+                themes.customChartThemes[themes.chartThemes[0] ?? `openbb-${mode}`]
+                  ?.palette,
+                theme.colors.base === "ag-default-dark",
+                theme.colors.chartBackgroundColor,
+              ),
+            }
+          : {}),
+        hierarchyThemePalette: projectHierarchyThemePalette(
+          mode,
+          themes.chartThemes,
+          themes.customChartThemes,
+        ),
+        theme,
+        generated:
+          (dataOnlyOptions(gridState?.chartThemeOverrides) as RuntimeOptions) ??
+          callerGeneratedOptions(widgetFromJSON?.data?.table?.chartView),
+        precision,
+        display,
+      },
+    };
+  } catch (error) {
+    if (!isFunnelFamily(chartType)) throw error;
+    return {
+      valid: false as const,
+      chartType,
+      error: "Invalid Funnel theme input. Saved configuration is preserved.",
+    };
+  }
 }

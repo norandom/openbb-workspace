@@ -10,6 +10,7 @@ import type {
 } from "./comboSessionTypes";
 import type { SessionStamp } from "./types";
 export type ApplicationChartReady =
+  | import("./funnelSessionTypes").FunnelSessionReady
   | import("./heatmapSession").HeatmapSessionReady
   | import("./hierarchySessionTypes").HierarchySessionReady
   | (Omit<ApplicationSessionReady, "editor"> & {
@@ -63,6 +64,7 @@ export interface ApplicationChartCommand {
   readonly family: ApplicationChartFamily;
   readonly geometry?: ComboGeometry;
   readonly intent:
+    | import("./funnelEditorTypes").FunnelEditIntent
     | import("./heatmapTypes").HeatmapEditIntent
     | import("./hierarchyEditorTypes").HierarchyAcceptedEditIntent
     | {

@@ -174,6 +174,21 @@ export function ChartSetupPanel({
   );
   return (
     <div className="chart-setup-panel">
+      {mode?.kind === "funnel" && (
+        <Group label="Direction">
+          <Choice
+            label="Direction"
+            value={mode.direction}
+            choices={[
+              { value: "vertical", label: "Vertical" },
+              { value: "horizontal", label: "Horizontal" },
+            ]}
+            onChange={(value) => {
+              if (value === "vertical" || value === "horizontal") mode.onEdit(value);
+            }}
+          />
+        </Group>
+      )}
       {(mode?.kind === "nightingale" || mode?.kind === "radial") && (
         <Group label="Group Type">
           <Choice
@@ -281,7 +296,8 @@ export function ChartSetupPanel({
             <span aria-hidden="true">+</span>
           </div>
         )}
-        {mode?.kind !== "heatmap" &&
+        {mode?.kind !== "funnel" &&
+          mode?.kind !== "heatmap" &&
           mode?.kind !== "combo" &&
           mode?.kind !== "xy" &&
           mode?.kind !== "histogram" &&
