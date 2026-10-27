@@ -44,7 +44,10 @@ async function readDashboard(page: Page, url: string) {
 async function openGalleryEditor(page: Page, widget: Locator) {
   await settle(page, widget);
   const editor = widget.getByRole("complementary", { name: "Chart editor" });
-  return await editor.isVisible() ? editor : await openEditor(page, widget);
+  if (await editor.isVisible()) return editor;
+  const opened = await openEditor(page, widget);
+  await settle(page, widget);
+  return opened;
 }
 
 function observeSnapshot(page: Page) {
