@@ -10,6 +10,7 @@ import { resolveHeatmapRange } from "../application/heatmapRange";
 import { resolveHierarchyRange } from "../application/hierarchyRange";
 import { isPieChartFamily } from "../application/pieSessionTypes";
 import { isRadarChartFamily } from "../application/radarSessionProjection";
+import { resolveSankeyRange } from "../application/sankeySession";
 import { DEFAULT_SETUP_CATEGORY } from "../application/setupTypes";
 import type { ResolvedRange } from "../application/types";
 import type { ValidationResult } from "../compatibility/legacyTypes";
@@ -37,21 +38,29 @@ export function hasCallerSeries(definitions: readonly (ColDef | ColGroupDef)[]) 
 function descriptors(
   definitions: readonly (ColDef | ColGroupDef)[],
   range = false,
+  sankey = false,
 ): SnapshotColumn[] {
   return leafChartDefinitions(definitions).flatMap((definition) => {
     const id = definition.colId ?? definition.field;
     if (
       !id ||
-      !(
-        range ? ["category", "series", "time", "number"] : ["category", "series"]
-      ).includes(definition.chartDataType ?? "")
+      (!sankey &&
+        !(
+          range ? ["category", "series", "time", "number"] : ["category", "series"]
+        ).includes(definition.chartDataType ?? ""))
     )
       return [];
     return [
       {
         id,
         label: definition.headerName ?? id,
-        role: definition.chartDataType === "series" ? "number" : "category",
+        role:
+          definition.chartDataType === "series" ||
+          (sankey &&
+            ((definition.chartDataType as string) === "number" ||
+              definition.cellDataType === "number"))
+            ? "number"
+            : "category",
       },
     ];
   });
@@ -114,10 +123,10 @@ export function resolveCallerChart(
     const chartType = baseline.value.chartType;
     const isRange = chartType === "rangeBar" || chartType === "rangeArea";
     const columns: SnapshotColumn[] = [
-      ...(isHierarchyChartFamily(chartType)
+      ...(isHierarchyChartFamily(chartType) || chartType === "sankey"
         ? []
         : [{ id: DEFAULT_SETUP_CATEGORY, label: "(None)", role: "category" as const }]),
-      ...descriptors(definitions, isRange),
+      ...descriptors(definitions, isRange, chartType === "sankey"),
     ];
     const generated =
       api
@@ -154,11 +163,14 @@ export function resolveCallerChart(
           : storedRange(partition?.[chartType]?.cellRange ?? model.cellRange),
       ignoreCellRange: widget.storage?.ignoreCellRange === true,
     };
-    const range = isHierarchyChartFamily(chartType)
-      ? resolveHierarchyRange({ ...rangeInput, columns })
-      : chartType === "heatmap"
-        ? resolveHeatmapRange(rangeInput, columns)
-        : resolveChartRange(rangeInput);
+    const range =
+      chartType === "sankey"
+        ? resolveSankeyRange(rangeInput)
+        : isHierarchyChartFamily(chartType)
+          ? resolveHierarchyRange({ ...rangeInput, columns })
+          : chartType === "heatmap"
+            ? resolveHeatmapRange(rangeInput, columns)
+            : resolveChartRange(rangeInput);
     if (range.status !== "ready")
       throw new Error(range.diagnostics[0]?.message ?? "Chart range is unavailable");
     const category =
@@ -201,6 +213,7 @@ export function resolveCallerChart(
             isRadarChartFamily(chartType) ||
             isPieChartFamily(chartType) ||
             chartType === "heatmap" ||
+            chartType === "sankey" ||
             isHierarchyChartFamily(chartType)
             ? {}
             : model,

@@ -106,6 +106,7 @@ const thumbnails: Record<string, ReactNode> = {
   radarLine: <Radar />, radarArea: <Radar filled />, nightingale: <RadialColumns nightingale />, radialColumn: <RadialColumns />, radialBar: <Pie rings donut />,
   boxPlot: <Ranges box />, histogram: <Columns stacked />, rangeBar: <Ranges />, rangeArea: <Ranges area />,
   treemap: <Tiles />, sunburst: <Pie rings />, heatmap: <Tiles heatmap />,
+  sankey: <><path d="M8 14C27 14 27 8 46 8M8 26C27 26 27 41 46 41" fill="none" stroke={colors[0]} strokeWidth="10" opacity=".5" /><path d="M8 7V33M46 1V15M46 34V48" stroke={colors[1]} strokeWidth="6" /></>,
   waterfall: <>{axes}<path d="M6 49V35H16V25H27V14H38V6H48V49" fill="none" stroke={colors[2]} strokeWidth="7" /></>,
   funnel: <Funnel />, coneFunnel: <Funnel cone />, pyramid: <Funnel pyramid />,
   columnLineCombo: <><Columns /><Lines /></>, areaColumnCombo: <><Lines area /><Columns /></>,

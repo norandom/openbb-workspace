@@ -271,7 +271,7 @@ describe("inactive hierarchy caller prerequisites", () => {
     const projected = projectApplicationChart({}, c.inputs, state);
     expect(ordinary.status).toBe("ready");
     expect(projected.status).toBe("ready");
-    if (ordinary.status !== "ready" || projected.status !== "ready")
+    if (ordinary.status !== "ready" || projected.status !== "ready" || projected.value.kind === "sankey")
       throw Error("ordinary projection");
     expect(JSON.stringify(projected.value.options)).toEqual(
       JSON.stringify(ordinary.value.options),

@@ -29,6 +29,8 @@ import {
   applyHierarchyAppearanceTransaction,
   applyHierarchySetupTransaction,
 } from "./hierarchySessionTransactions";
+import { sankeySetupKey } from "./sankeySelection";
+import { applySankeyTransaction } from "./sankeyTransactions";
 import type { SessionResult } from "./types";
 
 export function executeApplicationChartCommand(
@@ -46,7 +48,7 @@ export function executeApplicationChartCommand(
   )
     return { widget, value: state };
   if (
-    !state.capture ||
+    (!state.capture && inputs.family !== "sankey") ||
     state.dataKey !== sessionDataKey(inputs) ||
     command.family !== inputs.family ||
     (command.family !== state.local.baseline.chartType &&
@@ -75,6 +77,9 @@ export function executeApplicationChartCommand(
     value: {
       ...state,
       assignmentKey: sessionAssignmentKey(committed.storage, inputs.address),
+      sankeySetupKey: sankeySetupKey(committed.storage, inputs.address),
+      captureDiagnostics:
+        committed.change === "data" ? undefined : state.captureDiagnostics,
       local: { ...committed.local, stamp },
       error: undefined,
       ...(committed.local.baseline.chartType !== state.local.baseline.chartType
@@ -109,6 +114,8 @@ function joinedTransaction(
   command: ApplicationChartCommand,
   recapture?: ReturnType<typeof captureApplicationSession>,
 ): SessionResult<ApplicationChartCommit> {
+  if (inputs.family === "sankey")
+    return applySankeyTransaction(storage, inputs, state, command);
   if (isHierarchyChartFamily(inputs.family)) {
     const context = hierarchyContextFor(inputs, state);
     if (command.intent.panel === "family")

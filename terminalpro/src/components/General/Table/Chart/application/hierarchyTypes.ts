@@ -17,4 +17,7 @@ export interface HierarchyAssignments {
   readonly colorId?: string;
 }
 /** Retained capture kinds are narrowed at the application session boundary. */
-export type RetainedApplicationCapture = ChartSnapshot | HierarchySnapshot;
+export type RetainedApplicationCapture =
+  | ChartSnapshot
+  | HierarchySnapshot
+  | import("../compatibility/sankeyContracts").SankeySnapshot;

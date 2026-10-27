@@ -30,6 +30,7 @@ import { isFunnelFamily } from "./compatibility/funnelContracts";
 export { customChartWidgetIds } from "./caller/orientation";
 
 import { LiveChartEditor } from "./caller/LiveChartEditor";
+import { SankeyChartEditor, SankeyChartNotice } from "./caller/SankeyChartEditor";
 import { isCartesianFamily } from "./echarts/cartesianTypes";
 import { EChartsHost, type EChartsHostHandle } from "./echarts/EChartsHost";
 import { ChartEditorDock } from "./editor/ChartEditorDock";
@@ -85,6 +86,7 @@ export function ChartViewElement() {
           isComboChartFamily(inputs.value.family) ||
           isXyChartFamily(inputs.value.family) ||
           inputs.value.family === "heatmap" ||
+          inputs.value.family === "sankey" ||
           inputs.value.family === "histogram" ||
           inputs.value.family === "boxPlot" ||
           inputs.value.family === "waterfall" ||
@@ -264,6 +266,7 @@ function LiveCallerChart({
       isXyChartFamily(inputs.family) ||
       isFunnelFamily(inputs.family) ||
       inputs.family === "heatmap" ||
+      inputs.family === "sankey" ||
       inputs.family === "histogram" ||
       inputs.family === "boxPlot" ||
       inputs.family === "waterfall" ||
@@ -280,61 +283,80 @@ function LiveCallerChart({
   }, [session.seriesCount, updateWidget, inputs.family]);
   return (
     <>
-      <div className="flex-1 min-w-0 h-full relative">
-        <EChartsHost
-          key={session.hostKey}
-          ref={host}
-          {...session.hostProps}
-          className="h-full w-full"
-          style={heatmapEmpty ? { visibility: "hidden" } : undefined}
-        />
-        {ready?.kind === "funnel" && ready.notice && (
-          <div
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-            className={
-              ready.notice.kind === "missing-stages"
-                ? "absolute bottom-0 left-0 right-0 text-xs text-center pointer-events-none"
-                : "absolute inset-0 flex items-center justify-center text-sm pointer-events-none"
-            }
-          >
-            {ready.notice.message}
-          </div>
+      <div className="flex-1 min-w-0 h-full relative flex flex-col">
+        {session.sankeyEditor && (
+          <SankeyChartNotice projection={session.sankeyEditor} />
         )}
-        {(heatmapEmpty ||
-          ((ready?.kind === "radial" ||
-            ready?.kind === "radar" ||
-            ready?.kind === "nightingale" ||
-            ready?.kind === "pie" ||
-            ready?.kind === "xy" ||
-            ready?.kind === "histogram" ||
-            ready?.kind === "boxPlot" ||
-            ready?.kind === "waterfall" ||
-            ready?.kind === "range") &&
-            !(
-              Array.isArray(ready.options.series)
-                ? ready.options.series
-                : [ready.options.series]
-            ).some((series: any) => series?.data?.length))) && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm">
-            No data available to be charted.
-          </div>
-        )}
-        {["invalid", "unresolved"].includes(session.projection.status) && (
-          <div className="absolute inset-0">
-            <UnsupportedRenderer
-              reason={
-                "diagnostics" in session.projection
-                  ? session.projection.diagnostics[0]?.message
-                  : "Chart unavailable"
+        <div className="flex-1 min-h-0 relative">
+          <EChartsHost
+            key={session.hostKey}
+            ref={host}
+            {...session.hostProps}
+            className="h-full w-full"
+            style={heatmapEmpty ? { visibility: "hidden" } : undefined}
+          />
+          {ready?.kind === "funnel" && ready.notice && (
+            <div
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              className={
+                ready.notice.kind === "missing-stages"
+                  ? "absolute bottom-0 left-0 right-0 text-xs text-center pointer-events-none"
+                  : "absolute inset-0 flex items-center justify-center text-sm pointer-events-none"
               }
-            />
-          </div>
-        )}
+            >
+              {ready.notice.message}
+            </div>
+          )}
+          {(heatmapEmpty ||
+            ((ready?.kind === "radial" ||
+              ready?.kind === "radar" ||
+              ready?.kind === "nightingale" ||
+              ready?.kind === "pie" ||
+              ready?.kind === "xy" ||
+              ready?.kind === "histogram" ||
+              ready?.kind === "boxPlot" ||
+              ready?.kind === "waterfall" ||
+              ready?.kind === "range") &&
+              !(
+                Array.isArray(ready.options.series)
+                  ? ready.options.series
+                  : [ready.options.series]
+              ).some((series: any) => series?.data?.length))) && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm">
+              No data available to be charted.
+            </div>
+          )}
+          {["invalid", "unresolved"].includes(session.projection.status) && (
+            <div className="absolute inset-0">
+              <UnsupportedRenderer
+                reason={
+                  "diagnostics" in session.projection
+                    ? session.projection.diagnostics[0]?.message
+                    : "Chart unavailable"
+                }
+              />
+            </div>
+          )}
+        </div>
       </div>
-      {ready && (
-        <LiveChartEditor ready={ready} session={session} inputs={inputs} dock={dock} />
+      {session.sankeyEditor ? (
+        <SankeyChartEditor
+          projection={session.sankeyEditor}
+          dock={dock}
+          onSetup={session.onSankeySetup}
+          onIntent={session.onIntent}
+        />
+      ) : (
+        ready && (
+          <LiveChartEditor
+            ready={ready}
+            session={session}
+            inputs={inputs}
+            dock={dock}
+          />
+        )
       )}
     </>
   );

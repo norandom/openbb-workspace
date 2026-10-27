@@ -179,6 +179,7 @@ export function projectCallerTheme(
     "radial-bar",
     "waterfall",
     "heatmap",
+    "sankey",
     "treemap",
     "sunburst",
   ]) {

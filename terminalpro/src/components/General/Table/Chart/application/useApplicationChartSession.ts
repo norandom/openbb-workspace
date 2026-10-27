@@ -38,14 +38,17 @@ import type {
 import type { HistogramEditIntent } from "./histogramSessionTypes";
 import type { PieEditIntent } from "./pieSessionTypes";
 import type { RangeEditIntent } from "./rangeSessionTypes";
+import { projectSankeyEditor } from "./sankeyProjection";
+import { sankeySetupKey } from "./sankeySelection";
 import { validateSessionStamp } from "./sessionState";
 import type { SessionResult } from "./types";
 import { useApplicationSessionFreshness } from "./useApplicationSessionFreshness";
 import { useApplicationSessionScope } from "./useApplicationSessionScope";
 import type { XyEditIntent } from "./xySessionTypes";
 
-type ReadyFor<F extends ApplicationChartFamily> =
-  F extends import("../compatibility/hierarchyContracts").HierarchyChartType
+type ReadyFor<F extends ApplicationChartFamily> = F extends "sankey"
+  ? Extract<ApplicationChartReady, { kind: "sankey" }>
+  : F extends import("../compatibility/hierarchyContracts").HierarchyChartType
     ? Extract<ApplicationChartReady, { kind: "hierarchy" }>
     : F extends import("../compatibility/funnelContracts").FunnelFamily
       ? Extract<ApplicationChartReady, { kind: "funnel" }>
@@ -53,7 +56,7 @@ type ReadyFor<F extends ApplicationChartFamily> =
         ? Extract<ApplicationChartReady, { kind: "heatmap" }>
         : F extends import("../compatibility/pieAssignments").PieChartType
           ? Extract<ApplicationChartReady, { kind: "pie" }>
-          : Exclude<ApplicationChartReady, { kind: "pie" | "hierarchy" }>;
+          : Exclude<ApplicationChartReady, { kind: "pie" | "hierarchy" | "sankey" }>;
 export function useApplicationChartSession<F extends ApplicationChartFamily>(
   inputs: ApplicationSessionInputs<F>,
 ) {
@@ -62,6 +65,9 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
   const current =
     state &&
     state.dataKey === sessionDataKey(inputs) &&
+    (inputs.family !== "sankey" ||
+      state.sankeySetupKey ===
+        sankeySetupKey(owner.widget.storage as ChartStorageOutput, inputs.address)) &&
     state.appearanceKey === sessionAppearanceKey(inputs) &&
     state.actionKey === sessionActionKey(owner.widget.storage as ChartStorageOutput)
       ? state
@@ -145,6 +151,7 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
         !previous.capture ||
         isHierarchyChartFamily(inputs.family) ||
         inputs.family === "heatmap" ||
+        inputs.family === "sankey" ||
         isFunnelFamily(inputs.family)
       )
         return { widget, value: previous };
@@ -183,16 +190,32 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
     });
   };
   return {
+    sankeyEditor:
+      inputs.family === "sankey"
+        ? projectSankeyEditor(
+            owner.widget.storage as ChartStorageOutput,
+            inputs,
+            current,
+          )
+        : undefined,
     projection,
     chartType: current?.local.baseline.chartType ?? inputs.family,
     hasCustomCombo: Boolean(current?.local.savedCustomSeriesChartTypes?.length),
     seriesCount: current?.local.range.columnIds.filter((id) =>
       inputs.columns.some((column) => column.id === id && column.role === "number"),
     ).length,
-    hostKey: state?.local.stamp.generation,
+    hostKey:
+      inputs.family === "sankey"
+        ? `${state?.local.stamp.generation}:${projection.status === "ready" ? "ready" : "unavailable"}`
+        : state?.local.stamp.generation,
     hostProps: {
       options: projection.status === "ready" ? projection.value.options : {},
-      revision: projection.status === "ready" ? projection.value.revision : 0,
+      revision:
+        projection.status === "ready"
+          ? projection.value.revision
+          : inputs.family === "sankey"
+            ? (state?.local.stamp.renderRevision ?? 0)
+            : 0,
       legendScope:
         projection.status === "ready" ? projection.value.legendScope : undefined,
       projectLegendSelection:
@@ -257,6 +280,8 @@ export function useApplicationChartSession<F extends ApplicationChartFamily>(
         | import("../compatibility/radarContracts").RadarEditIntent,
     ) => dispatch(intent),
     onAxisStructure: (event: ApplicationAxisStructureEvent) => dispatch(event),
+    onSankeySetup: (edit: import("./sankeyTypes").SankeySetupEdit) =>
+      dispatch({ panel: "sankeySetup", edit }),
     onHierarchySetup: (edit: import("./hierarchySetupTypes").HierarchySetupEdit) =>
       dispatch({ panel: "hierarchySetup", edit }),
     onSetup: (edit: ChartSetupEdit) => dispatch({ panel: "setup", edit }),

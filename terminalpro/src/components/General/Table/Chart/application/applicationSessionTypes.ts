@@ -69,6 +69,7 @@ export interface ApplicationSessionLocal {
   readonly legendEnabled?: boolean;
   /** Identifies a live accepted Set Up range, never a serialized preference. */
   readonly rangeFrameKey?: string;
+  readonly sankeySetup?: unknown;
   readonly comboGeometry?: ComboGeometry;
   readonly comboAxes?: readonly ComboConcreteAxis[];
   readonly savedCustomSeriesChartTypes?: readonly ComboSeriesAssignment[];
@@ -111,6 +112,8 @@ export interface ApplicationSessionState {
   readonly sourceFamily?: ApplicationChartFamily;
   readonly pendingFamily?: ApplicationChartFamily;
   readonly assignmentKey?: string;
+  readonly sankeySetupKey?: string;
+  readonly captureDiagnostics?: readonly import("../compatibility/snapshotTypes").SnapshotDiagnostic[];
   readonly local: ApplicationSessionLocal;
   readonly capture?: import("./hierarchyTypes").RetainedApplicationCapture;
   readonly viewport?: { readonly width: number; readonly height: number };

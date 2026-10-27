@@ -1,11 +1,8 @@
-import type { ApplicationChartFamily } from "./comboSessionTypes";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { WidgetTransactionAdapter } from "../../../../widgetSync/transactions";
 import type { ChartStorageOutput } from "../compatibility/legacyTypes";
-import type {
-  ApplicationSessionInputs,
-  ApplicationSessionState,
-} from "./applicationSessionTypes";
+import { captureApplicationSession } from "./applicationSessionCapture";
+import { latestWidgetRangeInputs } from "./applicationSessionRange";
 import {
   initialApplicationSession,
   nextSessionStamp,
@@ -13,9 +10,12 @@ import {
   sessionDataKey,
   synchronizeApplicationSession,
 } from "./applicationSessionRuntime";
-import { captureApplicationSession } from "./applicationSessionCapture";
+import type {
+  ApplicationSessionInputs,
+  ApplicationSessionState,
+} from "./applicationSessionTypes";
+import type { ApplicationChartFamily } from "./comboSessionTypes";
 import { validateSessionStamp } from "./sessionState";
-import { latestWidgetRangeInputs } from "./applicationSessionRange";
 
 function scopeValue(
   owner: WidgetTransactionAdapter,
@@ -52,8 +52,7 @@ function useScopeSynchronization(
           ),
         };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Invalid chart state";
+        const message = error instanceof Error ? error.message : "Invalid chart state";
         return {
           widget,
           value:
@@ -90,18 +89,22 @@ function useScopeCapture(
     const captured = captureApplicationSession(inputs, state);
     if (captured.status === "waiting") return;
     owner.transact(token, (widget, value: ApplicationSessionState) => {
-      if (
-        validateSessionStamp(state.local.stamp, value.local.stamp).status !==
-        "ready"
-      )
+      if (validateSessionStamp(state.local.stamp, value.local.stamp).status !== "ready")
         return { widget, value };
       return {
         widget,
         value:
           captured.status === "ready"
-            ? { ...value, capture: captured.value, error: undefined }
+            ? {
+                ...value,
+                capture: captured.value,
+                error: undefined,
+                captureDiagnostics: undefined,
+              }
             : {
                 ...value,
+                captureDiagnostics:
+                  "diagnostics" in captured ? captured.diagnostics : undefined,
                 error:
                   "diagnostics" in captured
                     ? captured.diagnostics[0].message
@@ -116,6 +119,7 @@ function useScopeCapture(
     state?.local.stamp,
     state?.capture,
     state?.dataKey,
+    state?.error,
   ]);
 }
 

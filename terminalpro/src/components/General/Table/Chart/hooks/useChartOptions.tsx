@@ -159,7 +159,7 @@ export function useChartBarFillQuickAction(): ExtraAction | undefined {
     storage.chartView?.chartType;
   const count =
     summary?.seriesCount ?? chartRef?.current?.seriesCount ?? storage.totalSeries;
-  if (!type || getSeriesType(type) !== "bar" || !storage.chartView?.enabled) return;
+  if (!type || type === "sankey" || getSeriesType(type) !== "bar" || !storage.chartView?.enabled) return;
   const disabled = count > 1;
   return {
     icon: "chart-icon",
@@ -180,6 +180,7 @@ export function useChartBarFillQuickAction(): ExtraAction | undefined {
           previous.storage?.chartView?.chartType;
         if (
           !type ||
+          type === "sankey" ||
           getSeriesType(type) !== "bar" ||
           !previous.storage?.chartView?.enabled ||
           (current?.seriesCount ?? previous.storage?.totalSeries) > 1
@@ -200,7 +201,7 @@ export function useChartQuickActions(): ExtraActionT[] {
   const storage = widget?.storage ?? {};
   const grid = useContext(AgGridContext);
   const family = grid?.gridState?.applicationChartSummary?.family ?? grid?.applicationChartRef.current?.family ?? storage.chartType ?? storage.chartModel?.chartType ?? storage.chartView?.chartType;
-  if (!storage.chartView?.enabled || isPieChartFamily(family)) return [];
+  if (!storage.chartView?.enabled || isPieChartFamily(family) || family === "sankey") return [];
   return (
     [
       [

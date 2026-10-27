@@ -29,6 +29,7 @@ export function applyHistogramEditorTransaction(
     return { status: "stale" };
   const intent = command.intent;
   if (
+    intent.panel === "sankeySetup" ||
     intent.panel === "stageLabels" ||
     intent.panel === "funnelDirection" ||
     intent.panel === "funnelDropOff" ||

@@ -27,6 +27,7 @@ import { isRadarChartFamily, projectRadarSession } from "./radarSessionProjectio
 import { isRadialChartFamily, projectRadialSession } from "./radialSessionProjection";
 import { projectRangeSession } from "./rangeSessionProjection";
 import { isRangeChartFamily } from "./rangeSessionTypes";
+import { projectSankeySession } from "./sankeyProjection";
 import type { SessionResult } from "./types";
 import { projectWaterfallSession } from "./waterfallSessionProjection";
 import { projectXySession } from "./xySessionProjection";
@@ -36,6 +37,7 @@ export function projectApplicationChart(
   inputs: ApplicationSessionInputs<ApplicationChartFamily>,
   state: ApplicationSessionState,
 ): SessionResult<ApplicationChartReady> {
+  if (inputs.family === "sankey") return projectSankeySession(storage, inputs, state);
   if (isHierarchyChartFamily(inputs.family)) {
     if (!isHierarchyCapture(state.capture)) return { status: "waiting" };
     try {

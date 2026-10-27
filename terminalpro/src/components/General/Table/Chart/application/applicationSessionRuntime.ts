@@ -32,6 +32,7 @@ import { observationSnapshotPolicy } from "./histogramCapture";
 import { isPieChartFamily } from "./pieSessionTypes";
 import { isRadarChartFamily } from "./radarSessionProjection";
 import { isRadialChartFamily } from "./radialSessionProjection";
+import { sankeySetupKey, storedSankeySetup } from "./sankeySelection";
 import { advanceSessionStamp } from "./sessionState";
 import { DEFAULT_SETUP_CATEGORY } from "./setupTypes";
 
@@ -120,6 +121,7 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
     range: cloneDeep(inputs.range),
     axes: cloneDeep(inputs.initialAxes),
     manualRotations: { category: undefined, number: undefined },
+    sankeySetup: cloneDeep(storedSankeySetup(storage, inputs.address)),
   };
   const context = {
     inputs,
@@ -137,6 +139,7 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
         inputs.family === "boxPlot" ||
         isFunnelFamily(inputs.family) ||
         inputs.family === "heatmap" ||
+        inputs.family === "sankey" ||
         isHierarchyChartFamily(inputs.family)
       )
     )
@@ -159,6 +162,7 @@ export function initialApplicationSession<F extends ApplicationChartFamily>(
   return {
     sourceFamily: inputs.family,
     assignmentKey: sessionAssignmentKey(storage, inputs.address),
+    sankeySetupKey: sankeySetupKey(storage, inputs.address),
     local: hydrated,
     ...(error === undefined ? {} : { error }),
     dataKey: sessionDataKey(inputs),
@@ -231,6 +235,7 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
     inputs.family === "boxPlot" ||
     isFunnelFamily(inputs.family) ||
     inputs.family === "heatmap" ||
+    inputs.family === "sankey" ||
     isHierarchyChartFamily(inputs.family)
       ? undefined
       : readAxisSettings(baseline.model);
@@ -242,6 +247,7 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
     inputs.family === "boxPlot" ||
     isFunnelFamily(inputs.family) ||
     inputs.family === "heatmap" ||
+    inputs.family === "sankey" ||
     isHierarchyChartFamily(inputs.family)
       ? undefined
       : readAxisSettings(state.local.baseline.model);
@@ -267,6 +273,8 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
     observationSnapshotPolicy(state.sourceFamily ?? "") !==
       observationSnapshotPolicy(inputs.family) ||
     state.sourceFamily !== inputs.family ||
+    (inputs.family === "sankey" &&
+      state.sankeySetupKey !== sankeySetupKey(storage, inputs.address)) ||
     state.dataKey !== dataKey ||
     !isEqual(before, after) ||
     !isEqual(range, state.local.range);
@@ -283,6 +291,8 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
   return {
     ...state,
     dataKey,
+    sankeySetupKey: sankeySetupKey(storage, inputs.address),
+    captureDiagnostics: dataChanged ? undefined : state.captureDiagnostics,
     appearanceKey,
     actionKey,
     error: undefined,
@@ -303,11 +313,13 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
         : state.local),
       axes,
       baseline,
+      sankeySetup: cloneDeep(storedSankeySetup(storage, inputs.address)),
       range,
       stamp: nextSessionStamp(state.local.stamp, dataChanged ? "data" : "render"),
       ...(!isHierarchyChartFamily(inputs.family) &&
       !isFunnelFamily(inputs.family) &&
       inputs.family !== "heatmap" &&
+      inputs.family !== "sankey" &&
       (dataChanged || modelChanged)
         ? {
             legendEnabled:
@@ -327,6 +339,7 @@ function runtimeSetup<F extends ApplicationChartFamily>(
   range: ApplicationSessionLocal["range"],
   context: Pick<ApplicationSessionContext<F>, "inputs" | "local">,
 ) {
+  if (context.inputs.family === "sankey") return { seriesIds: [] };
   if (!isHierarchyChartFamily(context.inputs.family))
     return sessionSetup(model, range, context);
   const result = selectHierarchySetup(

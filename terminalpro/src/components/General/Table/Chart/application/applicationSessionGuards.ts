@@ -3,7 +3,6 @@ import type {
   HierarchySnapshot,
 } from "../compatibility/hierarchyContracts";
 import type { ChartSnapshot } from "../compatibility/snapshotTypes";
-import type { RetainedApplicationCapture } from "./hierarchyTypes";
 import type {
   ApplicationSessionInputs,
   ApplicationSessionState,
@@ -13,6 +12,7 @@ import type {
   HierarchySessionContext,
   HierarchySessionInputs,
 } from "./hierarchySessionTypes";
+import type { RetainedApplicationCapture } from "./hierarchyTypes";
 
 export function isHierarchyChartFamily(value: unknown): value is HierarchyChartType {
   return value === "treemap" || value === "sunburst";
@@ -27,10 +27,15 @@ export function isHierarchyCapture(
     capture.kind === "hierarchy"
   );
 }
+export function isSankeyCapture(
+  capture: RetainedApplicationCapture | undefined,
+): capture is import("../compatibility/sankeyContracts").SankeySnapshot {
+  return !!capture && "kind" in capture && capture.kind === "sankey";
+}
 export function isOrdinaryCapture(
   capture: RetainedApplicationCapture | undefined,
 ): capture is ChartSnapshot {
-  return !!capture && !isHierarchyCapture(capture);
+  return !!capture && !isHierarchyCapture(capture) && !isSankeyCapture(capture);
 }
 export function hierarchyInputs(
   inputs: Omit<ApplicationSessionInputs<ApplicationChartFamily>, "categoryColumnId"> & {

@@ -47,7 +47,7 @@ export const chartTypeGalleryGroups: readonly ChartTypeGalleryGroup[] = [
     { modelType: "treemap", name: "Treemap" }, { modelType: "sunburst", name: "Sunburst" },
   ] },
   { name: "Specialized", items: [
-    { modelType: "heatmap", name: "Heatmap" }, { modelType: "waterfall", name: "Waterfall" },
+    { modelType: "heatmap", name: "Heatmap" }, { modelType: "sankey", name: "Sankey" }, { modelType: "waterfall", name: "Waterfall" },
   ] },
   { name: "Funnel", items: [
     { modelType: "funnel", name: "Funnel" }, { modelType: "coneFunnel", name: "Cone Funnel" },

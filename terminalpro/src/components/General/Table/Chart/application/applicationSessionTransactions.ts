@@ -50,6 +50,7 @@ export function applyOrdinarySessionTransaction(
 ): SessionResult<ApplicationChartCommit> {
   const intent = command.intent;
   if (
+    intent.panel === "sankeySetup" ||
     intent.panel === "hierarchySetup" ||
     intent.panel === "hierarchySpacing" ||
     intent.panel === "hierarchyGradientLegend"
@@ -80,6 +81,7 @@ type OrdinaryAppearanceCommand = Omit<ApplicationChartCommand, "intent"> & {
       panel:
         | "family"
         | "setup"
+        | "sankeySetup"
         | "hierarchySetup"
         | "hierarchySpacing"
         | "hierarchyGradientLegend";
@@ -213,7 +215,11 @@ function applyOrdinaryAppearanceTransaction(
     });
   if (intent.panel === "geometry" || intent.panel === "comboAssignment")
     return { status: "stale" as const };
-  if (isHierarchyChartFamily(context.inputs.family)) return { status: "stale" };
+  if (
+    isHierarchyChartFamily(context.inputs.family) ||
+    context.inputs.family === "sankey"
+  )
+    return { status: "stale" };
   return applyApplicationEditorTransaction(
     storage,
     context as ApplicationSessionContext,

@@ -1,12 +1,10 @@
-import { hierarchySessionRange } from "./hierarchySessionSelection";
-import { hierarchyInputs, isHierarchyChartFamily } from "./applicationSessionGuards";
-import { commitFamilyTransition, familyColumns } from "./familyTransition";
 import cloneDeep from "lodash/cloneDeep";
 import {
-  resolveComboAssignments,
   type ComboChartType,
+  resolveComboAssignments,
 } from "../compatibility/comboAssignments";
 import type { ChartModel, ChartStorageOutput } from "../compatibility/legacyTypes";
+import { hierarchyInputs, isHierarchyChartFamily } from "./applicationSessionGuards";
 import { sessionBaseline, sessionRange } from "./applicationSessionSelection";
 import { validateSynchronousEditorStamp } from "./applicationSessionStamp";
 import type {
@@ -14,12 +12,14 @@ import type {
   ApplicationSessionLocal,
 } from "./applicationSessionTypes";
 import {
-  isComboChartFamily,
   type ApplicationChartFamily,
   type ComboAssignmentCommand,
   type ComboSessionAssignmentSelection,
   type ComboSessionContext,
+  isComboChartFamily,
 } from "./comboSessionTypes";
+import { commitFamilyTransition, familyColumns } from "./familyTransition";
+import { hierarchySessionRange } from "./hierarchySessionSelection";
 import type { ResolvedRange, SessionResult, SessionStamp } from "./types";
 
 function invalid(message: string): SessionResult<never> {
@@ -250,7 +250,12 @@ export function applyComboFamilyTransaction(
             categoryColumnId: context.inputs.categoryColumnId!,
           },
         });
-    if (!captureMatches(context, range)) return { status: "stale" };
+    if (
+      context.inputs.family === "sankey"
+        ? JSON.stringify(range) !== JSON.stringify(context.local.range)
+        : !captureMatches(context, range)
+    )
+      return { status: "stale" };
     if (!isComboChartFamily(chartType))
       return commitFamilyTransition(
         storage,

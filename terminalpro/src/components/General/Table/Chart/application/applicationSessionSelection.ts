@@ -65,7 +65,8 @@ export function canSwitchCategorySeries(family: ApplicationChartFamily): boolean
     family !== "rangeArea" &&
     family !== "waterfall" &&
     family !== "pie" &&
-    family !== "heatmap"
+    family !== "heatmap" &&
+    family !== "sankey"
   );
 }
 export function sessionSetup<F extends ApplicationChartFamily>(

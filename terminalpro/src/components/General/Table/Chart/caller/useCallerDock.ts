@@ -64,6 +64,7 @@ export function useCallerDock(
             isComboChartFamily(type) ||
             isXyChartFamily(type) ||
             type === "heatmap" ||
+            type === "sankey" ||
             type === "histogram" ||
             type === "boxPlot" ||
             type === "waterfall" ||

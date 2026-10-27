@@ -10,6 +10,7 @@ import type {
 } from "./comboSessionTypes";
 import type { SessionStamp } from "./types";
 export type ApplicationChartReady =
+  | import("./sankeySessionTypes").SankeySessionReady
   | import("./funnelSessionTypes").FunnelSessionReady
   | import("./heatmapSession").HeatmapSessionReady
   | import("./hierarchySessionTypes").HierarchySessionReady
@@ -64,6 +65,10 @@ export interface ApplicationChartCommand {
   readonly family: ApplicationChartFamily;
   readonly geometry?: ComboGeometry;
   readonly intent:
+    | {
+        readonly panel: "sankeySetup";
+        readonly edit: import("./sankeyTypes").SankeySetupEdit;
+      }
     | import("./funnelEditorTypes").FunnelEditIntent
     | import("./heatmapTypes").HeatmapEditIntent
     | import("./hierarchyEditorTypes").HierarchyAcceptedEditIntent

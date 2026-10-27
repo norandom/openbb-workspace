@@ -144,9 +144,9 @@ export type FormatterFn = "int" | "none" | "percent" | "normalized" | "normalize
 
 export type ChartViewOptionsT = {
   enabled?: boolean; // Indicates if the chart view is the default view.
-  chartType?: ChartType; // Type of chart to display.
+  chartType?: ChartType | "sankey"; // Type of chart to display.
   ignoreCellRange?: boolean; // Ignores stored cell range.
-  cellRangeCols?: Partial<Record<ChartType, (string | Column)[]>>; // Default columns for each chart type
+  cellRangeCols?: Partial<Record<ChartType | "sankey", (string | Column)[]>>; // Default columns for each chart type
   chartSettingsOpen?: boolean; // Indicates if the chart settings should open.
   xLabel?: string; // Label for the x-axis.
   yLabel?: string; // Label for the y-axis.
@@ -501,8 +501,8 @@ export type Widget = {
         ChartViewOptionsT,
         "ignoreCellRange" | "chartNavigatorEnabled" | "chartMiniChartEnabled"
       >; // Chart view options for the widget.
-      chartModel?: Partial<ChartModel>;
-      chartType?: ChartType; // Chart type for the widget.
+      chartModel?: Partial<Omit<ChartModel, "chartType"> & Pick<ChartViewOptionsT, "chartType">>;
+      chartType?: ChartType | "sankey"; // Chart type for the widget.
       tabs?: InnerTab[];
       formulas?: Formula[];
       ssmRequest?: Partial<AgGridSSRMOptions>;
@@ -564,7 +564,7 @@ export type CustomBackendWidget = {
       showAll?: boolean; // Indicates if all data should be shown.
       chartView?: {
         enabled?: boolean; // Indicates if the chart view is the default view.
-        chartType?: ChartType; // Type of chart to display.
+        chartType?: ChartType | "sankey"; // Type of chart to display.
         ignoreCellRange?: boolean; // Ignores stored cell range.
       };
       columnsDefs?: {

@@ -18,6 +18,7 @@ export function LiveChartEditor({
   readonly inputs: ApplicationSessionInputs<ApplicationChartFamily>;
   readonly dock: ReturnType<typeof useCallerDock>;
 }) {
+  if (ready.kind === "sankey") return null;
   if (ready.kind === "funnel")
     return (
       <ApplicationChartEditor

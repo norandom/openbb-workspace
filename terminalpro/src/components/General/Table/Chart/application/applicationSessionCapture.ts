@@ -1,12 +1,10 @@
+import type { ChartSnapshot } from "../compatibility/snapshotTypes";
 import {
   hierarchyInputs,
   isHierarchyCapture,
   isHierarchyChartFamily,
   isOrdinaryCapture,
 } from "./applicationSessionGuards";
-import { captureHierarchySession } from "./hierarchySessionCapture";
-import type { RetainedApplicationCapture } from "./hierarchyTypes";
-import type { ChartSnapshot } from "../compatibility/snapshotTypes";
 import { sessionSetup } from "./applicationSessionSelection";
 import type {
   ApplicationSessionInputs,
@@ -14,7 +12,10 @@ import type {
 } from "./applicationSessionTypes";
 import type { ApplicationChartFamily } from "./comboSessionTypes";
 import { captureDisplayedChart } from "./gridCapture";
+import { captureHierarchySession } from "./hierarchySessionCapture";
+import type { RetainedApplicationCapture } from "./hierarchyTypes";
 import { observationSnapshotPolicy } from "./histogramCapture";
+import { captureSankeySession } from "./sankeySession";
 import { retainOrdinarySetupCapture } from "./setupProjection";
 import type { SessionResult } from "./types";
 
@@ -73,7 +74,9 @@ export function captureApplicationSession<F extends ApplicationChartFamily>(
 ): SessionResult<
   F extends import("../compatibility/hierarchyContracts").HierarchyChartType
     ? import("../compatibility/hierarchyContracts").HierarchySnapshot
-    : ChartSnapshot
+    : F extends "sankey"
+      ? import("../compatibility/sankeyContracts").SankeySnapshot
+      : ChartSnapshot
 >;
 export function captureApplicationSession(
   inputs: ApplicationSessionInputs<ApplicationChartFamily>,
@@ -82,6 +85,7 @@ export function captureApplicationSession(
   additionalSeriesIds: readonly string[] = [],
 ): SessionResult<RetainedApplicationCapture> {
   try {
+    if (inputs.family === "sankey") return captureSankeySession(inputs, state);
     if (isHierarchyChartFamily(inputs.family))
       return captureHierarchySession(hierarchyInputs(inputs), {
         ...state,

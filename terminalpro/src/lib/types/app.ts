@@ -16,7 +16,7 @@ function unionErrorMap(message: string) {
 
 export const ChartTypeSchema = z
   .enum(
-    ["columnLineCombo", "areaColumnCombo", "customCombo", ...AG_CHART_TYPES],
+    ["columnLineCombo", "areaColumnCombo", "customCombo", "sankey", ...AG_CHART_TYPES],
     unionErrorMap("Invalid chart type"),
   )
   .default("line")

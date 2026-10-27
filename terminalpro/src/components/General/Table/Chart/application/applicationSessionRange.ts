@@ -9,6 +9,7 @@ import { resolveChartRange } from "./chartRange";
 import type { ApplicationChartFamily } from "./comboSessionTypes";
 import { resolveHeatmapRange } from "./heatmapRange";
 import { hierarchySessionRange } from "./hierarchySessionSelection";
+import { resolveSankeyRange } from "./sankeySession";
 import { DEFAULT_SETUP_CATEGORY } from "./setupTypes";
 import type { ResolvedRange } from "./types";
 
@@ -103,9 +104,11 @@ export function resolveSessionRange<F extends ApplicationChartFamily>(
     storedRange: storage.ignoreCellRange === true ? undefined : stored,
   };
   const result =
-    inputs.family === "heatmap"
-      ? resolveHeatmapRange(rangeInput, inputs.columns)
-      : resolveChartRange(rangeInput);
+    inputs.family === "sankey"
+      ? resolveSankeyRange(rangeInput)
+      : inputs.family === "heatmap"
+        ? resolveHeatmapRange(rangeInput, inputs.columns)
+        : resolveChartRange(rangeInput);
   if (result.status !== "ready")
     throw new Error(result.diagnostics[0]?.message ?? "Chart range is unavailable");
   return result.range;
