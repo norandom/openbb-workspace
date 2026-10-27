@@ -1,31 +1,32 @@
+import type { EChartsOption } from "echarts";
+import { navigatorAxes } from "./cartesianNavigatorOverview";
+import type { ChartPointerBinding } from "./chartPointerTypes";
+import { histogramNavigationWindow } from "./histogramNavigationWindow";
+import { isHistogramOptions } from "./histogramNavigator";
 import { createLifecycleHierarchyHover } from "./lifecycleHierarchyHover";
+import { createLifecycleKeyboard } from "./lifecycleKeyboard";
+import { bindLifecycleLegend } from "./lifecycleLegendBinding";
 import {
   projectLifecycleLegend,
   projectLifecycleOptions,
 } from "./lifecycleLegendProjection";
-import type { EChartsOption } from "echarts";
-import { navigatorAxes } from "./cartesianNavigatorOverview";
-import { histogramNavigationWindow } from "./histogramNavigationWindow";
-import { isHistogramOptions } from "./histogramNavigator";
-import { createPieLegendBinding, type PieLegendBinding } from "./pieLegendBinding";
-import { xyNavigationWindow } from "./xyNavigationWindow";
-import { isXyNavigator } from "./xyNavigator";
-
-export type {
-  ChartRenderRequest,
-  ChartImageOptions,
-  ChartLifecycle,
-  CreateChartLifecycle,
-  LifecycleResult,
-} from "./lifecycleTypes";
 import type {
-  ChartRenderRequest,
   ChartImageOptions,
+  ChartRenderRequest,
   CreateChartLifecycle,
   LifecycleResult,
 } from "./lifecycleTypes";
 import { createRangePointerBinding } from "./rangePointerBinding";
-import type { ChartPointerBinding } from "./chartPointerTypes";
+import { xyNavigationWindow } from "./xyNavigationWindow";
+import { isXyNavigator } from "./xyNavigator";
+
+export type {
+  ChartImageOptions,
+  ChartLifecycle,
+  ChartRenderRequest,
+  CreateChartLifecycle,
+  LifecycleResult,
+} from "./lifecycleTypes";
 
 import { type ECharts, init } from "echarts";
 import { hasNavigator, retainNavigatorExtent } from "./cartesianNavigator";
@@ -38,15 +39,27 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   let mounted = false;
   let disposed = false;
   let navigatorListening = false;
-  let legendListening = false;
-  let legendListener: (() => void) | undefined;
   let navigatorListener: (() => void) | undefined;
-  let pieLegend: PieLegendBinding | undefined;
+  let pieLegend: ReturnType<typeof bindLifecycleLegend> | undefined;
   let pointer: ChartPointerBinding | undefined;
   const hierarchyHover = createLifecycleHierarchyHover();
-  let clickListener: ((event: unknown) => void) | undefined;
   let applying = false;
   let generation = 0;
+  const keyboard = createLifecycleKeyboard({
+    container,
+    isActive: active,
+    fail: interactionFailure,
+  });
+
+  function active(): boolean {
+    return (
+      !disposed &&
+      !applying &&
+      sized() &&
+      !!instance &&
+      appliedRevision === pending?.revision
+    );
+  }
   const resetXy = (event: MouseEvent) => {
     if (
       disposed ||
@@ -67,11 +80,16 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
       if (
         pointer?.consumeDoubleClick({
           x: ((event.clientX - rect.left) * container.clientWidth) / rect.width,
-          y: ((event.clientY - rect.top) * container.clientHeight) / rect.height,
+          y:
+            ((event.clientY - rect.top) * container.clientHeight) / rect.height,
         })
       )
         return;
-      if (disposed || instance !== activeInstance || generation !== activeGeneration)
+      if (
+        disposed ||
+        instance !== activeInstance ||
+        generation !== activeGeneration
+      )
         return;
       activeInstance.dispatchAction({ type: "dataZoom", start: 0, end: 100 });
     } catch (error) {
@@ -91,16 +109,14 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
     appliedRevision = undefined;
     appliedScope = undefined;
     navigatorListening = false;
-    legendListening = false;
     const owners = [pointer, pieLegend];
     pointer = undefined;
     pieLegend = undefined;
     const cleanup = [
+      () => keyboard.dispose(),
       () => hierarchyHover.dispose(),
       ...owners.map((owner) => () => owner?.dispose()),
       () => previous?.off?.("datazoom", navigatorListener),
-      () => previous?.off?.("legendselectchanged", legendListener),
-      () => previous?.off?.("click", clickListener),
       () => previous?.dispose(),
     ];
     let failure: unknown;
@@ -111,9 +127,7 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
         failure ??= error;
       }
     }
-    legendListener = undefined;
     navigatorListener = undefined;
-    clickListener = undefined;
     if (failure) throw failure;
   }
 
@@ -131,35 +145,24 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
   function bindPieLegend(): void {
     if (!instance || pieLegend) return;
     const current = generation;
-    pieLegend = createPieLegendBinding({
+    pieLegend = bindLifecycleLegend(instance, {
       container,
-      isActive: () =>
-        !disposed &&
-        !applying &&
-        sized() &&
-        !!instance &&
-        generation === current &&
-        appliedRevision === pending?.revision,
-      readSelected: () => {
-        const legends = (instance?.getOption() as EChartsOption | undefined)?.legend;
-        return (Array.isArray(legends) ? legends[0] : legends)?.selected ?? {};
-      },
-      toggle: (key) => {
-        instance?.dispatchAction({ type: "legendToggleSelect", name: key });
-      },
+      isActive: () => active() && generation === current,
       repaint: () => {
         if (pending) render(pending, true);
       },
       fail: interactionFailure,
     });
-    clickListener = (event) => {
-      if (generation === current) pieLegend?.handleClick(event);
-    };
-    instance.on?.("click", clickListener);
   }
 
   function refreshNavigatorMask(): void {
-    if (disposed || applying || !instance || !pending || !hasNavigator(pending.options))
+    if (
+      disposed ||
+      applying ||
+      !instance ||
+      !pending ||
+      !hasNavigator(pending.options)
+    )
       return;
     try {
       if (pending.projectNavigationWindow) {
@@ -190,13 +193,19 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
               end: window.end,
             });
           instance.setOption({
-            yAxis: [window.yAxis, ...navigatorAxes(pending.options.yAxis).slice(1)],
+            yAxis: [
+              window.yAxis,
+              ...navigatorAxes(pending.options.yAxis).slice(1),
+            ],
           });
         } finally {
           applying = false;
         }
       }
-      const options = retainNavigatorExtent(pending.options, instance.getOption());
+      const options = retainNavigatorExtent(
+        pending.options,
+        instance.getOption(),
+      );
       if (options.graphic) instance.setOption({ graphic: options.graphic });
     } catch (error) {
       interactionFailure(error);
@@ -225,13 +234,17 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
         pending,
       );
       options =
-        pieLegend?.project(options, request.legendPagination, request.legendScope) ??
-        options;
+        pieLegend?.project(
+          options,
+          request.legendPagination,
+          request.legendScope,
+        ) ?? options;
       // ECharts 6 retains a resize hover timer after notMerge disposes its tooltip view.
       instance.dispatchAction({ type: "hideTip" });
       instance.setOption(options, { notMerge: true });
       pointer?.setPlan(request.projectPointer?.(options));
       pieLegend?.sync();
+      keyboard.rendered(instance, request);
       appliedRevision = request.revision;
       appliedScope = request.legendScope;
       hierarchyHover.rendered(request.revision, request.hierarchyHover);
@@ -240,27 +253,14 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
     }
   }
 
-  function refreshLegend(): void {
-    if (
-      disposed ||
-      applying ||
-      !sized() ||
-      !instance ||
-      !pending?.projectLegendSelection
-    )
-      return;
-    const request = pending;
-    try {
-      render(request, true);
-    } catch (error) {
-      interactionFailure(error);
-    }
-  }
-
-  function apply(request: ChartRenderRequest, resizing = false): LifecycleResult {
+  function apply(
+    request: ChartRenderRequest,
+    resizing = false,
+  ): LifecycleResult {
     try {
       if (!sized()) {
         pointer?.clear();
+        keyboard.clear();
         hierarchyHover.clearPlan();
         return "deferred";
       }
@@ -290,24 +290,15 @@ export const createChartLifecycle: CreateChartLifecycle = (container) => {
         instance.on("datazoom", navigatorListener);
         navigatorListening = true;
       }
-      if (
-        request.projectLegendSelection &&
-        request.legendScope !== undefined &&
-        !legendListening
-      ) {
-        const current = generation;
-        legendListener = () => {
-          if (generation === current) refreshLegend();
-        };
-        instance.on("legendselectchanged", legendListener);
-        legendListening = true;
-      }
+      if (request.projectLegendSelection && request.legendScope !== undefined)
+        pieLegend?.listen();
       if (resizing) instance.resize();
       render(
         request,
         resizing &&
           (!!request.projectLegendSelection ||
             !!request.legendPagination ||
+            !!request.keyboardNavigation ||
             !!request.projectNavigationWindow),
       );
       return "applied";

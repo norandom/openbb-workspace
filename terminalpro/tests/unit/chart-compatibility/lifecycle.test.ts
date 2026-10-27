@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createChartLifecycle } from "../../../src/components/General/Table/Chart/echarts/lifecycle";
 import type { PieLegendPagination } from "../../../src/components/General/Table/Chart/echarts/pieLegendTypes";
+import type { GroupedBarKeyboardPlan } from "../../../src/components/General/Table/Chart/echarts/chartKeyboardTypes";
 
 const mocks = vi.hoisted(() => ({ init: vi.fn() }));
 vi.mock("echarts", async (importOriginal) => ({
@@ -10,6 +11,47 @@ vi.mock("echarts", async (importOriginal) => ({
 const request = (revision: number) => ({
   revision,
   options: { title: { text: String(revision) } },
+});
+
+describe("keyboard lifecycle join", () => {
+  function setup() {
+    let width = 400; let selected: Record<string, boolean> = {};
+    const container = document.createElement("div"); document.body.append(container);
+    Object.defineProperties(container, { clientWidth: { get: () => width }, clientHeight: { value: 200 } });
+    const listeners = new Map<string, (event: unknown) => void>();
+    const chart = { on: vi.fn((name, listener) => listeners.set(name, listener)), off: vi.fn((name) => listeners.delete(name)), setOption: vi.fn(), resize: vi.fn(), dispose: vi.fn(), dispatchAction: vi.fn(), getDataURL: vi.fn(() => "image"), getOption: vi.fn(() => ({ legend: [{ selected }], series: [{ id: "tm" }, { id: "ym" }] })), convertToPixel: vi.fn((finder, value) => finder.xAxisId ? (value === "Peter" ? 50 : 150) : 180 - Number(value)) };
+    mocks.init.mockReturnValue(chart);
+    const plan: GroupedBarKeyboardPlan = { kind: "grouped-bar", label: "Dolphin", gridId: "grid", xAxisId: "x", yAxisId: "y", categories: ["Peter", "Mary"], series: [{ id: "tm", name: "TM", values: [60, 57] }, { id: "ym", name: "YM", values: [64, 93] }], geometry: { barWidth: 10, barGap: 0.2 }, focus: { color: "blue", backgroundColor: "white", borderWidth: 2 } };
+    const owner = createChartLifecycle(container);
+    const next = (revision: number, keyboardNavigation = plan) => ({ revision, options: {}, keyboardNavigation, legendScope: "sample", projectLegendSelection: () => ({}), onError: vi.fn() });
+    const plot = () => container.querySelector<HTMLElement>('[data-chart-keyboard="plot"]')!;
+    const press = (key: string) => plot().dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    return { owner, chart, container, next, plot, press, listeners, zero: () => { width = 0; }, restore: () => { width = 400; }, select: (value: Record<string, boolean>) => { selected = value; listeners.get("legendselectchanged")?.({}); } };
+  }
+  it("uses the accepted new plan, preserves stale-revision focus, reclamps selection, and detaches on zero-size/dispose", () => {
+    const f = setup(); f.owner.mount(f.next(1)); f.plot().focus(); f.press("ArrowRight");
+    expect(f.chart.dispatchAction).toHaveBeenLastCalledWith({ type: "showTip", seriesIndex: 0, dataIndex: 1 });
+    f.owner.update({ ...f.next(2), keyboardNavigation: { ...f.next(2).keyboardNavigation, label: "Updated", series: [{ id: "tm", name: "TM", values: [5, 7] }, { id: "ym", name: "YM", values: [64, 93] }] } });
+    expect(f.plot().getAttribute("aria-label")).toBe("Updated: Mary, TM, 7");
+    expect(f.owner.update(f.next(1))).toBe("stale"); expect(f.plot().getAttribute("aria-label")).toContain("Updated");
+    f.select({ TM: false }); expect(f.plot().getAttribute("aria-label")).toContain("Mary, YM, 93");
+    f.owner.resize(); expect(f.plot().getAttribute("aria-label")).toContain("Mary, YM, 93");
+    const old = f.plot(); f.zero(); f.owner.resize(); expect(f.plot()).toBeNull();
+    f.restore(); f.owner.resize(); f.plot().focus(); f.chart.dispatchAction.mockClear();
+    old.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft" })); old.dispatchEvent(new FocusEvent("blur"));
+    expect(f.chart.dispatchAction).not.toHaveBeenCalled();
+    f.owner.dispose(); expect(f.listeners.size).toBe(0); expect(f.container.children).toHaveLength(0); f.container.remove();
+  });
+  it("routes keyboard errors through the latest request and releases the renderer before recovery", () => {
+    const f = setup(); const latest = f.next(2); f.owner.mount(f.next(1)); f.owner.update(latest);
+    f.plot().focus(); const stale = f.plot();
+    f.chart.convertToPixel.mockImplementationOnce(() => { throw Error("coordinate failed"); }); f.press("ArrowRight");
+    expect(latest.onError).toHaveBeenCalledWith(expect.objectContaining({ message: "coordinate failed" }));
+    expect(f.chart.dispose).toHaveBeenCalledOnce(); expect(f.plot()).toBeNull(); expect(() => f.owner.exportImage()).toThrow("unavailable");
+    f.owner.update(f.next(3)); f.plot().focus(); f.chart.dispatchAction.mockClear();
+    stale.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" })); expect(f.chart.dispatchAction).not.toHaveBeenCalled();
+    f.owner.dispose(); f.container.remove();
+  });
 });
 
 describe("hierarchy hover lifecycle join", () => {

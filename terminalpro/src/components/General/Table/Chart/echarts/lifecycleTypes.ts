@@ -1,4 +1,5 @@
 import type { EChartsOption } from "echarts";
+import type { GroupedBarKeyboardPlan } from "./chartKeyboardTypes";
 import type { ChartPointerPlan } from "./chartPointerTypes";
 import type { PieLegendPagination } from "./pieLegendTypes";
 
@@ -10,6 +11,7 @@ export interface ChartRenderRequest {
   /** Paired with projectLegendSelection; stable across render revisions, reset per session/family. */
   readonly legendScope?: string;
   readonly legendPagination?: PieLegendPagination;
+  readonly keyboardNavigation?: GroupedBarKeyboardPlan;
   readonly hierarchyHover?: import("./hierarchyHoverTypes").HierarchyHoverPlan;
   /** Keys equal main-series names/IDs. The callback closes over immutable current inputs. */
   readonly projectLegendSelection?: (
@@ -20,7 +22,9 @@ export interface ChartRenderRequest {
     projected: EChartsOption,
     current: EChartsOption,
   ) => EChartsOption;
-  readonly projectPointer?: (applied: EChartsOption) => ChartPointerPlan | undefined;
+  readonly projectPointer?: (
+    applied: EChartsOption,
+  ) => ChartPointerPlan | undefined;
   readonly onError?: (error: unknown) => void;
 }
 export type LifecycleResult = "applied" | "deferred" | "stale" | "disposed";
@@ -45,4 +49,6 @@ export interface ChartLifecycle {
   dispose(): void;
 }
 /** One owner per DOM container. A remount after disposal requires a fresh owner. */
-export type CreateChartLifecycle = (container: HTMLDivElement) => ChartLifecycle;
+export type CreateChartLifecycle = (
+  container: HTMLDivElement,
+) => ChartLifecycle;

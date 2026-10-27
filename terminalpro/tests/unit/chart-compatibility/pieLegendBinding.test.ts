@@ -34,6 +34,45 @@ function fixture() {
 }
 
 describe("renderer-local pie legend paging", () => {
+  it("retains the focused preview item as the page anchor when resize splits its current page", () => {
+    const f = fixture();
+    const interaction = { mode: "preview" as const, focusColor: "blue", focusBackgroundColor: "white", pageActiveColor: "black", pageInactiveColor: "gray" };
+    const wide = { ...plan(), interaction, pages: [{ anchorKey: "a", items: plan().pages.flatMap((page) => page.items) }] };
+    f.binding.project(options(wide), wide, "one"); f.binding.sync();
+    const second = f.container.querySelector<HTMLButtonElement>('[aria-label="Label b"]')!; second.focus();
+    const narrow = { ...plan(), interaction };
+    const output = f.binding.project(options(narrow), narrow, "one"); f.binding.sync();
+    expect(f.shown(output)).toEqual(["b"]); expect(document.activeElement).toBe(second);
+    expect(second.tabIndex).toBe(0); f.binding.dispose(); f.container.remove();
+  });
+  it("opts into roving preview focus, native selection mirroring, hover and double-click isolate/restore", () => {
+    const f = fixture();
+    const select = vi.fn((next) => Object.assign(f.selected, next));
+    const emphasize = vi.fn();
+    f.binding.dispose();
+    const binding = createPieLegendBinding({ ...f.ports, select, emphasize });
+    const value = { ...plan(), interaction: { mode: "preview" as const, focusColor: "blue", focusBackgroundColor: "white", pageActiveColor: "black", pageInactiveColor: "gray" } };
+    const draw = () => { const result = binding.project(options(value), value, "preview"); binding.sync(); return result; };
+    f.ports.repaint.mockImplementation(draw); draw();
+    const switches = () => [...f.container.querySelectorAll<HTMLButtonElement>('[role="switch"]')];
+    expect(switches().map((node) => node.tabIndex)).toEqual([0, -1, -1]);
+    switches()[0].focus(); switches()[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", cancelable: true }));
+    expect(document.activeElement).toBe(switches()[1]); expect(switches()[1].tabIndex).toBe(0);
+    expect(f.container.querySelector('[role="status"]')?.textContent).toContain("2 of 3");
+    expect(emphasize).toHaveBeenLastCalledWith("b");
+    switches()[1].dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    expect(select).toHaveBeenLastCalledWith({ a: false, b: true, c: false });
+    draw(); switches()[1].dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    expect(select).toHaveBeenLastCalledWith({ a: true, b: true, c: true });
+    switches()[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(document.activeElement).toBe(switches()[1]);
+    const graphics = (draw().graphic as any[])[0].children;
+    expect(graphics.find((item: any) => item.id === "prev").style).toMatchObject({ fill: "black", opacity: 1 });
+    switches()[2].focus(); const last = (draw().graphic as any[])[0].children;
+    expect(last.find((item: any) => item.id === "next").style).toMatchObject({ fill: "gray", opacity: 1 });
+    const stale = switches()[0]; binding.dispose(); stale.dispatchEvent(new MouseEvent("dblclick"));
+    expect(select).toHaveBeenCalledTimes(2); f.container.remove();
+  });
   it("decorates copies, keeps only the current native page visible, and rejects stale tokens", () => {
     const f = fixture();
     const input = options(plan());

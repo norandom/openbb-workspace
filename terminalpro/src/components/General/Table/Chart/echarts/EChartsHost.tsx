@@ -14,7 +14,10 @@ export interface EChartsHostProps extends ChartRenderRequest {
   className?: string;
   style?: CSSProperties;
   onError?: (error: unknown) => void;
-  onResize?: (size: { readonly width: number; readonly height: number }) => void;
+  onResize?: (size: {
+    readonly width: number;
+    readonly height: number;
+  }) => void;
 }
 
 /** Owns a renderer without exposing its instance or defining application menu semantics. */
@@ -29,6 +32,7 @@ export const EChartsHost = forwardRef<EChartsHostHandle, EChartsHostProps>(
       projectNavigationWindow,
       projectPointer,
       hierarchyHover,
+      keyboardNavigation,
       className,
       style,
       onError,
@@ -47,6 +51,7 @@ export const EChartsHost = forwardRef<EChartsHostHandle, EChartsHostProps>(
       projectNavigationWindow,
       projectPointer,
       hierarchyHover,
+      keyboardNavigation,
       onError,
       onResize,
     });
@@ -59,6 +64,7 @@ export const EChartsHost = forwardRef<EChartsHostHandle, EChartsHostProps>(
       projectNavigationWindow,
       projectPointer,
       hierarchyHover,
+      keyboardNavigation,
       onError,
       onResize,
     };
@@ -134,6 +140,7 @@ export const EChartsHost = forwardRef<EChartsHostHandle, EChartsHostProps>(
           projectNavigationWindow,
           projectPointer,
           hierarchyHover,
+          keyboardNavigation,
           onError,
         });
       } catch (error) {
@@ -149,6 +156,7 @@ export const EChartsHost = forwardRef<EChartsHostHandle, EChartsHostProps>(
       projectNavigationWindow,
       projectPointer,
       hierarchyHover,
+      keyboardNavigation,
       onError,
     ]);
 

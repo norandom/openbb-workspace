@@ -2,6 +2,7 @@ import { graphic, init, type EChartsType } from "echarts";
 import { beforeEach, expect, it, vi } from "vitest";
 import { resolvePieAssignments } from "../../../src/components/General/Table/Chart/compatibility/pieAssignments";
 import { translatePie } from "../../../src/components/General/Table/Chart/echarts/pie";
+import { layoutLegend } from "../../../src/components/General/Table/Chart/echarts/legendLayout";
 import type { PieMappingInput } from "../../../src/components/General/Table/Chart/echarts/pieTypes";
 import {
   applicationStyle,
@@ -28,6 +29,29 @@ beforeEach(() =>
     measureText: (text: string) => ({ width: text.length * 6 }),
   } as CanvasRenderingContext2D),
 );
+
+it("packs real bar-series legends with a neutral prefix, explicit page colors and native painted markers", () => {
+  const application = applicationStyle().application;
+  const items = Array.from({ length: 10 }, (_, index) => ({ key: `Series ${index + 1}`, label: `Series ${index + 1}`, enabled: true }));
+  const input = { items, viewport: { width: 600, height: 450 }, padding: application.padding, captionSpace: 20,
+    legend: { ...application.legend, enabled: true, position: "bottom", markerSize: 15, itemSpacing: 8, horizontalSpacing: 16, verticalSpacing: 8 },
+    markerStrokeWidth: 2, layout: { markerShape: "square", maxHeight: 80 }, idPrefix: "preview-",
+    interaction: { mode: "preview" as const, focusColor: "blue", focusBackgroundColor: "white", pageActiveColor: "black", pageInactiveColor: "gray" } };
+  const result = layoutLegend(input);
+  expect(result.legendPagination?.canonicalLegendId).toBe("preview-canonical");
+  expect(result.legendPagination?.pages).toHaveLength(1);
+  expect(new Set(result.legendPagination?.pages[0].items.map((item) => item.bounds.y)).size).toBeGreaterThan(1);
+  const chart = init(null, undefined, { renderer: "svg", ssr: true, width: 600, height: 450 });
+  try {
+    chart.setOption({ animation: false, legend: result.legends, graphic: result.graphic, xAxis: { type: "category", data: ["Peter"] }, yAxis: {}, series: items.map((item) => ({ type: "bar", name: item.key, data: [60], itemStyle: { color: "#123456", borderColor: "#abcdef", borderWidth: 2 } })) });
+    expect(chart.renderToSVGString()).toContain("Series 10");
+    const marker = legendView(chart, "preview-item-0").getContentGroup().childAt(0).childAt(0);
+    expect(marker.style).toMatchObject({ fill: "#123456", stroke: "#abcdef" });
+    const narrow = layoutLegend({ ...input, viewport: { width: 240, height: 200 }, layout: { ...input.layout, maxHeight: 50 } });
+    expect(narrow.legendPagination!.pages.length).toBeGreaterThan(1);
+    expect((narrow.graphic[0] as any).style).toMatchObject({ fill: "gray", opacity: 1 });
+  } finally { chart.dispose(); }
+});
 
 function legends(selected: Record<string, boolean>, page: number): any[] {
   const common = {
