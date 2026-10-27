@@ -150,6 +150,53 @@ beforeEach(() =>
 );
 
 describe("inactive native hierarchy adapter", () => {
+  it.each([
+    ["#151518", true],
+    ["#ffffff", true],
+    ["#151518", false],
+    ["#ffffff", false],
+  ] as const)("omits only the synthetic root header on %s with group labels %s", (background, enabled) => {
+    const i = input("treemap", false);
+    if (i.style.family !== "treemap") throw Error("Expected treemap fixture");
+    const styled = {
+      ...i,
+      style: {
+        ...i.style,
+        application: {
+          ...i.style.application,
+          background: { ...i.style.application.background, fill: background },
+        },
+        group: { ...i.style.group, label: { ...i.style.group.label, enabled } },
+      },
+    };
+    const result = translateHierarchy(styled);
+    if (result.status !== "supported") throw Error("Expected supported hierarchy");
+    const series = (result.options.series as any[])[0];
+    expect(series.levels).toEqual([{ upperLabel: { show: false } }]);
+    expect(series.breadcrumb.show).toBe(false);
+    expect(series.data.every((node: any) => node.upperLabel.show === enabled)).toBe(
+      true,
+    );
+    const chart = init(null, undefined, {
+      renderer: "svg",
+      ssr: true,
+      width: 640,
+      height: 480,
+    });
+    try {
+      chart.setOption(result.options);
+      const root = (chart as any).getModel().getSeriesByIndex(0).getData().tree.root;
+      expect(root.depth).toBe(0);
+      expect(root.getLayout().upperHeight).toBe(0);
+      for (const node of root.children) {
+        expect(node.getModel().get(["upperLabel", "show"])).toBe(enabled);
+        expect(node.getLayout().upperLabelHeight).toBe(enabled ? 18 : 0);
+      }
+      expect(chart.renderToSVGString()).toContain("<svg");
+    } finally {
+      chart.dispose();
+    }
+  });
   it("keeps original palette identity and zero-weight color extent before stable Treemap sorting", () => {
     const i = input();
     const before = JSON.stringify(i);
@@ -431,7 +478,7 @@ function composedTilePadding(padding: number): HierarchyMappingInput {
   return {
     ...base,
     style: appearance.value,
-    context: { ...base.context, viewport: { width: 126, height: 72 } },
+    context: { ...base.context, viewport: { width: 126, height: 52 } },
     projection: {
       ...base.projection,
       root: {
@@ -457,7 +504,7 @@ it("applies composed Tile Padding independently of default label boxing to paint
     renderer: "svg",
     ssr: true,
     width: 126,
-    height: 72,
+    height: 52,
   });
   try {
     const samples = [0, 3, 10].map((padding) => {
@@ -496,7 +543,7 @@ it("applies composed Tile Padding independently of default label boxing to paint
       context: { ...tiny.context, viewport: { width: 20, height: 20 } },
     });
     expect(nativeText(chart)).toEqual([]);
-    chart.resize({ width: 126, height: 72 });
+    chart.resize({ width: 126, height: 52 });
     paintNative(chart, composedTilePadding(0));
     expect(nativeText(chart)).toEqual(samples[0].text);
   } finally {

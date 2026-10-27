@@ -102,6 +102,7 @@ function series(
       childrenVisibleMin: 0,
       roam: false,
       breadcrumb: { show: false },
+      levels: [{ upperLabel: { show: false } }],
       itemStyle: {
         borderWidth: 0,
         gapWidth: model.data.every((n) => !n.children?.length)
