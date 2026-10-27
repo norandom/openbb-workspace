@@ -240,6 +240,54 @@ function assertPositiveNative(
 }
 
 describe("inactive native Sankey presentation", () => {
+  it.each([
+    360, 640,
+  ])("keeps terminal labels inside a %ipx native viewport without reversing other labels", (width) => {
+    const base = input();
+    const i = {
+      ...base,
+      graph: {
+        ...base.graph,
+        nodes: base.graph.nodes.map((node) =>
+          node.role === "sink"
+            ? { ...node, label: "Cost of revenue / Gross profit" }
+            : node,
+        ),
+      },
+      context: { ...base.context, viewport: { width, height: 480 } },
+    };
+    const chart = init(null, undefined, {
+      renderer: "svg",
+      ssr: true,
+      width,
+      height: 480,
+    });
+    try {
+      const r = translateSankey(i);
+      if (r.status !== "supported") throw Error("label fixture rejected");
+      chart.setOption(r.options);
+      expect(chart.renderToSVGString()).toContain("Cost of revenue / Gross profit");
+      const data = (chart as any).getModel().getSeriesByIndex(0).getData();
+      for (const index of [0, 1, 2]) {
+        const node = data.getItemGraphicEl(index);
+        const label = node.getTextContent();
+        const labelBounds = label.getBoundingRect().clone();
+        labelBounds.applyTransform(label.getComputedTransform());
+        const nodeBounds = node.getBoundingRect().clone();
+        nodeBounds.applyTransform(node.getComputedTransform());
+        if (index === 2) {
+          expect(labelBounds.x + labelBounds.width).toBeLessThanOrEqual(width);
+          expect(labelBounds.x).toBeGreaterThanOrEqual(0);
+          expect(labelBounds.x + labelBounds.width).toBeLessThan(nodeBounds.x);
+        } else {
+          expect(labelBounds.x).toBeGreaterThan(nodeBounds.x + nodeBounds.width);
+        }
+      }
+    } finally {
+      chart.dispose();
+    }
+  });
+
   it("renders positive subnormal financial amounts with finite native geometry and original tooltip values", () => {
     const i = fanout([Number.MIN_VALUE]);
     const before = JSON.stringify(i);

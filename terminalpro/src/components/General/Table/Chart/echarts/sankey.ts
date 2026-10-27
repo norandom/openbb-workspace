@@ -197,6 +197,7 @@ function series(
     // Internal transfers occupy max(incoming, outgoing), never their economic double-count.
     value: Math.max(node.incoming, node.outgoing) / plan.scale,
     itemStyle: { color: s.palette[index % s.palette.length] },
+    label: { position: node.outgoing === 0 ? "left" : "right" },
   }));
   const links = graph.links
     .filter((link) => link.value > 0)
