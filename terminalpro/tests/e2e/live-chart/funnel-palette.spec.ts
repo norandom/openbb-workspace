@@ -282,7 +282,16 @@ test("Funnel Cone valid public palette save financial paint and PNG export", asy
   const evidence: Record<string, unknown> = {
     identity,
     diagnostics,
-    fixture: { sha256: provenance.csv_sha256 },
+    fixture: {
+      sha256: provenance.csv_sha256,
+      endpoint: provenance.endpoint,
+      parameters: provenance.parameters,
+      retrieved_at_utc: provenance.retrieved_at_utc,
+      record: provenance.record,
+      units: provenance.units,
+      meaning: provenance.meaning,
+      rows: provenance.rows,
+    },
     colors,
     limitations:
       "Retained FMP data and disposable runtime only. Requires prior chartTheme null in both modes; reset restores the light chart null semantic, not arbitrary custom configuration. Advanced/invalid palettes are not exercised.",
@@ -397,6 +406,10 @@ test("Funnel Cone valid public palette save financial paint and PNG export", asy
           evidence.restoredUserMode = { dark: priorDark, completed: true };
         }
       }
+      await writeFile(
+        info.outputPath("public-palette-journey.json"),
+        JSON.stringify(evidence, null, 2),
+      );
       expectApplicationDiagnostics(diagnostics);
     } finally {
       await writeFile(
