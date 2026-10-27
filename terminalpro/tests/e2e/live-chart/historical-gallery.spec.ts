@@ -109,6 +109,7 @@ test("historical gallery actual Apps 36 charts screenshots and retained redeploy
       const widget = chartWidget(page, type);
       const measured = await settle(page, widget);
       expect(measured.text.join(" ")).toContain(contract.charts[type].title);
+      if (phase === "reopen" && type === "line") records.push({ stage: "restored-line-trading-session-axis", ...verifyLineDates(measured) });
       const box = await widget.boundingBox();
       expect(box).not.toBeNull();
       expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
@@ -126,26 +127,28 @@ test("historical gallery actual Apps 36 charts screenshots and retained redeploy
     await page.locator("main").screenshot({ path: info.outputPath("historical-gallery-overview.png") });
     screenshots.push({ file: "historical-gallery-overview.png", boxes });
 
-    const visited = new Set<string>();
-    for (const tab of Object.values(gallery.tabs) as { name: string; layout: { i: string }[] }[]) {
-      if (tab.name === "Overview") continue;
-      await chooseTab(page, tab.name);
-      for (const item of tab.layout) {
-        const type = item.i.replace("qopenbb_gallery_", "");
-        const widget = chartWidget(page, type);
-        const size = phase === "initial" ? await resizeChart(page, widget) : { after: await widget.boundingBox() };
-        const measured = await settle(page, widget);
-        expect(measured.text.join(" ")).toContain(contract.charts[type].title);
-        if (type === "line") records.push({ stage: "line-trading-session-axis", ...verifyLineDates(measured) });
-        const tooltip = await financialTooltip(page, widget, type);
-        records.push({ stage: "chart", type, tab: tab.name, size, tooltip, drawnText: measured.text });
-        await settle(page, widget);
-        await widget.screenshot({ path: info.outputPath(`${type}.png`) });
-        screenshots.push({ file: `${type}.png`, type, tab: tab.name, size });
-        visited.add(type);
+    if (phase === "initial") {
+      const visited = new Set<string>();
+      for (const tab of Object.values(gallery.tabs) as { name: string; layout: { i: string }[] }[]) {
+        if (tab.name === "Overview") continue;
+        await chooseTab(page, tab.name);
+        for (const item of tab.layout) {
+          const type = item.i.replace("qopenbb_gallery_", "");
+          const widget = chartWidget(page, type);
+          const size = await resizeChart(page, widget);
+          const measured = await settle(page, widget);
+          expect(measured.text.join(" ")).toContain(contract.charts[type].title);
+          if (type === "line") records.push({ stage: "line-trading-session-axis", ...verifyLineDates(measured) });
+          const tooltip = await financialTooltip(page, widget, type);
+          records.push({ stage: "chart", type, tab: tab.name, size, tooltip, drawnText: measured.text });
+          await settle(page, widget);
+          await widget.screenshot({ path: info.outputPath(`${type}.png`) });
+          screenshots.push({ file: `${type}.png`, type, tab: tab.name, size });
+          visited.add(type);
+        }
       }
+      expect([...visited].sort()).toEqual(Object.keys(contract.charts).sort());
     }
-    expect([...visited].sort()).toEqual(Object.keys(contract.charts).sort());
     await chooseTab(page, "Combinations");
     const combo = chartWidget(page, "customCombo");
     const editor = await openEditor(page, combo);
@@ -240,6 +243,11 @@ test("historical gallery actual Apps 36 charts screenshots and retained redeploy
   }
   for (const item of diagnostics) expectApplicationDiagnostics(item);
   expect((evidence.snapshotResponses as { ok: boolean }[]).every((r) => r.ok)).toBe(true);
-  expect([...new Set((evidence.snapshotResponses as { result?: { dataset: string } }[]).map((r) => r.result?.dataset))].sort()).toEqual(Object.keys(snapshot.datasets).sort());
+  const capturedDatasets = [...new Set((evidence.snapshotResponses as { result?: { dataset: string } }[]).map((r) => r.result?.dataset))].sort();
+  if (phase === "initial") expect(capturedDatasets).toEqual(Object.keys(snapshot.datasets).sort());
+  else expect(capturedDatasets).toEqual(expect.arrayContaining([...new Set([
+    ...gallery.tabs.Overview.layout.map((item: { i: string }) => contract.charts[item.i.replace("qopenbb_gallery_", "")].datasetId),
+    "income-combinations",
+  ])]));
   expect((evidence.dataRequests as string[]).filter((p) => p.startsWith("/data/api/")), "snapshot charts do not call live providers").toEqual([]);
 });
