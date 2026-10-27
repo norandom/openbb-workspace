@@ -202,7 +202,9 @@ export async function financialTooltip(page: Page, widget: Locator, type: string
   const drawing = await paint(widget);
   const points = drawing.points;
   const unique = [...new Map(points.map((p) => [`${Math.round(p.x)}:${Math.round(p.y)}`, p])).values()];
-  const tooltip = nativeTooltip(widget).last();
+  const tooltip = ["rangeBar", "rangeArea", "waterfall"].includes(type)
+    ? widget.getByRole("tooltip").filter({ visible: true }).last()
+    : nativeTooltip(widget).last();
   const observed = new Set<string>();
   const tested: { x: number; y: number }[] = [];
   for (const p of unique.slice(0, 350)) {

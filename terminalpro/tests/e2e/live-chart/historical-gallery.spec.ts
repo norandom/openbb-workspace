@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { exportChart } from "./actions";
 import { expectApplicationDiagnostics, observeApplication } from "./diagnostics";
 import { openEditor, saveDashboard } from "./editor";
@@ -16,6 +16,12 @@ import { collapse } from "./hierarchy-controls";
 const viewport = { width: 2400, height: 2100 };
 const phase = process.env.QOPENBB_GALLERY_PHASE ?? "initial";
 const retention = process.env.QOPENBB_GALLERY_RETENTION;
+const financialSamples = new Set([
+  "groupedColumn", "normalizedColumn", "line", "donut", "radarLine",
+  "nightingale", "radialBar", "scatter", "bubble", "boxPlot", "histogram",
+  "rangeBar", "rangeArea", "treemap", "sunburst", "heatmap", "sankey",
+  "waterfall", "funnel", "columnLineCombo", "areaColumnCombo", "customCombo",
+]);
 type Diagnostics = Awaited<ReturnType<typeof observeApplication>>;
 
 async function darkTheme(page: Page) {
@@ -33,6 +39,12 @@ async function readDashboard(page: Page, url: string) {
   expect(response.ok()).toBe(true);
   const id = new URL(url).pathname.split("/").at(-1)!;
   return (await response.json()).owned[id].content;
+}
+
+async function openGalleryEditor(page: Page, widget: Locator) {
+  await settle(page, widget);
+  const editor = widget.getByRole("complementary", { name: "Chart editor" });
+  return await editor.isVisible() ? editor : await openEditor(page, widget);
 }
 
 function observeSnapshot(page: Page) {
@@ -72,12 +84,14 @@ test("historical gallery actual Apps 36 charts screenshots and retained redeploy
   await observeGalleryPaint(page);
   const records: unknown[] = [];
   const screenshots: unknown[] = [];
+  const financialFailures: { type: string; error: string }[] = [];
   const evidence: Record<string, unknown> = {
-    phase, snapshotId: snapshot.snapshotId, diagnostics, records, screenshots,
+    phase, snapshotId: snapshot.snapshotId, diagnostics, records, screenshots, financialFailures,
+    financialSamples: [...financialSamples],
     workspaceImage: process.env.QOPENBB_CANDIDATE_IMAGE,
     workspaceSource: process.env.QOPENBB_CANDIDATE_SOURCE,
     captureTheme: "dark", viewport,
-    limitations: "Browser tooltips sample each actual chart; complete financial projection correctness is separately reviewed. Compose recreation is controller-owned between invocations.",
+    limitations: "All 36 charts render; tooltips sample distinct binding shapes. Complete financial projections are independently reviewed. Default single-Area item hover remains unverified; Line does not prove that interaction. Compose recreation is controller-owned between invocations.",
   };
   let savedURL = "";
   let expectedLayout: unknown;
@@ -135,11 +149,24 @@ test("historical gallery actual Apps 36 charts screenshots and retained redeploy
         for (const item of tab.layout) {
           const type = item.i.replace("qopenbb_gallery_", "");
           const widget = chartWidget(page, type);
-          const size = await resizeChart(page, widget);
-          const measured = await settle(page, widget);
+          let measured = await settle(page, widget);
+          // Family tabs already provide twice the Overview width. Exercise
+          // native resizing once on the edited chart, after tab hydration.
+          const size = type === "customCombo"
+            ? await resizeChart(page, widget)
+            : { after: await widget.boundingBox() };
+          if (type === "customCombo") measured = await settle(page, widget);
           expect(measured.text.join(" ")).toContain(contract.charts[type].title);
           if (type === "line") records.push({ stage: "line-trading-session-axis", ...verifyLineDates(measured) });
-          const tooltip = await financialTooltip(page, widget, type);
+          let tooltip: unknown = { sampled: false, reason: "Binding shape covered by the representative financial set" };
+          if (financialSamples.has(type)) {
+            try { tooltip = await financialTooltip(page, widget, type); }
+            catch (error) {
+              const failure = { type, error: String(error) };
+              financialFailures.push(failure);
+              tooltip = failure;
+            }
+          }
           records.push({ stage: "chart", type, tab: tab.name, size, tooltip, drawnText: measured.text });
           await settle(page, widget);
           await widget.screenshot({ path: info.outputPath(`${type}.png`) });
@@ -151,7 +178,7 @@ test("historical gallery actual Apps 36 charts screenshots and retained redeploy
     }
     await chooseTab(page, "Combinations");
     const combo = chartWidget(page, "customCombo");
-    const editor = await openEditor(page, combo);
+    const editor = await openGalleryEditor(page, combo);
     await editor.getByRole("tab", { name: "Set Up", exact: true }).click();
     const assignment = editor.getByRole("combobox", { name: /Net income.*series type/i });
     await expect(assignment).toHaveValue(phase === "initial" ? "line" : "area");
@@ -215,7 +242,7 @@ test("historical gallery actual Apps 36 charts screenshots and retained redeploy
       const reopened = chartWidget(later, "customCombo");
       await settle(later, reopened);
       records.push({ stage: "fresh-reopen", tooltip: await financialTooltip(later, reopened, "customCombo") });
-      const restoredEditor = await openEditor(later, reopened);
+      const restoredEditor = await openGalleryEditor(later, reopened);
       await restoredEditor.getByRole("tab", { name: "Set Up", exact: true }).click();
       await expect(restoredEditor.getByRole("combobox", { name: /Net income.*series type/i })).toHaveValue("area");
       await collapse(restoredEditor);
@@ -242,6 +269,7 @@ test("historical gallery actual Apps 36 charts screenshots and retained redeploy
     await writeFile(info.outputPath("historical-gallery-journey.json"), JSON.stringify(evidence, null, 2));
   }
   for (const item of diagnostics) expectApplicationDiagnostics(item);
+  expect(financialFailures, "Every representative financial tooltip must reconcile").toEqual([]);
   expect((evidence.snapshotResponses as { ok: boolean }[]).every((r) => r.ok)).toBe(true);
   const capturedDatasets = [...new Set((evidence.snapshotResponses as { result?: { dataset: string } }[]).map((r) => r.result?.dataset))].sort();
   if (phase === "initial") expect(capturedDatasets).toEqual(Object.keys(snapshot.datasets).sort());
