@@ -68,7 +68,7 @@ test("Theme Settings native preview geometry interactions and saved drafts", asy
       await expect
         .poll(async () => (await previewPaint(ui.preview, [])).background)
         .toEqual(value === "light" ? [255, 255, 255, 255] : [21, 21, 24, 255]);
-      await ui.preview.screenshot({
+      await page.screenshot({
         path: info.outputPath(`default-${value}.png`),
       });
     }
