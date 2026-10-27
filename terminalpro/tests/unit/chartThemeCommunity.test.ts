@@ -21,18 +21,14 @@ describe("Community chart theme editing", () => {
       backgroundImageUrl: "saved-logo",
     });
     const options = buildChartPreview(state, "dark");
-    expect(options.theme).toMatchObject({
-      palette: { fills: state.fills },
-      params: { fontSize: 18 },
-    });
-    expect(options.background ?? {}).not.toHaveProperty("image");
-    expect((options.theme as any).params).not.toHaveProperty("backgroundImageEnabled");
+    expect(options.options.textStyle).toMatchObject({ fontSize: 18 });
+    expect(options.options).not.toHaveProperty("backgroundImage");
     expect(serializeChartTheme(state).params).toHaveProperty(
       "backgroundImageEnabled",
       true,
     );
-    expect(options.series).toHaveLength(2);
-    expect(options.data).toHaveLength(4);
+    expect(options.options.series).toHaveLength(2);
+    expect((options.options.series as any[])[0].data).toHaveLength(4);
   });
 
   it("retains saved background image metadata across supported edits and serialization", () => {
@@ -64,19 +60,17 @@ describe("Community chart theme editing", () => {
     const result = serializeChartTheme(state);
     expect(result.params.padding).toBe(0);
     expect(result.params).not.toHaveProperty("fontFamily");
-    expect(buildChartPreview(state, "light").theme).toMatchObject({
-      params: { padding: 0 },
-    });
+    expect(buildChartPreview(state, "light").options.grid).toMatchObject({ right: 0 });
   });
 
   it("reset loads isolated defaults and expands preview series with the palette", () => {
     const state = readChartTheme(null, "dark");
     expect(state.isReset).toBe(true);
-    state.fills[0] = "changed";
-    expect(getThemeDefaults("dark").fills[0]).not.toBe("changed");
+    state.fills[0] = "red";
+    expect(getThemeDefaults("dark").fills[0]).not.toBe("red");
     const options = buildChartPreview(state, "dark");
-    expect(options.series).toHaveLength(state.fills.length);
-    expect(options.data[0]).toHaveProperty("series1");
+    expect(options.options.series).toHaveLength(state.fills.length);
+    expect((options.options.series as any[])[4].data).toEqual([40, 60, 40, 60]);
   });
 });
 

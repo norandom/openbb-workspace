@@ -1,126 +1,125 @@
-import type { AgChartOptions, AgChartTheme } from "ag-charts-community";
+import type { EChartsOption } from "echarts";
+import { color } from "echarts";
+import { groupedBarSeriesGeometry } from "../General/Table/Chart/echarts/chartKeyboardGeometry";
+import type { GroupedBarKeyboardPlan } from "../General/Table/Chart/echarts/chartKeyboardTypes";
 import {
-  type ChartThemeState,
-  chartThemeParams,
-  type ThemeMode,
-} from "./chartThemeState";
+  resolvePreviewAppearance,
+  type PreviewAppearance,
+} from "./chartThemePreviewAppearance";
+import { previewCategories, previewSample } from "./chartThemePreviewData";
+import { previewLayout, type PreviewViewport } from "./chartThemePreviewLayout";
+import { previewTooltip } from "./chartThemePreviewTooltip";
+import type { ChartThemeState, ThemeMode } from "./chartThemeState";
 
-function getData(totalFills: number) {
-  // Always show all 4 dolphins for variety
-  const data: Array<Record<string, string | number>> = [
-    {
-      dolphin: "Peter",
-      interactionDurationTM: 120,
-      interactionDurationYM: 86,
-      numberOfLooksTM: 60,
-      numberOfLooksYM: 64,
+function axes(a: PreviewAppearance): Pick<EChartsOption, "xAxis" | "yAxis"> {
+  const axisLabel = {
+    fontFamily: a.fontFamily,
+    fontSize: a.fontSize,
+    fontWeight: a.fontWeight,
+    color: a.color,
+    margin: 11,
+  };
+  return {
+    xAxis: {
+      id: "theme-preview-category",
+      type: "category",
+      data: [...previewCategories],
+      boundaryGap: true,
+      axisLabel,
+      axisLine: { show: true, lineStyle: { color: a.axisColor } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+      axisPointer: { show: false },
     },
-    {
-      dolphin: "Mary",
-      interactionDurationTM: 135,
-      interactionDurationYM: 259,
-      numberOfLooksTM: 57,
-      numberOfLooksYM: 93,
+    yAxis: {
+      id: "theme-preview-value",
+      type: "value",
+      min: 0,
+      axisLabel,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: {
+        show: true,
+        lineStyle: { color: a.gridLineColor, width: 1, type: "solid" },
+      },
+      axisPointer: { show: false },
     },
-    {
-      dolphin: "Mercutio",
-      interactionDurationTM: 140,
-      interactionDurationYM: 145,
-      numberOfLooksTM: 238,
-      numberOfLooksYM: 217,
-    },
-    {
-      dolphin: "Ada",
-      interactionDurationTM: 110,
-      interactionDurationYM: 147,
-      numberOfLooksTM: 237,
-      numberOfLooksYM: 217,
-    },
-  ];
-
-  // Create series to match the exact number of fill colors
-  const baseSeries = [
-    {
-      type: "bar" as const,
-      xKey: "dolphin",
-      yKey: "numberOfLooksTM",
-      yName: "Number of Looks (TM)",
-      strokeWidth: 2,
-    },
-    {
-      type: "bar" as const,
-      xKey: "dolphin",
-      yKey: "numberOfLooksYM",
-      yName: "Number of Looks (YM)",
-      strokeWidth: 2,
-    },
-    {
-      type: "bar" as const,
-      xKey: "dolphin",
-      yKey: "interactionDurationTM",
-      yName: "Interaction Duration (TM)",
-      strokeWidth: 2,
-    },
-    {
-      type: "bar" as const,
-      xKey: "dolphin",
-      yKey: "interactionDurationYM",
-      yName: "Interaction Duration (YM)",
-      strokeWidth: 2,
-    },
-  ];
-
-  const series = baseSeries.slice(0, Math.min(totalFills, 4));
-
-  // Add extra series if we need more than 4
-  const neededSeries = totalFills - 4;
-  if (neededSeries > 0) {
-    for (let i = 1; i <= neededSeries; i++) {
-      // Add data for each dolphin for this series
-      for (const [idx, d] of data.entries()) {
-        const isOdd = (idx + i) % 2 === 1;
-        d[`series${i}`] = isOdd ? 30 + i * 10 : 50 + i * 10;
-      }
-
-      series.push({
-        type: "bar",
-        xKey: "dolphin",
-        yKey: `series${i}`,
-        yName: `Series ${i + 4}`,
-        strokeWidth: 2,
-      });
-    }
-  }
-
-  return { data, series };
+  };
 }
 
 export function buildChartPreview(
   state: ChartThemeState,
   mode: ThemeMode,
-): AgChartOptions {
-  const customTheme: AgChartTheme = {
-    baseTheme: state.selectedBaseTheme,
-    palette: { fills: state.fills, strokes: state.strokes },
-    params: Object.fromEntries(
-      Object.entries(chartThemeParams(state)).filter(
-        ([key]) => !key.startsWith("backgroundImage"),
-      ),
-    ),
+  viewport: PreviewViewport = { width: 800, height: 600 },
+  selected: Readonly<Record<string, boolean>> = {},
+) {
+  const a = resolvePreviewAppearance(state, mode);
+  const sample = previewSample(a.fills.length);
+  const layout = previewLayout(a, sample, viewport, selected);
+  const textStyle = {
+    fontFamily: a.fontFamily,
+    fontSize: a.fontSize,
+    fontWeight: a.fontWeight,
+    color: a.color,
   };
-  const { data, series } = getData(state.fills.length);
+  const options: EChartsOption = {
+    animation: false,
+    backgroundColor: a.backgroundColor,
+    textStyle,
+    title: {
+      text: "Dolphin Interaction Data",
+      left: "center",
+      top: a.padding,
+      padding: 0,
+      textStyle: { ...textStyle, fontSize: (a.fontSize * 17) / 12 },
+    },
+    ...axes(a),
+    grid: layout.grid,
+    legend: layout.legend.legends,
+    graphic: layout.legend.graphic,
+    tooltip: previewTooltip(a, sample, selected),
+    series: sample.map((series, index) => ({
+      id: series.id,
+      name: series.name,
+      type: "bar",
+      data: series.values,
+      ...groupedBarSeriesGeometry(layout.geometry),
+      itemStyle: {
+        color: a.fills[index],
+        borderColor: a.strokes[index],
+        borderWidth: 2,
+      },
+      emphasis: {
+        focus: "series",
+        itemStyle: {
+          color: color.lift(a.fills[index], 0.33),
+          borderColor: a.strokes[index],
+          borderWidth: 2,
+        },
+      },
+      blur: { itemStyle: { opacity: 0.3 } },
+    })),
+  };
+  const keyboardNavigation: GroupedBarKeyboardPlan = {
+    kind: "grouped-bar",
+    label: "Dolphin Interaction Data",
+    gridId: "theme-preview-grid",
+    xAxisId: "theme-preview-category",
+    yAxisId: "theme-preview-value",
+    categories: previewCategories,
+    series: sample,
+    geometry: layout.geometry,
+    focus: {
+      color: a.accentColor,
+      backgroundColor: a.chrome.backgroundColor,
+      borderWidth: 3,
+    },
+  };
   return {
-    theme: customTheme,
-    data,
-    series,
-    axes: [
-      { type: "category", position: "bottom" },
-      { type: "number", position: "left" },
-    ],
-    title: { text: "Dolphin Interaction Data" },
-    legend: { position: "bottom" },
-    ...(mode === "dark" && !state.backgroundColor
-      ? { background: { visible: false } }
-      : {}),
+    options,
+    keyboardNavigation,
+    legendPagination: layout.legend.legendPagination,
+    projectLegendSelection: (next: Readonly<Record<string, boolean>>) =>
+      buildChartPreview(state, mode, viewport, next).options,
   };
 }
