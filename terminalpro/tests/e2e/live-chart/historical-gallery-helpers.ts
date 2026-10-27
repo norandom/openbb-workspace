@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Locator, Page } from "@playwright/test";
-import { expect } from "./fixtures";
+import { expect, test } from "./fixtures";
+import { hover, nativeTooltip } from "./hierarchy-observer";
 
 const root = resolve(import.meta.dirname, "../../../../../..");
 export const gallery = JSON.parse(readFileSync(resolve(root, "contracts/gallery/catalog.json"), "utf8")).apps[0];
@@ -198,13 +199,16 @@ export async function financialTooltip(page: Page, widget: Locator, type: string
   const canvas = widget.locator("canvas").first();
   const box = await canvas.boundingBox();
   if (!box) throw Error("Gallery canvas bounds required");
-  const points = (await paint(widget)).points;
+  const drawing = await paint(widget);
+  const points = drawing.points;
   const unique = [...new Map(points.map((p) => [`${Math.round(p.x)}:${Math.round(p.y)}`, p])).values()];
-  const tooltip = widget.locator('div[style*="z-index: 9999999"][style*="pointer-events: none"]').filter({ visible: true }).last();
+  const tooltip = nativeTooltip(widget).last();
   const observed = new Set<string>();
+  const tested: { x: number; y: number }[] = [];
   for (const p of unique.slice(0, 350)) {
     if (p.x < 5 || p.y < 25 || p.x >= box.width - 5 || p.y >= box.height - 5) continue;
-    await page.mouse.move(box.x + p.x, box.y + p.y);
+    tested.push(p);
+    await hover(page, widget, p);
     if (!(await tooltip.count())) continue;
     const text = await tooltip.innerText();
     observed.add(text);
@@ -268,6 +272,9 @@ export async function financialTooltip(page: Page, widget: Locator, type: string
     });
     if (number) return { text, matchedSourceNumber: number, source: spec.datasetId, fields, symbolFilter: symbol };
   }
+  await test.info().attach(`${type}-gallery-hover-failure`, {
+    contentType: "application/json", body: JSON.stringify({ box, drawing, tested, observed: [...observed] }),
+  });
   throw Error(`${type}: no native tooltip reconciles to selected snapshot fields; observed=${JSON.stringify([...observed].slice(0, 8))}`);
 }
 

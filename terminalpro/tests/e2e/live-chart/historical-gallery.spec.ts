@@ -125,9 +125,6 @@ test("historical gallery actual Apps 36 charts screenshots and retained redeploy
     for (const item of overview) await settle(page, chartWidget(page, item.i.replace("qopenbb_gallery_", "")));
     await page.locator("main").screenshot({ path: info.outputPath("historical-gallery-overview.png") });
     screenshots.push({ file: "historical-gallery-overview.png", boxes });
-    const overviewId = new URL(savedURL).pathname.split("/").at(-1)!;
-    const overviewContent = (await saveDashboard(page)).items[overviewId];
-    records.push({ stage: "settled-overview-native-counter", nativeNumberOfChanges: overviewContent.data.numberOfChanges ?? null });
 
     const visited = new Set<string>();
     for (const tab of Object.values(gallery.tabs) as { name: string; layout: { i: string }[] }[]) {
@@ -168,8 +165,11 @@ test("historical gallery actual Apps 36 charts screenshots and retained redeploy
     await settle(page, combo);
     await exportChart(page, combo, info);
     const id = new URL(savedURL).pathname.split("/").at(-1)!;
-    const saved = await saveDashboard(page);
-    const content = saved.items[id];
+    // Native save posts only dirty dashboards. The initial journey edits the
+    // layout and combo; recreation verifies the already persisted state.
+    const content = phase === "initial"
+      ? (await saveDashboard(page)).items[id]
+      : await readDashboard(page, savedURL);
     verifySaved(content, true);
     records.push({ stage: "saved-native-counter", nativeNumberOfChanges: content.data.numberOfChanges ?? null });
     if (phase === "reopen") {
@@ -179,7 +179,7 @@ test("historical gallery actual Apps 36 charts screenshots and retained redeploy
       await galleryCard(page);
       await expect(page.locator("main").getByRole("button", { name: "Overview", exact: true })).toBeVisible();
       const openedId = new URL(page.url()).pathname.split("/").at(-1)!;
-      const opened = (await saveDashboard(page)).items[openedId];
+      const opened = await readDashboard(page, page.url());
       expect(opened.data.templateId).toBe(content.data.templateId);
       expect(opened.data.name.startsWith(gallery.name)).toBe(true);
       records.push({ stage: "native-template-card", originalNativeNumberOfChanges: content.data.numberOfChanges ?? null,
