@@ -976,23 +976,15 @@ async def post_pro_developer_info(
 
 @router.get(
     "/pro-developer-onboarding-info",
-    response_model=schemas.ProInfoDeveloper,
+    response_model=schemas.ProInfoDeveloper | None,
 )
 async def get_pro_developer_info(
     user=Depends(auth_helpers.GetCurrentUser(["uuid"], pro=True)),
     db: AsyncSession = Depends(aget_read_db),
 ):
-    developer_onboarding_info = await pro_helpers.get_developer_onboarding_info(
+    return await pro_helpers.get_developer_onboarding_info(
         db, user
     )
-    if not developer_onboarding_info:
-        return JSONResponse(
-            status_code=404,
-            content={
-                "detail": "Developer onboarding information not found for the given user UUID"
-            },
-        )
-    return developer_onboarding_info
 
 
 @router.post("/accepted-pro-tos", response_model=SuccessReturn)
