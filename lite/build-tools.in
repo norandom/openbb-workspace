@@ -1,5 +1,0 @@
-poetry==2.3.2
-poetry-plugin-export==1.10.0
-Cython==3.2.4
-setuptools==82.0.1
-supervisor==4.3.0
