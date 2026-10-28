@@ -99,6 +99,44 @@ describe("LoginPage", () => {
     expect(screen.getByRole("button", { name: "Login" })).toBeInTheDocument();
   });
 
+  it.each([
+    "CHANGE_ME",
+    "x",
+    " legacy password ",
+    " ",
+  ])("submits a nonempty existing credential unchanged and displays backend rejection", async (password) => {
+    const user = userEvent.setup();
+    vi.mocked(authApi.login).mockResolvedValue({ status: 404 } as any);
+    render(
+      <BrowserRouter>
+        <LoginPage />
+      </BrowserRouter>,
+    );
+    await user.type(screen.getByLabelText("Email"), "test@test.com");
+    await user.type(screen.getByLabelText("Password"), password);
+    await user.click(screen.getByRole("button", { name: "Login" }));
+    await waitFor(() =>
+      expect(authApi.login).toHaveBeenCalledWith("test@test.com", password, false),
+    );
+    expect(screen.queryByText(/Password: min/)).not.toBeInTheDocument();
+    expect(
+      await screen.findByText(/The provided credentials do not match/),
+    ).toBeInTheDocument();
+  });
+
+  it("requires a password before submitting", async () => {
+    const user = userEvent.setup();
+    render(
+      <BrowserRouter>
+        <LoginPage />
+      </BrowserRouter>,
+    );
+    await user.type(screen.getByLabelText("Email"), "test@test.com");
+    await user.click(screen.getByRole("button", { name: "Login" }));
+    expect(await screen.findByText("This field is required")).toBeInTheDocument();
+    expect(authApi.login).not.toHaveBeenCalled();
+  });
+
   it("calls apiLogin on submit", async () => {
     const user = userEvent.setup();
     vi.mocked(authApi.login).mockResolvedValue({

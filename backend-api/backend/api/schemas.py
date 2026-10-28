@@ -1313,7 +1313,7 @@ class ExternalUserLogin(BaseModel):
 
 class UserLogin(ExternalUserLogin):
     model_config = main_config
-    password: Annotated[str, AfterValidator(check_password)]
+    password: Annotated[str, Field(min_length=1)]
 
     _bypass_password_check: bool = False
 
@@ -1340,7 +1340,7 @@ class UserJsonUpdate(BaseModel):
 class UserUpdate(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     first_name: None | str = None
     last_name: None | str = None
-    old_password: Annotated[None | str, AfterValidator(check_password)] = None
+    old_password: Annotated[None | str, Field(min_length=1)] = None
     new_password: Annotated[None | str, AfterValidator(check_password)] = None
     email: Annotated[None | EmailStr, AfterValidator(check_email)] = None
     username: Annotated[None | str, AfterValidator(check_username)] = None

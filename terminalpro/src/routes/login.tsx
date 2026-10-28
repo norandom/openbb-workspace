@@ -61,7 +61,7 @@ import {
   type ProLogin2FAResponse,
   type ProLoginResponse,
 } from "~/types/auth.type";
-import { zodEmail, zodPassword } from "~/utils/zodForms";
+import { zodEmail } from "~/utils/zodForms";
 
 const authenticationAllowEmailLoginFF = getConfig().authentication.allowEmailLogin;
 const allowRegistrationFF = getConfig().authentication.allowRegistration;
@@ -111,7 +111,7 @@ const UnexpectedError = isOnPremDeployment()
 
 const loginSchema = z.object({
   email: zodEmail,
-  password: zodPassword,
+  password: z.string().min(1, "This field is required"),
   remember: z.boolean(),
 });
 
