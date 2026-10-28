@@ -80,7 +80,7 @@ RUN find $VENV_PATH -depth -type d -name __pycache__ -exec rm -rf {} + \
 
 
 ###############################################
-# Runtime — backend + frontend + redis + nginx + supervisor
+# Runtime — backend + frontend + Valkey + nginx + supervisor
 ###############################################
 FROM python-base AS runtime
 
@@ -88,10 +88,20 @@ ARG OPENBB_IMAGE_VARIANT=full
 
 RUN apt-get update -y \
     && apt-get install --no-install-recommends -y \
-       curl nginx redis-server gettext-base tini \
+       curl nginx gettext-base tini libssl3 libsystemd0 \
     && rm -rf /var/lib/apt/lists/* /var/log/nginx/* \
               /usr/share/doc /usr/share/man /usr/share/info /usr/share/locale \
     && mkdir -p /var/log/supervisor /run/nginx
+
+# The official amd64 binary uses Bookworm-compatible OpenSSL 3 and systemd libraries.
+ADD --checksum=sha256:bf0f19982dd464ea111617608a90f1a6eaad2c9c59b2e289cbc1591129f6d2e4 https://download.valkey.io/releases/valkey-9.0.7-jammy-x86_64.tar.gz /tmp/valkey.tar.gz
+RUN tar -xzf /tmp/valkey.tar.gz -C /tmp \
+       valkey-9.0.7-jammy-x86_64/bin/valkey-server \
+       valkey-9.0.7-jammy-x86_64/bin/valkey-cli \
+       valkey-9.0.7-jammy-x86_64/share/LICENSE \
+    && install -m 0755 /tmp/valkey-9.0.7-jammy-x86_64/bin/valkey-server /tmp/valkey-9.0.7-jammy-x86_64/bin/valkey-cli /usr/local/bin/ \
+    && install -Dm 0644 /tmp/valkey-9.0.7-jammy-x86_64/share/LICENSE /usr/local/share/licenses/valkey/LICENSE \
+    && rm -rf /tmp/valkey.tar.gz /tmp/valkey-9.0.7-jammy-x86_64
 
 COPY --from=backend-build $VENV_PATH $VENV_PATH
 
