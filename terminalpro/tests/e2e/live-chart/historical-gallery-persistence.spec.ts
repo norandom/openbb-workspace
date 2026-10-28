@@ -59,6 +59,7 @@ async function readDashboard(page: Page, url: string) {
 
 function observeData(page: Page) {
   const requests: string[] = [];
+  const completed: string[] = [];
   const reads: Promise<{ dataset: string; rows: number }>[] = [];
   page.on("request", (request) => {
     const path = new URL(request.url()).pathname;
@@ -72,12 +73,13 @@ function observeData(page: Page) {
     const check = (async () => {
       expect(response.status()).toBe(200);
       expect(await response.json()).toEqual(snapshot.datasets[match[1]]);
+      completed.push(match[1]);
       return { dataset: match[1], rows: snapshot.datasets[match[1]].results.length };
     })();
     reads.push(check);
     void check.catch(() => undefined);
   });
-  return { requests, reads };
+  return { requests, reads, completed };
 }
 
 async function darkTheme(page: Page) {
@@ -228,6 +230,24 @@ test("historical gallery bounded native save fresh reopen and retained recreatio
       await expect(
         page.locator("main").getByRole("button", { name: "Overview", exact: true }),
       ).toBeVisible();
+      // AppCard mounts the Overview and starts ten snapshot body reads. Keep
+      // that actual view alive until those exact bodies and chart paint finish;
+      // immediate navigation aborts body retrieval after response headers.
+      await settle(page, chartWidget(page, "line"));
+      const overviewDatasets = [
+        ...new Set(
+          gallery.tabs.Overview.layout.map(
+            (item: { i: string }) =>
+              contract.charts[item.i.replace("qopenbb_gallery_", "")].datasetId,
+          ),
+        ),
+      ];
+      await expect
+        .poll(() =>
+          overviewDatasets.every((id) => data[0].completed.includes(String(id))),
+        )
+        .toBe(true);
+      await Promise.all(data[0].reads);
       const openedURL = page.url();
       const opened = await readDashboard(page, openedURL);
       expect(opened.data.templateId).toBe(original.data.templateId);
@@ -239,9 +259,17 @@ test("historical gallery bounded native save fresh reopen and retained recreatio
         openedOriginal: new URL(openedURL).pathname === new URL(savedURL).pathname,
         openedName: opened.data.name,
       });
+      await settle(page, chartWidget(page, "line"));
+      await Promise.all(data[0].reads);
       const preserved = await readDashboard(page, savedURL);
       verifySaved(preserved, true);
       expect(retainedState(preserved)).toEqual(expected);
+      await settle(page, chartWidget(page, "customCombo"));
+      await Promise.all(data[0].reads);
+      expectApplicationDiagnostics(diagnostics[0]);
+      // A second login can invalidate this account's first session. Finish and
+      // close its page before fresh-context authentication can trigger autosave.
+      await page.close();
     }
     const fresh = await browser.newContext({
       baseURL: process.env.WORKSPACE_FRONTEND_ORIGIN,
