@@ -1,7 +1,12 @@
+import { validateIntegratedInput } from "../../../src/components/General/Table/Chart/compatibility/legacyTypes";
+import { reduceIntegratedState } from "../../../src/components/General/Table/Chart/compatibility/integratedState";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { backendTemplateSchema } from "../../../src/lib/types/app";
+import {
+  ChartViewOptionsSchema,
+  backendTemplateSchema,
+} from "../../../src/lib/types/app";
 import {
   createCustomTemplateTab,
   openListedApp,
@@ -131,12 +136,67 @@ async function hydrate(recipes = Object.entries(contract.charts), items: any = {
     addTab,
     source: { ...source, widgets },
     items,
-    template: native as any,
+    template: backendTemplateSchema.parse(native) as any,
   });
   return addTab.mock.calls[0][0];
 }
 
 describe("historical gallery native template seam", () => {
+  it("keeps missing family ranges absent before the first native chart edit", async () => {
+    const recipe = contract.charts.customCombo;
+    const created = await hydrate([["customCombo", recipe]]);
+    const widget = created.data.widgets[0];
+    expect(Object.keys(widget.storage.chartView.cellRangeCols)).toEqual([
+      "customCombo",
+    ]);
+    const currentModel = structuredClone(widget.storage.default.chartModel);
+    currentModel.seriesChartTypes.find((s: any) => s.colId === "netIncome").chartType =
+      "area";
+    const input = validateIntegratedInput({
+      storage: widget.storage,
+      stateKey: "default",
+      currentModel,
+      resolvedOptions: currentModel.chartOptions ?? {},
+      eventOptions: {},
+      chartType: "customCombo",
+      totalSeries: 3,
+      isPivotMode: false,
+    });
+    expect(input.valid).toBe(true);
+    if (!input.valid) throw new Error(input.error);
+    const saved = reduceIntegratedState(input.value) as any;
+    expect(saved.default.chartModel.seriesChartTypes).toContainEqual({
+      colId: "netIncome",
+      chartType: "area",
+      secondaryAxis: false,
+    });
+    expect(saved.default.chartModel.seriesChartTypes).toContainEqual({
+      colId: "basicEps",
+      chartType: "line",
+      secondaryAxis: true,
+    });
+  });
+
+  it("preserves supplied nullish ranges and rejects invalid family keys and columns", () => {
+    const cellRangeCols = {
+      customCombo: ["period", "netIncome"],
+      line: null,
+      area: undefined,
+    };
+    expect(ChartViewOptionsSchema.parse({ cellRangeCols }).cellRangeCols).toStrictEqual(
+      cellRangeCols,
+    );
+    expect(
+      ChartViewOptionsSchema.safeParse({ cellRangeCols: { unknown: [] } }).success,
+    ).toBe(false);
+    expect(
+      ChartViewOptionsSchema.safeParse({ cellRangeCols: { line: [1] } }).success,
+    ).toBe(false);
+    expect(
+      ChartViewOptionsSchema.parse({ cellRangeCols: {} }).cellRangeCols,
+    ).toStrictEqual({});
+  });
+
   it("freezes exactly twelve typed datasets and the native 35 plus custom inventory", () => {
     expect(contract.schemaVersion).toBe(1);
     expect(contract.snapshotId).toBe("fmp-historical-2025-01-v1");

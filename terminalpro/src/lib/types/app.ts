@@ -71,7 +71,7 @@ export const ChartViewOptionsSchema = z.object({
   chartType: ChartTypeSchema.optional(),
   ignoreCellRange: z.boolean().optional(),
   cellRangeCols: z
-    .record(ChartTypeSchema.optional(), z.array(z.string()).nullish())
+    .partialRecord(ChartTypeSchema.optional(), z.array(z.string()).nullish())
     .optional(),
   chartSettingsOpen: z.boolean().default(false).optional(),
   xLabel: z.string().optional(),
