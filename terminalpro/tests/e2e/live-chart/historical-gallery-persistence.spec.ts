@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import type { Page } from "@playwright/test";
+import { exportChart } from "./actions";
 import { expectApplicationDiagnostics, observeApplication } from "./diagnostics";
 import { openEditor, saveDashboard } from "./editor";
 import { expect, loginDisposableWorkspace, test } from "./fixtures";
@@ -12,6 +13,8 @@ import {
   connectGallery,
   contract,
   financialTooltip,
+  gallery,
+  galleryCard,
   observeGalleryPaint,
   resizeChart,
   settle,
@@ -77,6 +80,18 @@ function observeData(page: Page) {
   return { requests, reads };
 }
 
+async function darkTheme(page: Page) {
+  if ((await page.locator("html").getAttribute("class"))?.split(" ").includes("dark"))
+    return;
+  const saved = page.waitForResponse(
+    (r) =>
+      r.request().method() === "POST" &&
+      new URL(r.url()).pathname === "/api/pro/display-settings",
+  );
+  await page.keyboard.press("Control+m");
+  expect((await saved).ok()).toBe(true);
+  await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+}
 async function comboProof(page: Page, edited: boolean) {
   await chooseTab(page, "Combinations");
   const widget = chartWidget(page, "customCombo");
@@ -144,6 +159,7 @@ test("historical gallery bounded native save fresh reopen and retained recreatio
     if (phase === "initial") {
       await connectGallery(page);
       savedURL = page.url();
+      await darkTheme(page);
       await chooseTab(page, "Combinations");
       const widget = chartWidget(page, "customCombo");
       await settle(page, widget);
@@ -160,7 +176,23 @@ test("historical gallery bounded native save fresh reopen and retained recreatio
         proof.editor.getByRole("combobox", { name: /Net income.*series type/i }),
       ).toHaveValue("area");
       await collapse(proof.editor);
+      const refreshed = page.waitForResponse(
+        (r) => new URL(r.url()).pathname === "/data/gallery/data/income-combinations",
+      );
+      await widget
+        .locator("button")
+        .filter({ has: page.locator('svg use[href$="#timer-icon"]') })
+        .click();
+      const response = await refreshed;
+      expect(response.ok()).toBe(true);
+      expect(await response.json()).toEqual(snapshot.datasets["income-combinations"]);
       await settle(page, widget);
+      records.push({
+        stage: "edited-native-refresh",
+        tooltip: await financialTooltip(page, widget, "customCombo"),
+      });
+      await settle(page, widget);
+      await exportChart(page, widget, info);
       const id = new URL(savedURL).pathname.split("/").at(-1)!;
       const saved = (await saveDashboard(page)).items[id];
       verifySaved(saved, true);
@@ -168,6 +200,7 @@ test("historical gallery bounded native save fresh reopen and retained recreatio
       records.push({
         stage: "native-save",
         widgets: expected.widgets.length,
+        nativeNumberOfChanges: saved.data.numberOfChanges ?? null,
         tooltip: proof.tooltip,
       });
     } else {
@@ -181,12 +214,34 @@ test("historical gallery bounded native save fresh reopen and retained recreatio
       const restored = await readDashboard(page, savedURL);
       verifySaved(restored, true);
       expect(retainedState(restored)).toEqual(expected);
+      await expect(page.locator("html")).toHaveClass(/\bdark\b/);
       const proof = await comboProof(page, true);
       await collapse(proof.editor);
       records.push({
         stage: "after-controller-compose-recreation",
         tooltip: proof.tooltip,
       });
+    }
+    if (phase === "reopen") {
+      const original = await readDashboard(page, savedURL);
+      await galleryCard(page);
+      await expect(
+        page.locator("main").getByRole("button", { name: "Overview", exact: true }),
+      ).toBeVisible();
+      const openedURL = page.url();
+      const opened = await readDashboard(page, openedURL);
+      expect(opened.data.templateId).toBe(original.data.templateId);
+      expect(opened.data.name.startsWith(gallery.name)).toBe(true);
+      records.push({
+        stage: "native-template-card",
+        originalNativeNumberOfChanges: original.data.numberOfChanges ?? null,
+        openedNativeNumberOfChanges: opened.data.numberOfChanges ?? null,
+        openedOriginal: new URL(openedURL).pathname === new URL(savedURL).pathname,
+        openedName: opened.data.name,
+      });
+      const preserved = await readDashboard(page, savedURL);
+      verifySaved(preserved, true);
+      expect(retainedState(preserved)).toEqual(expected);
     }
     const fresh = await browser.newContext({
       baseURL: process.env.WORKSPACE_FRONTEND_ORIGIN,
@@ -199,6 +254,7 @@ test("historical gallery bounded native save fresh reopen and retained recreatio
       data.push(observeData(later));
       await observeGalleryPaint(later);
       await loginDisposableWorkspace(later);
+      await expect(later.locator("html")).toHaveClass(/\bdark\b/);
       const restored = await readDashboard(later, savedURL);
       verifySaved(restored, true);
       expect(retainedState(restored)).toEqual(expected);
