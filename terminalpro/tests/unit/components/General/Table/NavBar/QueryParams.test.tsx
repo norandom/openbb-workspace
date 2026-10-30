@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   cleanup,
@@ -8,14 +9,13 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, useLayoutEffect, useState } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ParamDef, WidgetT } from "~/components/types";
 import { COMPANY_BINDINGS } from "~/components/General/Table/NavBar/companySelection.contract";
+import type { ParamDef, WidgetT } from "~/components/types";
 import { useAppStore } from "~/lib/state/app";
-import { useSharedAppStore } from "~/lib/state/sharedApp";
 import { useBackendConnectorStore } from "~/lib/state/backendConnector";
 import { useCopilotDataStore } from "~/lib/state/copilotData";
+import { useSharedAppStore } from "~/lib/state/sharedApp";
 
 const mocks = vi.hoisted(() => ({
   widget: null as any,
@@ -453,11 +453,7 @@ function mockCompanyResults(symbol: string, name: string) {
     }),
   );
 }
-async function chooseCompany(
-  symbol = "MSFT",
-  name = "Microsoft Corporation",
-  beforeChoice?: () => void,
-) {
+async function lookupCompany(symbol = "MSFT", name = "Microsoft Corporation") {
   mockCompanyResults(symbol, name);
   const input = screen.getByRole("combobox", { name: "Company name" });
   fireEvent.focus(input);
@@ -465,7 +461,9 @@ async function chooseCompany(
   await act(async () => {
     await vi.advanceTimersByTimeAsync(250);
   });
-  beforeChoice?.();
+}
+async function chooseCompany(symbol = "MSFT", name = "Microsoft Corporation") {
+  await lookupCompany(symbol, name);
   fireEvent.click(screen.getByRole("option"));
 }
 afterEach(() => {
@@ -631,26 +629,38 @@ describe("native company selection host", () => {
   });
   it("rechecks changed group membership before any listing commit", async () => {
     mountNative(nativeWidget(), { grouped: true, preview: false });
-    await chooseCompany("MSFT", "Microsoft Corporation", () => {
-      const tab = useAppStore.getState().getTabById("dashboard-1");
-      act(() =>
-        useAppStore.setState({
-          items: {
-            "dashboard-1": {
-              ...tab,
-              data: {
-                ...tab.data,
-                widgets: tab.data.widgets.map((widget) =>
-                  widget.id === "peer"
-                    ? { ...widget, widgetId: "fred_series" }
-                    : widget,
-                ),
-              },
+    await lookupCompany();
+    expect(screen.getByRole("option")).toHaveTextContent("Microsoft Corporation");
+    expect(screen.getByRole("combobox", { name: "Company name" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    const tab = useAppStore.getState().getTabById("dashboard-1");
+    act(() =>
+      useAppStore.setState({
+        items: {
+          "dashboard-1": {
+            ...tab,
+            data: {
+              ...tab.data,
+              widgets: tab.data.widgets.map((widget) =>
+                widget.id === "peer" ? { ...widget, widgetId: "fred_series" } : widget,
+              ),
             },
           },
-        }),
-      );
-    });
+        },
+      }),
+    );
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Company name" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(mocks.updateGroup).not.toHaveBeenCalled();
+    expect(mocks.updateWidget).not.toHaveBeenCalled();
+    expect(mocks.widget.storage.params.symbol).toBe("AAPL");
+    await chooseCompany();
     expect(mocks.updateGroup).not.toHaveBeenCalled();
     expect(mocks.updateWidget).not.toHaveBeenCalled();
     expect(screen.getByRole("status")).toHaveTextContent(/compatible|eligible|FMP/i);

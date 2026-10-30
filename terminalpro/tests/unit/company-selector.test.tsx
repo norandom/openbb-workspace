@@ -78,6 +78,8 @@ function mount(
     source?: CompanyRequestContext | null;
     searchPort?: CompanySearchPort;
     comparisonEditor?: CompanySymbolSelectorProps["comparisonEditor"];
+    context?: Partial<CompanyContext>;
+    followGroupSymbol?: boolean;
   } = {},
 ) {
   const local = vi.fn();
@@ -98,6 +100,9 @@ function mount(
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   clients.push(client);
   let updateSource: (next: CompanyRequestContext | null) => void = () => {};
+  let updateContext: (next: Partial<CompanyContext>) => void = () => {};
+  let freshContext: Partial<CompanyContext> = {};
+  let updateMetadata: (next: unknown) => void = () => {};
   function Host() {
     const [symbol, setSymbol] = useState(options.symbol ?? "AAPL");
     const [saved, setSaved] = useState<unknown>(
@@ -106,12 +111,18 @@ function mount(
     const [connected, setConnected] = useState(
       "source" in options ? options.source : source,
     );
+    const [contextChanges, setContextChanges] = useState(options.context ?? {});
     updateSource = setConnected;
+    updateMetadata = setSaved;
+    updateContext = setContextChanges;
     const context = {
       ...initialContext,
       symbol,
       sourceKey: connected?.sourceKey ?? "",
+      ...contextChanges,
     };
+    if (options.followGroupSymbol && context.group.kind === "bound")
+      context.group = { ...context.group, value: context.symbol };
     const props: CompanySymbolSelectorProps = {
       input: {
         source: connected,
@@ -119,7 +130,7 @@ function mount(
         metadata: saved,
         searchPort: port,
         ports: {
-          readContextNow: () => context,
+          readContextNow: () => ({ ...context, ...freshContext }),
           writeBoundSymbol: grouped,
           commitLocal: (selection) => {
             local(selection);
@@ -154,6 +165,11 @@ function mount(
     grouped,
     port,
     updateSource: (next: CompanyRequestContext | null) => act(() => updateSource(next)),
+    updateMetadata: (next: unknown) => act(() => updateMetadata(next)),
+    updateContext: (next: Partial<CompanyContext>) => act(() => updateContext(next)),
+    changeFreshContext: (next: Partial<CompanyContext>) => {
+      freshContext = next;
+    },
   };
 }
 const nameInput = () => screen.getByRole("combobox", { name: "Company name" });
@@ -252,6 +268,243 @@ describe("paired company fields", () => {
     expect(view.local).toHaveBeenCalledWith(expect.objectContaining(microsoft));
     await tick(1500);
     expect(view.manual).not.toHaveBeenCalled();
+  });
+  it.each([
+    0, 1500,
+  ])("keeps an open Symbol draft through its own raw acknowledgement with %ims source latency", async (latency) => {
+    const advance = { ...apple, symbol: "AAP", name: "Advance Auto Parts" };
+    const view = mount({
+      symbol: "MSFT",
+      metadata: { ...metadata, ...microsoft },
+      searchPort: async (_source, request) => {
+        if (latency) await new Promise((resolve) => setTimeout(resolve, latency));
+        return { kind: "ready", request, rows: [apple, advance], retrievedAt: null };
+      },
+    });
+    await query("symbol", "AAP");
+    await tick(1000);
+    await tick(2000);
+    expect(view.manual).toHaveBeenCalledExactlyOnceWith("AAP");
+    expect(symbolInput()).toHaveValue("AAP");
+    expect(symbolInput()).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("status")).toHaveTextContent("Search draft");
+    expect(view.local).not.toHaveBeenCalled();
+    const choice = screen.getByRole("option", { name: /Apple Inc.*AAPL/ });
+    fireEvent.click(choice);
+    expect(view.local).toHaveBeenCalledExactlyOnceWith(expect.objectContaining(apple));
+    expect(nameInput()).toHaveValue("Apple Inc.");
+    expect(symbolInput()).toHaveValue("AAPL");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+  it.each([
+    ["external symbol", { symbol: "TSLA" }],
+    ["dashboard", { dashboardId: "other-dashboard" }],
+    ["provider", { provider: "other" }],
+    ["widget", { widgetUuid: "other-widget" }],
+    ["preview", { isPreview: true }],
+    ["membership", { dashboardMember: false }],
+    ["execution mode", { immediate: false }],
+    [
+      "group binding",
+      { group: { kind: "bound", id: "new-group", value: "AAP", members: [] } },
+    ],
+  ] as const)("invalidates an acknowledged Symbol draft after a genuine %s change", async (_label, next) => {
+    const view = mount();
+    await query("symbol", "AAP");
+    await tick(1500);
+    await tick();
+    expect(symbolInput()).toHaveAttribute("aria-expanded", "true");
+    view.updateContext(next);
+    expect(symbolInput()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+    fireEvent.keyDown(symbolInput(), { key: "Enter" });
+    expect(view.local).not.toHaveBeenCalled();
+  });
+  it("clears an open Symbol draft on authentication changes without changing source key", async () => {
+    const view = mount();
+    await query("symbol", "AAP");
+    await tick(1500);
+    await tick();
+    expect(symbolInput()).toHaveAttribute("aria-expanded", "true");
+    view.updateSource({
+      ...source,
+      requestInit: { headers: { "X-Test-Auth": "replacement" } },
+    });
+    expect(symbolInput()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+    fireEvent.keyDown(symbolInput(), { key: "Enter" });
+    expect(view.local).not.toHaveBeenCalled();
+  });
+  it("still rejects a fresh external context mutation immediately before explicit choice", async () => {
+    const view = mount();
+    await query("symbol", "AAP");
+    await tick(1500);
+    await tick();
+    view.changeFreshContext({ symbol: "TSLA" });
+    fireEvent.click(screen.getByRole("option", { name: /Apple Inc.*AAPL/ }));
+    expect(view.local).not.toHaveBeenCalled();
+    expect(view.grouped).not.toHaveBeenCalled();
+  });
+  it.each([
+    "debounce",
+    "Enter",
+    "blur",
+    "Tab",
+  ])("preserves a failed lookup honestly after %s raw acknowledgement without retrying", async (action) => {
+    const view = mount({
+      failure: {
+        code: "entitlement",
+        message: "Search access unavailable",
+        retryable: false,
+      },
+    });
+    await query("symbol", "AAP");
+    expect(view.port).toHaveBeenCalledTimes(1);
+    if (action === "Enter") fireEvent.keyDown(symbolInput(), { key: "Enter" });
+    if (action === "Tab") fireEvent.keyDown(symbolInput(), { key: "Tab" });
+    if (action === "blur" || action === "Tab") fireEvent.blur(symbolInput());
+    await tick(1000);
+    await tick(2000);
+    expect(view.manual).toHaveBeenCalledExactlyOnceWith("AAP");
+    expect(view.port).toHaveBeenCalledTimes(1);
+    expect(symbolInput()).toHaveAttribute(
+      "aria-expanded",
+      action === "blur" || action === "Tab" ? "false" : "true",
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Search access unavailable");
+    expect(screen.getByRole("status")).toHaveTextContent("Company unresolved");
+    expect(view.local).not.toHaveBeenCalled();
+  });
+  it("does not arm an acknowledgement on Tab before an external matching symbol change", async () => {
+    const view = mount({
+      failure: {
+        code: "entitlement",
+        message: "Search access unavailable",
+        retryable: false,
+      },
+    });
+    await query("symbol", "AAP");
+    fireEvent.keyDown(symbolInput(), { key: "Tab" });
+    view.updateContext({ symbol: "AAP" });
+    fireEvent.blur(symbolInput());
+    await tick(2000);
+    expect(view.manual).not.toHaveBeenCalled();
+    expect(view.local).not.toHaveBeenCalled();
+    expect(symbolInput()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("status")).not.toHaveTextContent("Search draft");
+  });
+  it("cancels an obsolete pending raw write on an external context change", async () => {
+    const view = mount();
+    await query("symbol", "AAP");
+    view.updateContext({ symbol: "TSLA" });
+    await tick(2000);
+    expect(view.manual).not.toHaveBeenCalled();
+    expect(symbolInput()).toHaveValue("TSLA");
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+  });
+  it("cancels a rebound user request on Escape and ignores a late result", async () => {
+    const requests: { signal: AbortSignal; resolve: () => void }[] = [];
+    const view = mount({
+      searchPort: (_source, request, signal) =>
+        new Promise((resolve) => {
+          requests.push({
+            signal,
+            resolve: () =>
+              resolve({ kind: "ready", request, rows: [apple], retrievedAt: null }),
+          });
+        }),
+    });
+    await query("symbol", "AAP");
+    await tick(1000);
+    await tick();
+    expect(requests).toHaveLength(2);
+    expect(requests[0].signal.aborted).toBe(true);
+    fireEvent.keyDown(symbolInput(), { key: "Escape" });
+    expect(requests[1].signal.aborted).toBe(true);
+    await act(async () => {
+      requests.forEach((request) => request.resolve());
+    });
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+    expect(view.local).not.toHaveBeenCalled();
+    expect(symbolInput()).toHaveValue("AAP");
+  });
+  it("keeps the fresh group compatibility guard after an own acknowledgement", async () => {
+    const view = mount();
+    await query("symbol", "AAP");
+    await tick(1000);
+    await tick();
+    view.changeFreshContext({
+      group: { kind: "bound", id: "mixed", value: "AAP", members: [] },
+    });
+    fireEvent.click(screen.getByRole("option", { name: /Apple Inc.*AAPL/ }));
+    expect(view.local).not.toHaveBeenCalled();
+    expect(view.grouped).not.toHaveBeenCalled();
+  });
+  it("does not invalidate an acknowledged Symbol draft when current-symbol metadata is resolved", async () => {
+    const view = mount();
+    await query("symbol", "AAP");
+    await tick(1000);
+    await tick();
+    view.updateMetadata({
+      ...metadata,
+      symbol: "AAP",
+      name: "Advance Auto Parts",
+      selectedAt: "2026-10-30T13:00:00Z",
+    });
+    expect(symbolInput()).toHaveAttribute("aria-expanded", "true");
+    expect(symbolInput()).toHaveValue("AAP");
+    expect(screen.getByRole("status")).toHaveTextContent("Search draft");
+    fireEvent.click(screen.getByRole("option", { name: /Apple Inc.*AAPL/ }));
+    expect(view.local).toHaveBeenCalledExactlyOnceWith(expect.objectContaining(apple));
+  });
+  it("cancels a rebound loading request on unmount", async () => {
+    const signals: AbortSignal[] = [];
+    const view = mount({
+      searchPort: (_source, _request, signal) => {
+        signals.push(signal);
+        return new Promise(() => {});
+      },
+    });
+    await query("symbol", "AAP");
+    await tick(1000);
+    await tick();
+    expect(signals).toHaveLength(2);
+    view.unmount();
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    await tick(2000);
+    expect(view.manual).toHaveBeenCalledExactlyOnceWith("AAP");
+    expect(view.local).not.toHaveBeenCalled();
+  });
+  it("rebinds through its own group-value update and retains the one-write fresh group commit", async () => {
+    const member = {
+      sourceKey,
+      provider: "fmp",
+      eligible: true,
+      symbolBindingIds: ["companies"],
+      hasCompetingTickerBinding: false,
+    };
+    const view = mount({
+      followGroupSymbol: true,
+      context: {
+        group: {
+          kind: "bound",
+          id: "companies",
+          value: "AAPL",
+          members: [
+            { ...member, widgetId: "origin" },
+            { ...member, widgetId: "peer" },
+          ],
+        },
+      },
+    });
+    await query("symbol", "AAP");
+    await tick(1000);
+    await tick();
+    expect(symbolInput()).toHaveAttribute("aria-expanded", "true");
+    expect(view.manual).toHaveBeenCalledExactlyOnceWith("AAP");
+    fireEvent.click(screen.getByRole("option", { name: /Apple Inc.*AAPL/ }));
+    expect(view.grouped).toHaveBeenCalledExactlyOnceWith("companies", "AAPL");
+    expect(view.local).toHaveBeenCalledExactlyOnceWith(expect.objectContaining(apple));
   });
   it("cancels the draft with Escape and restores committed fields", async () => {
     const view = mount();

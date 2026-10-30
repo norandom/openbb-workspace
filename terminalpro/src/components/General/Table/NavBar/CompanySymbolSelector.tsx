@@ -9,10 +9,11 @@ import {
 } from "react";
 import { Input } from "~/components/ds/atoms/Input";
 import { PopoverContent, PopoverRoot } from "~/components/ds/atoms/Popover";
-import type {
-  ListingChoice,
-  SearchMode,
-  SearchState,
+import {
+  isSingleSymbol,
+  type ListingChoice,
+  type SearchMode,
+  type SearchState,
 } from "./companySelection.contract";
 import { type CompanySelectionInput, useCompanySelection } from "./useCompanySelection";
 
@@ -22,7 +23,20 @@ export type CompanySymbolSelectorProps = Readonly<{
   groupControl?: ReactNode;
   comparisonEditor?: ReactNode;
 }>;
-type Draft = { identity: string; mode: SearchMode; value: string; open: boolean };
+type Draft = {
+  identity: string;
+  mode: SearchMode;
+  value: string;
+  open: boolean;
+  feedback?: string;
+};
+type RawAcknowledgement = {
+  fromIdentity: string;
+  scope: number;
+  symbol: string;
+  requery: boolean;
+  feedback?: string;
+};
 type PendingSymbol = {
   timer: ReturnType<typeof setTimeout>;
   value: string;
@@ -42,6 +56,19 @@ type FieldProps = {
   onBlur: () => void;
   onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
 };
+
+// Request configuration stays private; drafts contain only an opaque scope generation.
+function scopeSignature(input: CompanySelectionInput): string {
+  const { symbol: _symbol, group, ...context } = input.context;
+  const { requestInit, ...source } = input.source ?? { requestInit: {} };
+  const headers = Array.from(new Headers(requestInit.headers).entries()).sort();
+  return JSON.stringify([
+    context,
+    group.kind === "bound" ? { id: group.id, members: group.members } : group,
+    source,
+    { ...requestInit, headers },
+  ]);
+}
 
 function CompanyField(props: FieldProps) {
   const label = props.mode === "name" ? "Company name" : "Symbol";
@@ -127,18 +154,27 @@ export function CompanySymbolSelector({
   const id = useId();
   const listId = `${id}-list`;
   const statusId = `${id}-status`;
-  const identity = JSON.stringify([
-    input.context.widgetUuid,
-    input.source?.sourceKey,
-    input.context.provider,
-    input.context.symbol,
-    company.selection?.selectedAt,
-  ]);
+  const signature = scopeSignature(input);
+  const scope = useRef({ signature, generation: 0 });
+  if (scope.current.signature !== signature)
+    scope.current = { signature, generation: scope.current.generation + 1 };
+  const identity = JSON.stringify([scope.current.generation, input.context.symbol]);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [active, setActive] = useState(-1);
   const pending = useRef<PendingSymbol | null>(null);
-  const latest = useRef({ identity, onManualSymbolChange });
-  latest.current = { identity, onManualSymbolChange };
+  const acknowledgement = useRef<RawAcknowledgement | null>(null);
+  const latest = useRef({
+    identity,
+    onManualSymbolChange,
+    draft,
+    state: company.searchState,
+  });
+  latest.current = {
+    identity,
+    onManualSymbolChange,
+    draft,
+    state: company.searchState,
+  };
   const currentDraft = draft?.identity === identity ? draft : null;
   const multiple = Boolean(comparisonEditor) && input.context.symbol.includes(",");
   const open = currentDraft?.open ?? false;
@@ -153,14 +189,38 @@ export function CompanySymbolSelector({
   function cancelManual() {
     if (pending.current) clearTimeout(pending.current.timer);
     pending.current = null;
+    acknowledgement.current = null;
   }
   function flushManual() {
     const next = pending.current;
     cancelManual();
-    if (next?.identity === latest.current.identity)
-      latest.current.onManualSymbolChange(next.value);
+    const current = latest.current;
+    if (next?.identity !== current.identity) return;
+    const feedback =
+      current.state.kind === "failed"
+        ? current.state.result.failure.message
+        : current.draft?.feedback;
+    if (
+      isSingleSymbol(next.value) &&
+      current.draft?.identity === next.identity &&
+      current.draft.mode === "symbol" &&
+      (current.draft.open || feedback !== undefined) &&
+      current.draft.value === next.value
+    ) {
+      acknowledgement.current = {
+        fromIdentity: next.identity,
+        scope: scope.current.generation,
+        symbol: next.value,
+        requery:
+          current.draft.open &&
+          (current.state.kind === "loading" || current.state.kind === "ready"),
+        feedback,
+      };
+    }
+    current.onManualSymbolChange(next.value);
   }
   function edit(mode: SearchMode, value: string, changed = false) {
+    acknowledgement.current = null;
     setDraft({ identity, mode, value, open: true });
     setActive(-1);
     company.search(mode, value);
@@ -170,8 +230,20 @@ export function CompanySymbolSelector({
     }
   }
   function close() {
+    if (acknowledgement.current?.feedback === undefined) acknowledgement.current = null;
     company.cancel();
-    setDraft((previous) => (previous ? { ...previous, open: false } : null));
+    setDraft((previous) =>
+      previous
+        ? {
+            ...previous,
+            open: false,
+            feedback:
+              company.searchState.kind === "failed"
+                ? company.searchState.result.failure.message
+                : previous.feedback,
+          }
+        : null,
+    );
     setActive(-1);
   }
   function choose(listing: ListingChoice) {
@@ -203,9 +275,23 @@ export function CompanySymbolSelector({
   }
 
   useEffect(() => {
+    const expected = acknowledgement.current;
     cancelManual();
-    setDraft(null);
     setActive(-1);
+    if (
+      expected &&
+      draft?.identity === expected.fromIdentity &&
+      (draft.open || expected.feedback !== undefined) &&
+      draft.mode === "symbol" &&
+      draft.value === expected.symbol &&
+      input.context.symbol === expected.symbol &&
+      scope.current.generation === expected.scope
+    ) {
+      setDraft({ ...draft, identity, feedback: expected.feedback });
+      // The hook has invalidated its former context; establish a fresh user request.
+      if (expected.requery) company.search("symbol", draft.value);
+      else company.cancel();
+    } else setDraft(null);
   }, [identity]);
   useEffect(() => setActive(-1), [company.searchState]);
   useEffect(() => {
@@ -222,7 +308,9 @@ export function CompanySymbolSelector({
       ? `Multiple companies: ${input.context.symbol}. Choosing a listing replaces the symbol list.`
       : `Company unresolved. Current Symbol: ${input.context.symbol || "empty"}.`;
   const feedback =
-    company.error ?? searchMessage(company.searchState, input.source !== null);
+    company.error ??
+    currentDraft?.feedback ??
+    searchMessage(company.searchState, input.source !== null);
   return (
     <div className="min-w-0 w-full body-xs-regular text-ds-text-body">
       <PopoverRoot
