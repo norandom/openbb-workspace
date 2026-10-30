@@ -224,7 +224,7 @@ describe("listing ambiguity and exact-symbol resolution", () => {
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, renderHook } from "@testing-library/react";
-import { createElement, type ReactNode } from "react";
+import { createElement, type ReactNode, useState } from "react";
 import { afterEach, vi } from "vitest";
 import type {
   CompanyContext,
@@ -490,6 +490,66 @@ describe("guarded selection lifecycle", () => {
     expect(hook.result.current.status).toBe("unresolved");
     expect(hook.ports.commitLocal).not.toHaveBeenCalled();
     expect(port).toHaveBeenCalledTimes(1);
+  });
+  it("resolves peer names again after successful AAPL to MSFT to AAP to AAPL controlled context visits", async () => {
+    vi.useFakeTimers();
+    const names: Record<string, string> = {
+      AAPL: "Apple Inc.",
+      MSFT: "Microsoft Corporation",
+      AAP: "Advance Auto Parts",
+    };
+    const port = vi
+      .fn<CompanySearchPort>()
+      .mockImplementation(async (_, req) =>
+        ready(req, [{ ...listing, symbol: req.query, name: names[req.query] }]),
+      );
+    const local = vi.fn<SelectionPorts["commitLocal"]>();
+    const grouped = vi.fn<SelectionPorts["writeBoundSymbol"]>();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children);
+    const hook = renderHook(
+      ({ effective }: { effective: CompanyContext }) => {
+        const [saved, setSaved] = useState<unknown>(null);
+        return useCompanySelection({
+          source,
+          context: effective,
+          metadata: saved,
+          searchPort: port,
+          ports: {
+            readContextNow: () => effective,
+            writeBoundSymbol: grouped,
+            commitLocal: (next) => {
+              local(next);
+              setSaved(next);
+            },
+          },
+        });
+      },
+      { initialProps: { effective: bound("AAPL") }, wrapper },
+    );
+    for (const [index, symbol] of ["AAPL", "MSFT", "AAP", "AAPL"].entries()) {
+      if (index) hook.rerender({ effective: bound(symbol) });
+      await tick();
+      expect(hook.result.current.selection).toMatchObject({
+        symbol,
+        name: names[symbol],
+        sourceKey,
+      });
+      expect(hook.result.current.status).toBe("resolved");
+      expect(local).toHaveBeenCalledTimes(index + 1);
+      expect(local).toHaveBeenLastCalledWith(
+        expect.objectContaining({ symbol, name: names[symbol], sourceKey }),
+      );
+      hook.rerender({ effective: { ...bound(symbol) } });
+      await tick(1000);
+      expect(local).toHaveBeenCalledTimes(index + 1);
+    }
+    expect(grouped).not.toHaveBeenCalled();
+    expect(port).toHaveBeenCalledTimes(3);
+    expect(local.mock.calls[0][0].retrievedAt).toBe(local.mock.calls[3][0].retrievedAt);
+    hook.unmount();
+    client.clear();
   });
   it("does not retry an automatic lookup after a failure or after revisiting its identity", async () => {
     const port = vi.fn<CompanySearchPort>().mockImplementation(async (_, req) => ({

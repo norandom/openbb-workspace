@@ -128,7 +128,7 @@ export function useCompanySelection(input: CompanySelectionInput) {
   const latest = useRef(input);
   latest.current = input;
   const session = useRef<Session>({ identity, kind: "idle" });
-  const attempts = useRef(new Set<string>());
+  const attempts = useRef(new Map<string, "attempted" | "resolved">());
   const [failure, setFailure] = useState<Failure | null>(null);
   const decoded = decodeSelection(metadata);
   const metadataKey = JSON.stringify(decoded);
@@ -162,7 +162,7 @@ export function useCompanySelection(input: CompanySelectionInput) {
   }
   function cancel() {
     session.current = { identity, kind: "idle" };
-    attempts.current.add(identity);
+    attempts.current.set(identity, "attempted");
     remote.cancel();
   }
   function choose(choice: ListingChoice): CommitResult {
@@ -204,6 +204,9 @@ export function useCompanySelection(input: CompanySelectionInput) {
 
   useEffect(() => {
     if (session.current.identity !== identity) {
+      // Failed or cancelled attempts stay suppressed when their context returns.
+      if (attempts.current.get(session.current.identity) === "resolved")
+        attempts.current.delete(session.current.identity);
       session.current = { identity, kind: "idle" };
       remote.cancel();
     }
@@ -219,7 +222,7 @@ export function useCompanySelection(input: CompanySelectionInput) {
       activeFailure?.unresolved
     )
       return;
-    attempts.current.add(identity);
+    attempts.current.set(identity, "attempted");
     session.current = { identity, kind: "auto", initialState: remote.state };
     remote.search("symbol", context.symbol);
   }, [
@@ -265,6 +268,7 @@ export function useCompanySelection(input: CompanySelectionInput) {
       ) {
         // Same effective symbol: the host takes its metadata-only persistence path.
         current.ports.commitLocal(next);
+        attempts.current.set(identity, "resolved");
       }
     } catch {
       fail(
