@@ -40,6 +40,8 @@ export default function CompareTermsParam({
       .filter(Boolean);
   }, [value]);
 
+  const observedTermsRef = useRef(terms);
+
   const [state, dispatch] = useStateReducer({
     search: "",
     open: false,
@@ -55,7 +57,8 @@ export default function CompareTermsParam({
   const handleAddTerm = useCallback(
     () =>
       dispatch((prev) => {
-        const newTerms = new Set(prev.terms);
+        // Begin from the displayed comparison; pending edits retain their order.
+        const newTerms = new Set(prev.pending ? prev.terms : terms);
         const trimmed = prev.search
           .split(",")
           .map((term) => term.trim())
@@ -65,10 +68,9 @@ export default function CompareTermsParam({
         if (trimmed.length === 0) return { ...prev, search: "" };
 
         trimmed.forEach((term) => newTerms.add(term));
-        prev.terms = Array.from(newTerms);
-        return { ...prev, search: "", pending: true };
+        return { ...prev, terms: Array.from(newTerms), search: "", pending: true };
       }),
-    [],
+    [terms],
   );
 
   useEffect(() => {
@@ -78,14 +80,32 @@ export default function CompareTermsParam({
     }
   }, [state.terms]);
 
+  useEffect(() => {
+    const previousTerms = observedTermsRef.current;
+    observedTermsRef.current = terms;
+    if (
+      previousTerms.join(",") === terms.join(",") ||
+      terms.join(",") === state.terms.join(",")
+    ) {
+      return;
+    }
+    // External symbols supersede a queued comparison; our own acknowledgement
+    // must preserve the analyst's next search draft and the open editor.
+    handleUpdate.cancel();
+    dispatch({ terms, pending: false });
+  }, [terms, state.terms, handleUpdate]);
+
   const handleRemoveTerm = useCallback(
     (termToRemove: string) =>
-      dispatch({
-        terms: (prev) => prev.filter((term) => term !== termToRemove),
+      dispatch((prev) => ({
+        ...prev,
+        terms: (prev.pending ? prev.terms : terms).filter(
+          (term) => term !== termToRemove,
+        ),
         search: "",
         pending: true,
-      }),
-    [],
+      })),
+    [terms],
   );
 
   const handleKeyDown = useCallback(
