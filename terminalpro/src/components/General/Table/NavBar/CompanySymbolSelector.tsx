@@ -140,7 +140,7 @@ export function CompanySymbolSelector({
   const latest = useRef({ identity, onManualSymbolChange });
   latest.current = { identity, onManualSymbolChange };
   const currentDraft = draft?.identity === identity ? draft : null;
-  const multiple = input.context.symbol.includes(",");
+  const multiple = Boolean(comparisonEditor) && input.context.symbol.includes(",");
   const open = currentDraft?.open ?? false;
   const rows =
     company.searchState.kind === "ready" ? company.searchState.result.rows : [];

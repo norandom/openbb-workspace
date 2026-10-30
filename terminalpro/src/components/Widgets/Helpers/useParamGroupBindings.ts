@@ -161,7 +161,8 @@ function companyGroup(
       reason: "Remove competing Symbol or ticker bindings before selecting a company.",
     };
   const group = data.groups.find((entry) => entry.id === member.symbolBindingIds[0]);
-  if (!group || typeof group.value !== "string")
+  const value = Array.isArray(group?.value) ? group.value.join(",") : group?.value;
+  if (!group || typeof value !== "string")
     return {
       kind: "unavailable",
       reason: "The Symbol group value is unavailable. Refresh the group.",
@@ -169,7 +170,7 @@ function companyGroup(
   return {
     kind: "bound",
     id: group.id,
-    value: group.value,
+    value,
     members: data.widgets
       .filter((widget) =>
         widgetGroups(widget, data.groups).some((entry) => entry.id === group.id),
@@ -201,7 +202,9 @@ function companySnapshot(
     dashboardId: context.activeDashboardId ?? "",
     sourceKey: resolved.sourceKey,
     provider: resolved.provider,
-    symbol: typeof resolved.symbol === "string" ? resolved.symbol : "",
+    symbol: Array.isArray(resolved.symbol)
+      ? resolved.symbol.join(",")
+      : typeof resolved.symbol === "string" ? resolved.symbol : "",
     immediate: !!resolved.binding,
     isPreview: context.isPreview === true,
     dashboardMember,

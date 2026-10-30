@@ -44,6 +44,9 @@ import {
 } from "~/lib/utils";
 import DebouncedInput from "../DebouncedInput";
 import { someTruthy } from "../utils";
+import { CompanySymbolSelector } from "./CompanySymbolSelector";
+import type { CompanySelectionV1 } from "./companySelection.contract";
+import { createCompanyRequestContext } from "./companySearch";
 import CompareTermsParam from "./CompareTermsParam";
 import { TabsParam } from "./TabsParam";
 
@@ -114,7 +117,10 @@ export function useWidgetParamsPositions(enabled = true) {
     setSqlEditorFocused(Boolean(detail?.focused));
   });
 
-  const { updateGroupedParam } = useParamGroupBindings();
+  const {
+    updateGroupedParam, companyBinding, companyWidget, companyContext,
+    readContextNow, writeBoundSymbol,
+  } = useParamGroupBindings();
 
   const {
     hasForm,
@@ -199,7 +205,7 @@ export function useWidgetParamsPositions(enabled = true) {
   }, [widget?.paramGroups, widget?.params, widget?.storage?.sqlParamDefs]);
 
   const syncParams = useCallback(
-    (props?: { params?: ParamsT; mainTicker?: Ticker }) => {
+    (props?: { params?: ParamsT; mainTicker?: Ticker; companySelection?: CompanySelectionV1 }) => {
       const localParams = props?.params ?? state.localParams;
       const mainTicker = props?.mainTicker ?? state.mainTicker;
       const params = currentParamsRef.current;
@@ -209,6 +215,12 @@ export function useWidgetParamsPositions(enabled = true) {
         Object.keys(localParams).every((key) => params[key] === localParams[key]) &&
         mainTicker?.symbol === widget.data?.mainTicker?.symbol
       ) {
+        if (props?.companySelection) {
+          return updateWidget((prev) => ({
+            ...prev,
+            storage: { ...prev.storage, companySelection: props.companySelection },
+          }), true);
+        }
         if (!widget.runButton) return;
         beginWidgetCopilotExecution(widget.id, nextExecutedParams);
         return updateWidget((prev) => ({ ...prev, refreshQuery: Date.now() }));
@@ -226,6 +238,7 @@ export function useWidgetParamsPositions(enabled = true) {
 
         newWidget.storage = {
           ...newWidget.storage,
+          ...(props?.companySelection && { companySelection: props.companySelection }),
           params: {
             ...(newWidget?.storage?.params ?? {}),
             ...localParams,
@@ -238,7 +251,7 @@ export function useWidgetParamsPositions(enabled = true) {
         }
 
         return newWidget;
-      });
+      }, !!props?.companySelection);
     },
     [
       updateWidget,
@@ -388,6 +401,45 @@ export function useWidgetParamsPositions(enabled = true) {
     });
   });
 
+  const companyParam = !hasForm && companyBinding
+    ? companyWidget.params?.find((param) => param.paramName === "symbol")
+    : undefined;
+  const localSymbol = state.localParams.symbol === undefined
+    ? companyContext.symbol : String(state.localParams.symbol ?? "");
+  const companyRow = companyBinding && companyParam ? (
+    <div data-company-selector-row className="flex min-w-0 flex-wrap gap-1.5 mx-2.5 text-2xs">
+      <CompanySymbolSelector
+        input={{
+          source: createCompanyRequestContext(companyWidget, companyBinding, companyContext.sourceKey),
+          context: companyContext,
+          metadata: localSymbol === companyContext.symbol ? widget.storage?.companySelection : null,
+          ports: {
+            readContextNow, writeBoundSymbol,
+            commitLocal: (companySelection) => {
+              const executed = currentParamsRef.current.symbol;
+              const sameSymbol = companySelection.symbol === companyContext.symbol &&
+                companySelection.symbol === String((executed === undefined ? companyParam.value : executed) ?? "");
+              syncParamsRef.current({
+                params: sameSymbol ? {} : { symbol: companySelection.symbol }, companySelection,
+              });
+              if (!sameSymbol) dispatch({ localParams: (prev) => ({ ...prev, symbol: companySelection.symbol }) });
+            },
+          },
+        }}
+        onManualSymbolChange={(symbol) => updateParams("symbol", symbol)}
+        groupControl={!companyParam.multiple && <GroupDropdown type="param" paramDef={companyParam} />}
+        comparisonEditor={companyParam.multiple && (
+          <RenderParamsForRow
+            rowParams={[companyParam]} state={state} updateParams={updateParams}
+            endpointOptions={endpointOptions} endpointParams={endpointParams}
+            invalidResponseRef={invalidResponseRef} isExternal={widget.external}
+            sqlParamNames={sqlParamNames} showSqlParamLabels={sqlEditorFocused}
+          />
+        )}
+      />
+    </div>
+  ) : null;
+
   const { rowElements, tabRowElements } = useMemo(() => {
     const rowElements = Object.values(paramsGroupedByRow).map((rowParams, index) => {
       if (!rowParams?.length) return null;
@@ -395,7 +447,7 @@ export function useWidgetParamsPositions(enabled = true) {
       const element = (
         <RenderParamsForRow
           key={`param-row-${index}-render`}
-          rowParams={rowParams}
+          rowParams={companyParam ? rowParams.filter((param) => param.paramName !== "symbol") : rowParams}
           state={state}
           updateParams={updateParams}
           endpointOptions={endpointOptions}
@@ -429,6 +481,7 @@ export function useWidgetParamsPositions(enabled = true) {
 
     return { rowElements, tabRowElements };
   }, [
+    companyParam,
     paramsGroupedByRow,
     state,
     endpointOptions,
@@ -474,7 +527,7 @@ export function useWidgetParamsPositions(enabled = true) {
     ) : null;
 
     const filteredRowsBelow = rowsBelow.filter(Boolean);
-    const hasRowsBelow = filteredRowsBelow.length > 0 || renderTabsRow;
+    const hasRowsBelow = companyRow || filteredRowsBelow.length > 0 || renderTabsRow;
 
     if (!someTruthy(hasTicker, row0, hasRowsBelow, hasForm))
       return { renderRow0Params: null, renderBelowNavbarRows: null };
@@ -483,6 +536,7 @@ export function useWidgetParamsPositions(enabled = true) {
 
     const renderBelowNavbarRows = (
       <div className="flex flex-col gap-1 my-1">
+        {companyRow}
         {filteredRowsBelow}
         {renderTabsRow}
       </div>
@@ -490,6 +544,7 @@ export function useWidgetParamsPositions(enabled = true) {
 
     return { renderRow0Params, renderBelowNavbarRows };
   }, [
+    companyRow,
     tickerParamDef,
     widget.data?.mainTicker,
     rowElements,

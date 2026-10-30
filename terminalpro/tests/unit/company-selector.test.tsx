@@ -77,6 +77,7 @@ function mount(
     metadata?: unknown;
     source?: CompanyRequestContext | null;
     searchPort?: CompanySearchPort;
+    comparisonEditor?: CompanySymbolSelectorProps["comparisonEditor"];
   } = {},
 ) {
   const local = vi.fn();
@@ -132,7 +133,12 @@ function mount(
         setSymbol(next);
       },
       groupControl: <button type="button">Symbol group</button>,
-      comparisonEditor: <button type="button">Edit comparison symbols</button>,
+      comparisonEditor:
+        "comparisonEditor" in options ? (
+          options.comparisonEditor
+        ) : (
+          <button type="button">Edit comparison symbols</button>
+        ),
     };
     return (
       <QueryClientProvider client={client}>
@@ -497,5 +503,31 @@ describe("honest listing states", () => {
       within(screen.getByRole("option")).getByText("<img src=x onerror=alert(1)>"),
     ).toBeVisible();
     expect(screen.getByRole("option").querySelector("img")).toBeNull();
+  });
+  it.each([
+    "",
+    "MSFT",
+  ])("retains raw recovery to %j for a comma-valued single-symbol widget without a comparison editor", async (next) => {
+    const view = mount({
+      symbol: "AAPL,MSFT",
+      comparisonEditor: undefined,
+      failure: {
+        code: "entitlement",
+        message: "Search access unavailable",
+        retryable: false,
+      },
+    });
+    await query("symbol", next);
+    await tick(999);
+    expect(view.manual).not.toHaveBeenCalled();
+    await tick(1);
+    expect(view.manual).toHaveBeenCalledExactlyOnceWith(next);
+    expect(view.local).not.toHaveBeenCalled();
+    expect(symbolInput()).toHaveValue(next);
+    expect(nameInput()).toHaveValue("");
+    expect(screen.getByRole("status")).toHaveTextContent("Company unresolved");
+    expect(
+      screen.queryByRole("button", { name: "Edit comparison symbols" }),
+    ).not.toBeInTheDocument();
   });
 });

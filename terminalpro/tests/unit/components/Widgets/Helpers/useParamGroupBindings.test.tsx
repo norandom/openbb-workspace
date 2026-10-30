@@ -459,3 +459,29 @@ it("preserves an explicit null Symbol instead of restoring its native default", 
   expect(result.current.readContextNow().symbol).toBe("");
   expect(result.current.companyWidget.storage.params.symbol).toBeNull();
 });
+
+it.each([
+  "stored",
+  "bound",
+])("normalizes %s Profile symbol arrays without rewriting their storage shape", (kind) => {
+  const origin = widget("origin", {
+    widgetId: "equity_profile_fmp_obb",
+    endpoint: { url: `${source.url}/api/v1/equity/profile` },
+    params: [
+      { ...symbolDef, multiple: true },
+      { type: "text", paramName: "provider", value: "fmp", show: false } as ParamDef,
+    ],
+    storage: { params: { symbol: ["AAPL", "MSFT"], provider: "fmp" } },
+    paramGroups: kind === "bound" ? { symbol: "symbol" } : {},
+  });
+  const groups =
+    kind === "bound" ? [{ ...group(), value: ["AAPL", "MSFT"] } as Group] : [];
+  mocked.context.widget = origin;
+  setDashboard(dashboard([origin], groups));
+  const { result } = renderHook(() => useParamGroupBindings());
+  expect(result.current.companyContext.symbol).toBe("AAPL,MSFT");
+  expect(result.current.readContextNow().symbol).toBe("AAPL,MSFT");
+  expect(result.current.companyWidget.storage.params.symbol).toEqual(["AAPL", "MSFT"]);
+  expect(checkCompanyGroup(result.current.readContextNow()).kind).toBe("allowed");
+  expect(writer).not.toHaveBeenCalled();
+});
