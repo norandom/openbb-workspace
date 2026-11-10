@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { isAbsolute } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { Page } from "@playwright/test";
 import { expect } from "./toolchain";
 
@@ -7,7 +8,10 @@ export { expect, test } from "./toolchain";
 export async function loginDisposableWorkspace(page: Page) {
   const privatePath = process.env.WORKSPACE_RUNTIME_PRIVATE;
   if (!privatePath) throw new Error("Disposable runtime private descriptor required");
-  const runtime = JSON.parse(readFileSync(privatePath, "utf8"));
+  const readerPath = process.env.QOPENBB_RUNTIME_READER;
+  if (!readerPath || !isAbsolute(readerPath)) throw new Error("Checked runtime reader required");
+  const reader = await import(pathToFileURL(readerPath).href);
+  const runtime = await reader.readRuntimeDescriptor(privatePath);
   if (
     !runtime.name?.startsWith("qopenbb-browser-") ||
     !/^http:\/\/127\.0\.0\.1:\d+$/.test(runtime.origin) ||
