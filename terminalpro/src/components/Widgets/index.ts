@@ -6,6 +6,7 @@ import type { WidgetT } from "../types";
 import { unsupportedChartReason } from "./communityCharts";
 import UnsupportedRenderer, { communityWidget } from "./UnsupportedRenderer";
 
+const PeerResearchFC = lazy(() => import("./CompanyResearch/PeerResearch"));
 const AgChartFC = lazy(() => import("./AgChart"));
 const AgWebSocketsFC = lazy(() => import("../General/Table/AgWebSockets"));
 const CurrencySnapshotFC = lazy(() => import("../Widgets/Currency/CurrencySnapshot"));
@@ -127,6 +128,7 @@ export const AgGridComponents = {
 } as const;
 
 export const NonAgGridComponents = {
+  company_research: "PeerResearch",
   charting: "Charting",
   chart: "Chart",
   "chart-highcharts": "ChartHighcharts",
@@ -184,6 +186,7 @@ export const NonAgGridComponents = {
 } as const;
 
 export const Widgets = {
+  PeerResearch: PeerResearchFC,
   AgChart: communityWidget(AgChartFC, (widget) =>
     unsupportedChartReason(widget?.storage?.chart_params),
   ),
