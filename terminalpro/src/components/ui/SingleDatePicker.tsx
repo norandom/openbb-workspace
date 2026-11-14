@@ -101,7 +101,8 @@ export const SingleDatePicker = forwardRef<HTMLButtonElement, SingleDatePickerPr
               selected={currentDate}
               onSelect={(date) => {
                 setCurrentDate(date);
-                onSave(date && formatDate(date));
+                // Calendar selections represent local dates, rather than UTC instants.
+                onSave(date && dayjs(date).format("YYYY-MM-DD"));
               }}
               defaultMonth={currentDate}
             />
