@@ -202,7 +202,15 @@ const widgetShapeDefinition = {
   storage: z.record(z.string(), z.any()).optional(),
 };
 
-const widgetSchemaBase = z.object(widgetShapeDefinition).meta({ id: "Widget" });
+const endpointWidgetSchema = z.object(widgetShapeDefinition);
+const nativeWidgetSchema = z.object({
+  ...widgetShapeDefinition,
+  type: z.literal("company_research"),
+  endpoint: z.string().optional(),
+});
+const widgetSchemaBase = z
+  .union([endpointWidgetSchema, nativeWidgetSchema])
+  .meta({ id: "Widget" });
 
 export const widgetSchema = z
   .preprocess(

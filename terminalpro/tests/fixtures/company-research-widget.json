@@ -1,0 +1,12 @@
+{
+  "category": "Equity",
+  "description": "Add candidate peers and inspect provider observations. Saved choices are not frozen data.",
+  "gridData": {
+    "h": 20,
+    "w": 40
+  },
+  "name": "Peer Research",
+  "params": [],
+  "type": "company_research",
+  "widgetId": "company_research"
+}
