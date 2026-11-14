@@ -842,3 +842,74 @@ it("keeps partial-write metadata unresolved after a later choice is blocked by g
   expect(hook.ports.commitLocal).toHaveBeenCalledTimes(1);
   expect(hook.ports.writeBoundSymbol).toHaveBeenCalledTimes(1);
 });
+describe("research saved identity guard", () => {
+  it.each([
+    { ...selection, sourceKey: JSON.stringify(["foreign", "https://foreign.test/data"]) },
+    { ...selection, version: 99 },
+    { name: "Saved broken company", symbol: "BRK.B" },
+    "invalid saved identity",
+    { ...selection, symbol: "AAPL" },
+  ])("retains unresolved saved metadata without automatic substitution (%#)", async (saved) => {
+    const hook = harness(saved);
+    await tick(2000);
+    expect(hook.port).not.toHaveBeenCalled();
+    expect(hook.ports.commitLocal).not.toHaveBeenCalled();
+    expect(hook.result.current.selection).toBeNull();
+    expect(hook.result.current.status).toBe("error");
+    expect(hook.result.current.error).toContain("Saved company");
+    if (typeof saved === "object" && "name" in saved)
+      expect(hook.result.current.error).toContain(saved.name);
+    hook.unmount();
+    const reopened = harness(saved);
+    await tick(2000);
+    expect(reopened.port).not.toHaveBeenCalled();
+  });
+  it("recovers foreign metadata only through a current-source choice", async () => {
+    const saved = { ...selection, sourceKey: JSON.stringify(["foreign", "https://foreign.test/data"]) };
+    const hook = harness(saved);
+    act(() => hook.result.current.search("name", "Berkshire"));
+    await tick();
+    act(() => expect(hook.result.current.choose(listing).kind).toBe("applied"));
+    expect(hook.ports.commitLocal).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({sourceKey, listingId: null}));
+    hook.rerender({...hook.props, metadata: hook.ports.commitLocal.mock.calls[0][0]});
+    expect(hook.result.current.status).toBe("resolved");
+  });
+  it("permits an evidenced safe linked transition across asynchronous rerenders", async () => {
+    const saved = { ...selection, sourceKey: JSON.stringify(["foreign", "https://foreign.test/data"]) };
+    const apple = {...listing, symbol: "AAPL"};
+    const hook = harness(saved, bound(), async (_, req) => ready(req, [apple]));
+    const next = bound("AAPL");
+    hook.ports.readContextNow.mockReturnValue(next);
+    hook.rerender({...hook.props, context: next});
+    hook.rerender({...hook.props, context: {...next}});
+    await tick();
+    expect(hook.ports.commitLocal).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({symbol: "AAPL", sourceKey}));
+  });
+  it("cancels an initial resolver if unsupported saved metadata arrives while pending", async () => {
+    let settle: (value: SearchOutcome) => void = () => {};
+    let req = request;
+    const hook = harness(null, context(), (_, next) => new Promise(resolve => {req=next; settle=resolve;}));
+    await tick();
+    hook.rerender({...hook.props, metadata: {...selection, version: 99}});
+    await act(async () => settle(ready(req)));
+    expect(hook.ports.commitLocal).not.toHaveBeenCalled();
+    expect(hook.result.current.selection).toBeNull();
+  });
+});
+it("rejects simultaneous source and linked symbol changes as recovery evidence", async () => {
+  const hook = harness(selection, bound());
+  const otherKey = JSON.stringify(["other", "https://other.test/data"]);
+  const next = {...bound("AAPL"), sourceKey: otherKey};
+  hook.ports.readContextNow.mockReturnValue(next);
+  hook.rerender({...hook.props, context: next, source: {...source, sourceKey: otherKey}});
+  await tick(2000);
+  expect(hook.port).not.toHaveBeenCalled();
+  expect(hook.ports.commitLocal).not.toHaveBeenCalled();
+  expect(hook.result.current.selection).toBeNull();
+});
+it("does not resolve a mismatched saved symbol on the first grouped render", async () => {
+  const hook = harness(selection, bound("AAPL"));
+  await tick(2000);
+  expect(hook.port).not.toHaveBeenCalled();
+  expect(hook.ports.commitLocal).not.toHaveBeenCalled();
+});

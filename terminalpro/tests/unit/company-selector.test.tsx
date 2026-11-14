@@ -784,3 +784,17 @@ describe("honest listing states", () => {
     ).not.toBeInTheDocument();
   });
 });
+it("shows the saved foreign identity as unresolved and recovers only by choosing current-source results", async () => {
+  const foreign = {...metadata, sourceKey: JSON.stringify(["foreign", "https://foreign.test/data"])};
+  const view = mount({metadata: foreign});
+  await tick(2000);
+  expect(view.port).not.toHaveBeenCalled();
+  expect(view.local).not.toHaveBeenCalled();
+  expect(nameInput()).toHaveValue("");
+  expect(screen.getByRole("status")).toHaveTextContent("Saved company Apple Inc. (AAPL) is unresolved");
+  expect(screen.getByRole("status")).not.toHaveTextContent("Current company:");
+  await query();
+  fireEvent.click(screen.getByRole("option", {name: /Microsoft Corporation/}));
+  expect(nameInput()).toHaveValue("Microsoft Corporation");
+  expect(screen.getByRole("status")).toHaveTextContent("Current company: Microsoft Corporation (MSFT)");
+});

@@ -19,6 +19,7 @@ import {
   type SelectionPorts,
 } from "./companySelection.contract";
 import { useCompanySearch } from "./useCompanySearch";
+import { reconcileCompanySelection, type SelectionReconciliation } from "../../../../lib/companyResearch/selectionReconciliation";
 
 type Ready = Extract<SearchOutcome, { kind: "ready" }>;
 export type CompanySelectionInput = Readonly<{
@@ -121,6 +122,28 @@ function canResolve(input: CompanySelectionInput): boolean {
   );
 }
 
+function unresolvedMessage(state: SelectionReconciliation): string | null {
+  if (state.kind !== "unresolved") return null;
+  const { name, symbol } = state.savedDisplay;
+  const saved = [name, symbol && `(${symbol})`].filter(Boolean).join(" ");
+  return `Saved company${saved ? ` ${saved}` : " identity"} is unresolved: ${state.reason}`;
+}
+
+function useReconciliation(input: CompanySelectionInput) {
+  const key = JSON.stringify(input.context);
+  const observed = useRef({ key, current: input.context, previous: undefined as CompanyContext | undefined });
+  if (observed.current.key !== key) {
+    observed.current = { key, current: input.context, previous: observed.current.current };
+  }
+  return reconcileCompanySelection({
+    eligible: true,
+    metadata: input.metadata,
+    context: input.context,
+    connectedSourceKey: input.source?.sourceKey ?? null,
+    previousContext: observed.current.previous,
+  });
+}
+
 export function useCompanySelection(input: CompanySelectionInput) {
   const { source, context, metadata, ports, searchPort } = input;
   const remote = useCompanySearch(source, searchPort);
@@ -130,8 +153,13 @@ export function useCompanySelection(input: CompanySelectionInput) {
   const session = useRef<Session>({ identity, kind: "idle" });
   const attempts = useRef(new Map<string, "attempted" | "resolved">());
   const [failure, setFailure] = useState<Failure | null>(null);
-  const decoded = decodeSelection(metadata);
-  const metadataKey = JSON.stringify(decoded);
+  const reconciliation = useReconciliation(input);
+  const reconciliationError = unresolvedMessage(reconciliation);
+  const metadataKey = JSON.stringify(metadata);
+  const searchFailure = useRef<{ key: string; reason: string } | null>(null);
+  const failureKey = JSON.stringify([source?.sourceKey, metadataKey]);
+  if (remote.state.kind === "failed" && session.current.kind === "user")
+    searchFailure.current = { key: failureKey, reason: remote.state.result.failure.message };
   const activeFailure =
     failure?.identity === identity && failure.metadataKey === metadataKey
       ? failure
@@ -139,8 +167,8 @@ export function useCompanySelection(input: CompanySelectionInput) {
   const selection =
     !activeFailure?.unresolved &&
     source?.sourceKey === context.sourceKey &&
-    isSelectionValid(decoded, context)
-      ? decoded
+    reconciliation.selection
+      ? reconciliation.selection
       : null;
 
   function fail(reason: string, unresolved = false) {
@@ -156,6 +184,7 @@ export function useCompanySelection(input: CompanySelectionInput) {
     }));
   }
   function search(mode: SearchMode, query: string) {
+    searchFailure.current = null;
     session.current = { identity, kind: "user" };
     if (!activeFailure?.unresolved) setFailure(null);
     remote.search(mode, query);
@@ -210,12 +239,13 @@ export function useCompanySelection(input: CompanySelectionInput) {
       session.current = { identity, kind: "idle" };
       remote.cancel();
     }
-    if (selection && session.current.kind === "auto") {
+    if ((selection || !reconciliation.allowAutomaticResolution) && session.current.kind === "auto") {
       session.current = { identity, kind: "idle" };
       remote.cancel();
     }
     if (
       selection ||
+      !reconciliation.allowAutomaticResolution ||
       !canResolve(latest.current) ||
       attempts.current.has(identity) ||
       session.current.kind !== "idle" ||
@@ -229,6 +259,7 @@ export function useCompanySelection(input: CompanySelectionInput) {
     identity,
     selection !== null,
     activeFailure?.unresolved,
+    reconciliation.allowAutomaticResolution,
     context.symbol,
     source,
     remote.cancel,
@@ -239,6 +270,7 @@ export function useCompanySelection(input: CompanySelectionInput) {
     if (
       session.current.identity !== identity ||
       session.current.kind !== "auto" ||
+      !reconciliation.allowAutomaticResolution ||
       selection
     )
       return;
@@ -284,13 +316,14 @@ export function useCompanySelection(input: CompanySelectionInput) {
     context.symbol,
     remote.cancel,
     remote.isCurrent,
+    reconciliation.allowAutomaticResolution,
   ]);
 
   const userActive =
     session.current.identity === identity && session.current.kind === "user";
   const resolving =
     session.current.identity === identity && session.current.kind === "auto";
-  const status = activeFailure
+  const status = activeFailure || reconciliationError
     ? "error"
     : selection
       ? "resolved"
@@ -302,7 +335,11 @@ export function useCompanySelection(input: CompanySelectionInput) {
   return {
     selection,
     status,
-    error: activeFailure?.reason ?? null,
+    error: activeFailure?.reason ?? (reconciliationError && [
+      !source && "Connect a source.",
+      searchFailure.current?.key === failureKey && searchFailure.current.reason,
+      reconciliationError,
+    ].filter(Boolean).join(" ")),
     searchState: userActive ? remote.state : { kind: "idle" as const },
     search,
     cancel,
