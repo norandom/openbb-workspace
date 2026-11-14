@@ -1,16 +1,12 @@
-import type { UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import DraggableCard from "~/components/DraggableCard";
 import { HideOnResize } from "~/components/DraggableCard/SetLoadingOnResize";
 import { AdvancedSelect } from "~/components/NewAdvancedSelect";
 import { useWidgetContext } from "~/components/Widget.context";
-import { processAgGridTableData } from "~/components/Widgets/dataProcessors";
 import { FINANCIAL_RATIOS } from "~/components/Widgets/Equity/ComparisonAnalysis/constants";
-import { type StateDispatch, useStateReducer } from "~/hooks/useStateReducer";
-import { useJsonData } from "~/lib/api";
-import * as sdkQuery from "~/lib/api/sdkComponents";
+import { useStateReducer } from "~/hooks/useStateReducer";
 import { useShallowThemeStore } from "~/lib/state/theme";
-import { cn, getJsonColDefs, getWidgetDataSource } from "~/lib/utils";
+import { cn } from "~/lib/utils";
 import { getContextMenuItems, onPivotModeChanged } from "./AgGridUtils";
 import { ChartViewButton, ChartViewElement } from "./Chart/AgChartView";
 import useChartOptions, {
@@ -18,15 +14,16 @@ import useChartOptions, {
 } from "./Chart/hooks/useChartOptions";
 import {
   AgGridProvider,
-  getSideBarOptions,
   useAgExportFuncs,
   useColumnVisibility,
   useQuickActionsSettings,
 } from "./hooks";
 import type { AgGridEvents } from "./hooks/types";
-import { useCopilotFilteredWidgetData } from "./hooks/useCopilotFilteredData";
 import { PeriodParams, useWidgetParamsPositions } from "./NavBar/QueryParams";
-import TableSettings, { type EnableSettings } from "./SubMenus/TableSettings";
+import TableSettings from "./SubMenus/TableSettings";
+
+import { useGetTableData, type AgGridTableState } from "./useTableData";
+export { useGetTableData } from "./useTableData";
 
 const DISPLAY_CURRENCY_WIDGETIDS = [
   "insider_trading",
@@ -34,166 +31,6 @@ const DISPLAY_CURRENCY_WIDGETIDS = [
   "dividend_payment",
   "analyst_consensus",
 ];
-
-type AgGridTableState = {
-  decimalDigitsSettings: number;
-  selectedGroup: string;
-  failingUrl: string | undefined;
-  enableSettings?: EnableSettings;
-};
-
-export function useGetTableData(
-  state: AgGridTableState,
-  dispatch: StateDispatch<AgGridTableState>,
-) {
-  const { widget, widgetFromJSON, getWidget } = useWidgetContext();
-  const columnDefsFromJSON = useMemo(
-    () => getJsonColDefs(widget),
-    [widget.widgetId, widget?.data?.table?.columnsDefs],
-  );
-  const period: "annual" | "quarter" | "ttm" =
-    widget?.storage?.params?.period ?? "annual";
-  const hasPeriod = !!widgetFromJSON?.data?.table?.period;
-
-  const decimalDigits = useShallowThemeStore((s) => s.decimalDigits);
-  const decimalDigitsToUse = widget?.storage?.decimalDigits ?? decimalDigits;
-
-  const useQueryFn = useCallback((options: any, queryOptions: any) => {
-    const query = widgetFromJSON?.sdkFunc ? "useSdk" : "useJson";
-    const funcs = {
-      useJson: useJsonData,
-      // check if widget.endpoint is in sdkQuery
-      useSdk:
-        widgetFromJSON?.sdkFunc in sdkQuery
-          ? // biome-ignore lint/performance/noDynamicNamespaceImportAccess: --- IGNORE --
-            sdkQuery[widgetFromJSON?.sdkFunc as string]
-          : useJsonData,
-    };
-
-    return funcs[query](options, queryOptions) as UseQueryResult<any, Error>;
-  }, []);
-
-  const options = useMemo(() => {
-    const query = widgetFromJSON?.sdkFunc ? "useSdk" : "useJson";
-    const period: "annual" | "quarter" | "ttm" =
-      widget?.storage?.params?.period ?? "annual";
-
-    const provider = getWidgetDataSource(widget)?.[0] ?? "fmp";
-    if (query === "useSdk") {
-      const periodParam = ["ttm", "quarter"].includes(period) ? "quarter" : "annual";
-      const symbol = widget.data?.mainTicker?.symbol;
-
-      return {
-        queryParams: {
-          provider: provider,
-          limit: hasPeriod ? (period?.toLowerCase() === "annual" ? 12 : 40) : 1000,
-          ...(symbol && { symbol }),
-          sort: "asc",
-          ...Object.fromEntries(
-            Object.entries(widget?.storage?.params || {}).filter(
-              ([key, value]) =>
-                key !== "symbol" && !["", undefined, null].some((v) => v === value),
-            ),
-          ),
-          ...(hasPeriod && { period: periodParam }),
-        },
-      };
-    }
-
-    const newParams = Object.fromEntries(
-      Object.entries({
-        ...(widget?.endpoint?.query ?? {}),
-        ...(widget?.storage?.params ?? {}),
-      }).filter(([_key, value]) => value !== "" && value !== undefined),
-    );
-    return {
-      url: widget.endpoint?.url,
-      endpointHeaders: widget.endpoint?.headers ?? {},
-      endpointMethod: widget.endpoint?.method ?? "GET",
-      params: newParams,
-      onError: (error: Error) => {
-        if (!widgetFromJSON?.sdkFunc && error?.message === "Failed to fetch") {
-          dispatch({ failingUrl: widget.endpoint?.url });
-        }
-      },
-    };
-  }, [widget.data?.mainTicker?.symbol, widget?.endpoint, widget?.storage?.params]);
-
-  const {
-    data: queryData,
-    error,
-    isLoading,
-    dataUpdatedAt,
-  } = useQueryFn(options, {
-    enabled: true,
-    staleTime: widget?.staleTime ?? 1000 * 60 * 15,
-  } as Omit<UseQueryOptions<any, Error>, "queryKey">);
-
-  const widgetMemo = useMemo(() => {
-    const w = getWidget();
-    return {
-      ...w,
-      storage: {
-        ...(w.storage ?? {}),
-        transpose: widget?.storage?.transpose,
-        params: {
-          ...(widget.storage?.params ?? {}),
-          period,
-          selectedGroup: state.selectedGroup,
-        },
-        enableAdvanced: state.enableSettings.enableAdvanced,
-      },
-      data: {
-        ...w.data,
-        table: {
-          ...w.data?.table,
-          columnsDefs: columnDefsFromJSON,
-          showAll: widget?.data?.table?.showAll,
-          formatterFn: widget?.data?.table?.formatterFn,
-        },
-      },
-    };
-  }, [
-    period,
-    state.selectedGroup,
-    state.enableSettings.enableAdvanced,
-    widget?.storage?.transpose,
-    widget?.data?.table?.showAll,
-    widget?.data?.table?.formatterFn,
-    columnDefsFromJSON,
-  ]);
-
-  const { rowData, columnDefs } = useMemo(() => {
-    if (!queryData) return { rowData: [], columnDefs: [] };
-
-    if (state.failingUrl) {
-      dispatch({ failingUrl: undefined });
-    }
-
-    return processAgGridTableData(queryData, widgetMemo, decimalDigitsToUse);
-  }, [queryData, widgetMemo, decimalDigitsToUse]);
-
-  const gridOptions = useMemo(() => {
-    const sideBar = getSideBarOptions(widget.storage);
-    return {
-      rowHeight: 32,
-      headerHeight:
-        period.toLowerCase() === "quarter" && widget?.storage?.transpose ? 22 : 32,
-      sideBar,
-    };
-  }, [
-    period,
-    widget.storage.enableStats,
-    widget.storage.enableAdvanced,
-    widget.storage.enableFormulas,
-    widget.storage.transpose,
-    widget.storage.openedToolPanel,
-    widget.storage.isPivotMode,
-  ]);
-
-  useCopilotFilteredWidgetData(rowData, dataUpdatedAt);
-  return { rowData, columnDefs, gridOptions, dataUpdatedAt, isLoading, error };
-}
 
 export default function AgGridTable() {
   const { updateWidget, widget, widgetFromJSON } = useWidgetContext();
@@ -216,8 +53,16 @@ export default function AgGridTable() {
 
   const chartView = widget.storage?.chartView?.enabled;
 
-  const { rowData, columnDefs, gridOptions, isLoading, dataUpdatedAt, error } =
-    useGetTableData(state, dispatch);
+  const {
+    rowData,
+    columnDefs,
+    gridOptions,
+    isLoading,
+    dataUpdatedAt,
+    error,
+    lifecycle,
+    reconciliation,
+  } = useGetTableData(state, dispatch);
 
   const quickActions = useQuickActionsSettings(widget?.storage?.transpose);
 
@@ -227,7 +72,7 @@ export default function AgGridTable() {
   );
 
   const contextMenuItems = useCallback(
-    (params) => {
+    (params: Parameters<typeof getContextMenuItems>[0]) => {
       const enableChart =
         widget?.external ?? widgetFromJSON?.data?.table?.enableCharts ?? false;
 
@@ -237,7 +82,7 @@ export default function AgGridTable() {
   );
 
   const showCurrency = useMemo(
-    () => DISPLAY_CURRENCY_WIDGETIDS.includes(widget?.widgetId),
+    () => DISPLAY_CURRENCY_WIDGETIDS.includes(widget?.widgetId ?? ""),
     [],
   );
 
@@ -261,7 +106,7 @@ export default function AgGridTable() {
     <DraggableCard
       aiEnabled={true}
       aiData={rowData}
-      failingUrl={state.failingUrl}
+      failingUrl={reconciliation && lifecycle.evidence ? undefined : state.failingUrl}
       showActionsSettings={true}
       onSaveSettings={handleSave}
       settingsModalChildren={
@@ -277,7 +122,7 @@ export default function AgGridTable() {
         />
       }
       lastUpdated={dataUpdatedAt}
-      loading={isLoading}
+      loading={reconciliation && lifecycle.evidence ? false : isLoading}
       exportFns={exportFns}
       elementRightNextToTitle={renderRow0Params}
       elementBelowNavbar={renderBelowNavbarRows}
@@ -295,7 +140,7 @@ export default function AgGridTable() {
               selected={state.selectedGroup}
               onSelect={(selectedGroup) => {
                 if (!selectedGroup) return;
-                updateWidget((prev) => ({
+                updateWidget?.((prev) => ({
                   ...prev,
                   storage: {
                     ...prev.storage,
@@ -309,15 +154,35 @@ export default function AgGridTable() {
           )}
         </>
       }
-      error={error || rowData?.length === 0}
+      error={
+        (reconciliation && lifecycle.status === "stale" ? false : error) ||
+        rowData?.length === 0
+      }
       extraNavbarElements={
         (!!widget?.storage?.chartView ||
           widget?.external ||
           widgetFromJSON?.data?.table?.enableCharts) && <ChartViewButton />
       }
-      errorMessage={widget?.external ? error?.message : "No results found"}
+      errorMessage={
+        reconciliation && !reconciliation.allowRequest
+          ? (reconciliation.reason ?? "Select a company")
+          : widget?.external
+            ? error?.message
+            : "No results found"
+      }
       extraSettings={extraSettings}
     >
+      {reconciliation && lifecycle.status === "stale" && (
+        <p role="status" className="text-xs px-2">
+          Stale data. Acquired: {lifecycle.evidence.acquiredAt ?? "unknown"}. Refresh
+          failed: {lifecycle.failedAt}.
+        </p>
+      )}
+      {reconciliation && !reconciliation.allowRequest && reconciliation.reason && (
+        <p role="status" className="text-xs px-2">
+          {reconciliation.reason}
+        </p>
+      )}
       {chartView && <ChartViewElement />}
       <div
         className={cn("flex grow h-full", {
