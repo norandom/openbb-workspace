@@ -1,3 +1,4 @@
+import ObservationInspector from "~/components/Widgets/CompanyResearch/ObservationInspector";
 import { useCallback, useMemo } from "react";
 import DraggableCard from "~/components/DraggableCard";
 import { HideOnResize } from "~/components/DraggableCard/SetLoadingOnResize";
@@ -159,9 +160,14 @@ export default function AgGridTable() {
         rowData?.length === 0
       }
       extraNavbarElements={
-        (!!widget?.storage?.chartView ||
-          widget?.external ||
-          widgetFromJSON?.data?.table?.enableCharts) && <ChartViewButton />
+        <>
+          {(!!widget?.storage?.chartView ||
+            widget?.external ||
+            widgetFromJSON?.data?.table?.enableCharts) && <ChartViewButton />}
+          {lifecycle && (
+            <ObservationInspector evidence={lifecycle.evidence ?? null} lifecycle={lifecycle} />
+          )}
+        </>
       }
       errorMessage={
         reconciliation && !reconciliation.allowRequest
