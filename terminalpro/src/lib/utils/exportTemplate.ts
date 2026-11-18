@@ -1,16 +1,19 @@
-import type { TabData } from "~/lib/state/app";
-import type { BackendTemplate } from "~/lib/state/backendConnector";
-import type { TabLayout } from "~/lib/templates";
 import type { useGetWidgetsStore } from "~/components/AI/hooks/useGetAppWidgets";
-import type { useBackendConnectorStore } from "~/lib/state/backendConnector";
+import { getParamsOrder } from "~/components/DataConnectors/common/helpers";
 import type { AppMetadataForm } from "~/components/General/AppDialog/schema";
 import { trimPrompts } from "~/components/General/AppDialog/schema";
-import { createParamDefs } from "./widgetParams";
-import { getParamsOrder } from "~/components/DataConnectors/common/helpers";
 import { getSeriesType } from "~/components/General/Table/Chart/utils";
 import { getStateStorage } from "~/components/General/Table/hooks/useUpdateColumnState";
 import { isTruthy } from "~/components/General/Table/utils";
+import type { TabData } from "~/lib/state/app";
+import type {
+  BackendTemplate,
+  useBackendConnectorStore,
+} from "~/lib/state/backendConnector";
+import type { TabLayout } from "~/lib/templates";
+import { documentTemplateState } from "./documentTemplateState";
 import { researchTemplateState } from "./researchTemplateState";
+import { createParamDefs } from "./widgetParams";
 
 type ExportTemplatePorts = {
   getAppWidget: ReturnType<typeof useGetWidgetsStore.getState>["getAppWidget"];
@@ -24,6 +27,8 @@ function serializeWidgetState(
   ports: ExportTemplatePorts,
   optionEndpoints: Record<string, string>,
 ) {
+  const documentState = documentTemplateState(widget);
+  if (documentState) return documentState;
   const { getAppWidget, getSourceById } = ports;
   const state = {} as TabLayout["state"];
   const research = researchTemplateState(widget.storage, widget.params);
@@ -41,7 +46,7 @@ function serializeWidgetState(
   state.params = (widget?.params || [])?.reduce((paramsAcc, param) => {
     const paramValue = widget.storage?.params?.[param.paramName];
     // to not include default values in the template
-    if (paramValue && paramValue !== param.value) {
+    if (paramValue !== undefined && paramValue !== null && paramValue !== param.value) {
       paramsAcc[param.paramName] = paramValue;
     }
     if (param.type === "endpoint") {

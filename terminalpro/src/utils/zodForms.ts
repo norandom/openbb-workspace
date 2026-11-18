@@ -142,6 +142,10 @@ export const resetSchema = z
 export type resetForm = z.infer<typeof resetSchema>;
 
 const widgetShapeDefinition = {
+  queryPolicy: z.record(z.string(), z.unknown()).optional(),
+  financialContract: z.record(z.string(), z.unknown()).optional(),
+  refetchOnReconnect: z.boolean().optional(),
+  refetchOnWindowFocus: z.boolean().optional(),
   name: z.string(),
   showTitle: z.boolean().default(true).nullish(),
   description: z.string(),
@@ -159,6 +163,9 @@ const widgetShapeDefinition = {
   data: z
     .object({
       dataKey: z.string().optional(),
+      financialQueryPolicy: z.record(z.string(), z.unknown()).optional(),
+      financialContract: z.record(z.string(), z.unknown()).optional(),
+      scope: z.enum(["listing", "market"]).optional(),
       wsRowIdColumn: z.union([z.string(), z.array(z.string())]).optional(),
       wsRowIdColumns: z.array(z.string()).optional(),
       table: z
@@ -234,6 +241,15 @@ export const widgetSchema = z
         type: (type ?? defaultViz) as WidgetVizType,
         defaultViz,
         ...rest,
+        ...((rest.queryPolicy || rest.financialContract) && {
+          data: {
+            ...rest.data,
+            ...(rest.queryPolicy && { financialQueryPolicy: rest.queryPolicy }),
+            ...(rest.financialContract && {
+              financialContract: rest.financialContract,
+            }),
+          },
+        }),
       };
     },
     widgetSchemaBase,

@@ -9,6 +9,11 @@ import { useShallowBackendConnectorStore } from "./state/backendConnector";
 import { useShallowPermissionsStore } from "./state/permissions";
 import { sessionHeaders } from "./utils/backendOrigin";
 import { resolveCronRefetchInterval } from "./utils/cronSchedule";
+import {
+  type FinancialQueryPolicy,
+  financialWidgetPolicy,
+  validateFinancialQuery,
+} from "./utils/financialQuery";
 import { rejectQueryResponse } from "./utils/queryResponse";
 
 export {
@@ -65,6 +70,9 @@ export function useJsonData<
   // Convert endpointHeaders to Record format if necessary
   const userToken = useShallowAuthStore((authState) => authState.user?.token);
   const { headers, newParams } = convertHeadersToRecord(endpointHeaders, params);
+  const context = useWidgetContext(true);
+  const { queryPolicy, refetchOnWindowFocus, refetchOnReconnect } =
+    financialWidgetPolicy(context.widget);
   const {
     widget: {
       id: uuId,
@@ -79,7 +87,7 @@ export function useJsonData<
       sourceName,
     } = {},
     activeDashboardId,
-  } = useWidgetContext(true);
+  } = context;
 
   // Check if the widget has permission before making the API call
   const hasAccess = useShallowPermissionsStore((state) =>
@@ -150,6 +158,13 @@ export function useJsonData<
           return reject(new Error("User does not have access to this widget"));
         }
 
+        if (queryPolicy?.maxRequests === 1) {
+          try {
+            validateFinancialQuery(newParams, queryPolicy as FinancialQueryPolicy);
+          } catch (error) {
+            return reject(error);
+          }
+        }
         fetch(cleanUrl, {
           headers: sessionHeaders(
             cleanUrl,
@@ -181,6 +196,9 @@ export function useJsonData<
     retry: 1,
     retryDelay: 1000,
     ...(options ?? {}),
+    ...(queryPolicy?.maxRequests === 1 && { retry: false }),
+    refetchOnWindowFocus: refetchOnWindowFocus ?? options?.refetchOnWindowFocus,
+    refetchOnReconnect: refetchOnReconnect ?? options?.refetchOnReconnect,
     refetchInterval: resolveCronRefetchInterval(
       refetchInterval,
       options?.refetchInterval ?? REFRESH_WIDGET_INTERVAL,

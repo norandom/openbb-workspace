@@ -18,6 +18,8 @@ export type EditorLanguage = (typeof EditorLanguages)[number];
 const ParamDefSchemaBase = z
   .object({
     paramName: z.string().min(1, "This field is required"),
+    optional: z.boolean().optional(),
+    validationSchema: z.record(z.string(), z.unknown()).optional(),
     label: z.string().optional(),
     value: z.any().nullish(),
     description: z.any().optional(),
@@ -181,7 +183,7 @@ export function newParamDef<T extends ParamDef | FormInputParamDef>(paramDef: T)
   }
 
   const parseValue = (v: any) => {
-    if (!v) return undefined;
+    if (v === undefined || v === null || v === "") return undefined;
     if (type === "number" && typeof v === "string") {
       for (const fnc of [Number.parseFloat, Number.parseInt]) {
         const num = fnc(v);

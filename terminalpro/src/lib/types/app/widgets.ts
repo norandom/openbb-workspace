@@ -10,6 +10,10 @@ import { DataSchema, TableSchema } from "./table";
 import { widgetTypesSchema } from "./widgetTypes";
 
 export const WidgetSchemaBase = z.object({
+  queryPolicy: z.record(z.string(), z.unknown()).optional(),
+  financialContract: z.record(z.string(), z.unknown()).optional(),
+  refetchOnReconnect: z.boolean().optional(),
+  refetchOnWindowFocus: z.boolean().optional(),
   id: z.string(),
   widgetId: z.string(),
   type: widgetTypesSchema.optional(),
@@ -25,8 +29,8 @@ export const WidgetSchemaBase = z.object({
   external: z.boolean().optional(),
   params: ParamsSchema.optional(),
   staleTime: z
-    .number()
-    .min(1000)
+    .union([z.number().min(1000), z.literal(false)])
+    .transform((value) => (value === false ? Number.POSITIVE_INFINITY : value))
     .nullish()
     .default(1000 * 60 * 5),
   refetchInterval: RefetchIntervalSchema.nullish(),

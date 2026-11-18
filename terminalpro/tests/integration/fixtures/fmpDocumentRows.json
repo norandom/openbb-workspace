@@ -1,0 +1,41 @@
+{
+  "company_news": [
+    {
+      "symbol": "AAPL",
+      "content_status": "partial",
+      "date": "2026-01-02T00:00:00-05:00",
+      "title": "Synthetic result",
+      "source": "Example Wire",
+      "publisher": "Example Publisher",
+      "author": null,
+      "excerpt": "  Literal <b>excerpt</b>\n",
+      "body": null,
+      "url": "https://example.test/news/1",
+      "symbols": "AAPL",
+      "images": null
+    }
+  ],
+  "company_filings": [
+    {
+      "symbol": "AAPL",
+      "content_status": "metadata_only",
+      "filing_date": "2026-01-02",
+      "accepted_date": "2026-01-02T21:35:42Z",
+      "report_type": "10-Q",
+      "cik": "0000320193",
+      "filing_url": "https://example.test/filing-index.html",
+      "report_url": "https://example.test/report.htm"
+    }
+  ],
+  "earnings_call_transcript": [
+    {
+      "symbol": "AAPL",
+      "content_status": "completeness_unknown",
+      "year": 2026,
+      "quarter": "Q1",
+      "date": "2026-01-02",
+      "event_datetime": "2026-01-02T00:00:00-05:00",
+      "content": "  Operator: Hello\n\nCEO: <b>Literal</b>\t\n"
+    }
+  ]
+}

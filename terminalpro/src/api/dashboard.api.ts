@@ -5,6 +5,7 @@ import { useAuthStore } from "~/lib/state/auth";
 import { useFeatureFlagsStore } from "~/lib/state/featureFlags";
 import { useSharedAppStore } from "~/lib/state/sharedApp";
 import { diffItemsWithRemote, dispatchSaveState, getValidItems } from "~/lib/utils";
+import { documentDashboardState } from "~/lib/utils/documentDashboardState";
 import { NotificationId, showNotificationWithRememberMe } from "~/lib/utils/toast";
 import type { DashShared, DashSync } from "~/types/auth.type";
 import { apiClient } from "./api";
@@ -14,7 +15,7 @@ axiosRetry(apiClient, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
 /* Post dashboard */
 export async function postDashboards(dashboardData: { [key: string]: any | "DELETE" }) {
   const { data } = await apiClient.post("/pro/dash/sync", {
-    items: dashboardData,
+    items: documentDashboardState(dashboardData),
   });
   return data;
 }

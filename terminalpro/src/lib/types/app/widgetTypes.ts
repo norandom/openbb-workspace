@@ -7,6 +7,7 @@ export const WidgetVizTypes = [
   "chart-highcharts",
   "chart-vegalite",
   "company_research",
+  "company_documents",
   "file_viewer",
   "html",
   "iframe",
