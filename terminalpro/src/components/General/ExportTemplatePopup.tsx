@@ -8,7 +8,6 @@ import {
   useMemo,
 } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import type { AppTemplate } from "~/components/LayoutAuth/AppCard/types";
 import { useShallowAppStore } from "~/lib/state/app";
@@ -17,7 +16,7 @@ import {
   useBackendConnectorStore,
   useShallowBackendConnectorStore,
 } from "~/lib/state/backendConnector";
-import { useShallowThemeStore } from "~/lib/state/theme";
+import { useTemplateExportStore } from "~/lib/state/exportTemplate";
 import { slugify } from "~/lib/utils";
 import { extractCustomTemplateInfo } from "~/lib/utils/createTemplates";
 import { useGetWidgetsStore } from "../AI/hooks/useGetAppWidgets";
@@ -29,22 +28,15 @@ import { AppDialogShell } from "./AppDialog/AppDialogShell";
 import { type AppMetadataForm, appMetadataObjectSchema } from "./AppDialog/schema";
 
 export default function ExportTemplatePopup() {
-  const { exportTemplatePopup, setExportTemplatePopup } = useShallowThemeStore(
-    (state) => ({
-      exportTemplatePopup: state.exportTemplatePopup,
-      setExportTemplatePopup: state.setExportTemplatePopup,
-    }),
-  );
+  const dashboardId = useTemplateExportStore((state) => state.dashboardId);
   const getSourceById = useShallowBackendConnectorStore(
     (state) => state.getApiSourceById,
   );
 
-  const { id: activeDashboardId } = useParams();
-  const getDashboardById = useShallowAppStore((state) => state.getTabById);
-
-  const currentDashboardData = exportTemplatePopup
-    ? getDashboardById(activeDashboardId)?.data
-    : null;
+  const currentDashboardData = useShallowAppStore((state) =>
+    dashboardId === null ? undefined : state.items?.[dashboardId]?.data,
+  );
+  const hasDashboardData = currentDashboardData !== undefined;
 
   const form = useForm<AppMetadataForm>({
     resolver: zodResolver(appMetadataObjectSchema),
@@ -86,7 +78,12 @@ export default function ExportTemplatePopup() {
       form.reset({ name: "", description: "", imageUrl: "", prompts: [] });
       replace([]);
     }
-  }, [!!currentDashboardData]);
+  }, [dashboardId, hasDashboardData]);
+
+  const handleClose = useCallback(() => {
+    const exportState = useTemplateExportStore.getState();
+    if (exportState.dashboardId === dashboardId) exportState.setDashboardId(null);
+  }, [dashboardId]);
 
   const onSubmit = useCallback(
     (data: AppMetadataForm) => {
@@ -98,9 +95,9 @@ export default function ExportTemplatePopup() {
       const formattedData = formatDashboardDataForTemplate(currentDashboardData, data);
       if (!formattedData) return;
       saveTemplate(formattedData);
-      setExportTemplatePopup(false);
+      handleClose();
     },
-    [currentDashboardData, setExportTemplatePopup],
+    [currentDashboardData, handleClose],
   );
 
   const handleCopyToClipboard = useCallback(
@@ -126,23 +123,19 @@ export default function ExportTemplatePopup() {
       try {
         await navigator.clipboard.writeText(jsonData);
         toast.success("App copied to clipboard!");
-        setExportTemplatePopup(false);
+        handleClose();
       } catch (error) {
         console.error("Failed to copy app to clipboard:", error);
         toast.error("Failed to copy app to clipboard");
       }
     },
-    [currentDashboardData, form, setExportTemplatePopup],
+    [currentDashboardData, form, handleClose],
   );
 
   const previewWidgets = useMemo<AppTemplate["widgets"]>(
     () => (currentDashboardData?.widgets ?? []) as AppTemplate["widgets"],
     [currentDashboardData],
   );
-
-  const handleClose = useCallback(() => {
-    setExportTemplatePopup(false);
-  }, [setExportTemplatePopup]);
 
   const footer = (
     <DialogFooter className="pt-4">
@@ -169,7 +162,7 @@ export default function ExportTemplatePopup() {
 
   return (
     <AppDialogShell
-      open={exportTemplatePopup}
+      open={dashboardId !== null}
       onClose={handleClose}
       title="Export App"
       form={form}

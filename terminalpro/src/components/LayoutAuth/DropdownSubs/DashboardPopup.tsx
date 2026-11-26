@@ -7,10 +7,17 @@ import FeatureLock from "~/components/General/FeatureLock";
 import MoveTo from "~/components/LayoutAuth/DropdownSubs/MoveTo";
 import Tooltip from "~/components/Tooltip";
 import { inSnowflakeNativeApp } from "~/lib/constants";
+import {
+  hasResearchStoryIdentity,
+  isResearchStoryWidget,
+} from "~/lib/modeling/storyState";
 import { useShallowAppStore } from "~/lib/state/app";
+import { useShallowBackendConnectorStore } from "~/lib/state/backendConnector";
+import { useTemplateExportStore } from "~/lib/state/exportTemplate";
 import { useShallowFeatureFlagsStore } from "~/lib/state/featureFlags";
 import { useShallowThemeStore } from "~/lib/state/theme";
 import { dispatchSaveState } from "~/lib/utils";
+import { canUseResearchStorySource } from "~/lib/utils/backendValidation/nativeWidget";
 
 type DashboardPopupProps = {
   item: TreeItem<any> & { index: string };
@@ -31,7 +38,6 @@ export function DashboardPopup(props: DashboardPopupProps) {
     setShareDashboardPopupId,
     setExcelExportPopup,
     setExcelExportItem,
-    setExportTemplatePopup,
     setGroupingVisible,
     setGenerateAppDashboardId,
     groupingVisible,
@@ -41,7 +47,6 @@ export function DashboardPopup(props: DashboardPopupProps) {
     setShareDashboardPopupId: s.setShareDashboardPopupId,
     setExcelExportPopup: s.setExcelExportPopup,
     setExcelExportItem: s.setExcelExportItem,
-    setExportTemplatePopup: s.setExportTemplatePopup,
     setGroupingVisible: s.setGroupingVisible,
     setGenerateAppDashboardId: s.setGenerateAppDashboardId,
     groupingVisible: s.groupingVisible,
@@ -57,14 +62,20 @@ export function DashboardPopup(props: DashboardPopupProps) {
     (state) => state.featureFlags?.tier === "pro",
   );
 
-  const hasAdvancedBackendWidgets = useMemo(() => {
-    const tab = getTabById(item.index);
-    return (
-      tab?.data?.widgets?.some(
-        (widget) => widget.connectionType === "advanced-backend",
-      ) ?? false
-    );
-  }, [getTabById, item.index]);
+  const widgets = useShallowAppStore((s) => s.items?.[item.index]?.data?.widgets);
+  const hasAdvancedBackendWidgets =
+    widgets?.some((widget) => widget.connectionType === "advanced-backend") ?? false;
+  const stories = widgets?.filter(isResearchStoryWidget) ?? [];
+  const canExportTemplate = useShallowBackendConnectorStore(
+    ({ getApiSourceById }) =>
+      (hasAdvancedBackendWidgets || stories.length > 0) &&
+      stories.every((widget) => {
+        const source = widget.sourceId ? getApiSourceById(widget.sourceId) : undefined;
+        return (
+          hasResearchStoryIdentity(widget) && canUseResearchStorySource(widget, source)
+        );
+      }),
+  );
 
   const handleExportTemplate = useCallback(() => {
     const currentDashboardData = getTabById(item.index)?.data;
@@ -74,8 +85,8 @@ export function DashboardPopup(props: DashboardPopupProps) {
       return;
     }
     dispatchSaveState();
-    setExportTemplatePopup(true);
-  }, [getTabById, item.index, setExportTemplatePopup]);
+    useTemplateExportStore.getState().setDashboardId(item.index);
+  }, [getTabById, item.index]);
 
   const tabMenuItems = useMemo(
     () => [
@@ -150,7 +161,7 @@ export function DashboardPopup(props: DashboardPopupProps) {
               shortcut: "t",
               label: "Export apps.json",
               action: handleExportTemplate,
-              disabled: !hasAdvancedBackendWidgets,
+              disabled: !canExportTemplate,
               disabledTooltip: "No backend sources found in this dashboard",
             },
           ]),
@@ -190,6 +201,7 @@ export function DashboardPopup(props: DashboardPopupProps) {
       toggleExportPopup,
       groupingVisible,
       hasAdvancedBackendWidgets,
+      canExportTemplate,
     ],
   );
 
