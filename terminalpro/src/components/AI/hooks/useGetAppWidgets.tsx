@@ -1,10 +1,5 @@
 import cloneDeep from "lodash/cloneDeep";
-import isEqual from "lodash.isequal";
 import { useEffect, useMemo } from "react";
-import { subscribeWithSelector } from "zustand/middleware";
-import { useShallow } from "zustand/react/shallow";
-import { shallow } from "zustand/shallow";
-import { createWithEqualityFn } from "zustand/traditional";
 import {
   getCleanedCategory,
   patchSnowflakeEndpoint,
@@ -12,9 +7,7 @@ import {
 import { isTableWidgetType } from "~/components/DataConnectors/WidgetsBuilder/utils";
 import useSharedResources from "~/components/LayoutAuth/Search/hooks/useSharedResources";
 import type { Widget, WidgetT } from "~/components/types";
-import type { WidgetId } from "~/components/Widgets";
 import { inSnowflakeNativeApp } from "~/lib/constants";
-import type { Selector } from "~/lib/state/app";
 import { useShallowAuthStore } from "~/lib/state/auth";
 import {
   type SingleWidget,
@@ -27,10 +20,13 @@ import { isExcludedWidgetId } from "~/lib/state/featureFlags";
 import { type UserGeneratedApp, useShallowUserAppsStore } from "~/lib/state/userApps";
 import {
   convertAdvancedBackend,
-  getJsonWidget,
   WIDGETS_WITHOUT_DISABLED as OPENBB_API_WIDGETS,
 } from "~/lib/utils";
 import WIDGET_BUNDLES from "~/lib/widget_bundles.json";
+import { useShallowAppWidgetsStore } from "./appWidgetsStore";
+import { indexAppWidgets } from "./indexAppWidgets";
+
+export { useGetWidgetsStore, useShallowAppWidgetsStore } from "./appWidgetsStore";
 
 export function useGetAppWidgets() {
   const { singleWidgets, storedFiles, apiSources, widgetMetadata } =
@@ -86,81 +82,16 @@ export function useGetAppWidgets() {
   const sharedWidgets = useSharedResources();
 
   const backendNameToWidgetMap = useMemo(() => {
-    const map = new Map<BackendName, Map<string, WidgetT>>();
-
-    function addWidgets(backendName: BackendName, widgets: WidgetT[]) {
-      const widgetMap = widgets.reduce((acc, widget) => {
-        if (!widget.widgetId) return acc;
-        acc.set(widget.widgetId, widget);
-        return acc;
-      }, new Map<string, WidgetT>());
-      map.set(backendName, widgetMap);
-    }
-
-    addWidgets("API Endpoints", apiEndpointWidgets);
-    addWidgets("OpenBB Sandbox", openbbSandboxWidgets);
-    addWidgets("OpenBB Hub", openbbHubWidgets);
-    addWidgets("OpenBB Workspace", openbbWorkspaceWidgets);
-    addWidgets("Widget Studio", openbbStudioWidgets);
-
-    // Handle custom backends dynamically
-    for (const widget of customBackendWidgets) {
-      const backendName = widget.sourceName;
-      if (!(backendName && widget.widgetId)) continue;
-
-      if (!map.has(backendName)) {
-        map.set(backendName, new Map<string, WidgetT>());
-      }
-      map.get(backendName)!.set(widget.widgetId, widget);
-    }
-
-    for (const widget of sharedWidgets) {
-      const isFileWidget = widget.connectionType === "file";
-      const backendName = isFileWidget ? "OpenBB Hub" : widget.sourceName;
-      if (!(backendName && widget.widgetId)) continue;
-
-      if (!map.has(backendName)) {
-        map.set(backendName, new Map<string, WidgetT>());
-      }
-      map.get(backendName)!.set(widget.widgetId, widget as WidgetT);
-    }
-
-    for (const widget of sharedUserAppWidgets) {
-      // Skip if widgetId conflicts with built-in JSON widget
-      if (!widget.external && getJsonWidget(widget.widgetId)) continue;
-      const connectionMap = {
-        single: "API Endpoints",
-        file: "OpenBB Hub",
-        widget_studio: "Widget Studio",
-        widgetMetadata: "OpenBB Workspace",
-      } as const;
-
-      // Widget Studio widgets carry their viz type in `type` (e.g. "table"), so
-      // resolve them by their id prefix to match the origin the copilot looks them
-      // up with (`getWidgetOrigin` → "Widget Studio"). Otherwise they fall through
-      // to `connectionType: "widgetMetadata"` and get misfiled under "OpenBB
-      // Workspace", causing "Widget … not found" on data fetch.
-      const backendName = widget.widgetId?.startsWith("widget_studio")
-        ? "Widget Studio"
-        : connectionMap[widget.type] ||
-          connectionMap[widget.connectionType] ||
-          widget.sourceName;
-
-      if (map.get(backendName)?.has(widget.widgetId)) {
-        if (import.meta.env.DEV)
-          console.warn(
-            `Widget ID conflict for "${widget.widgetId}" in backend "${backendName}".
-            Skipping this widget to avoid overwriting.`,
-          );
-        continue;
-      }
-      if (!map.has(backendName)) {
-        map.set(backendName, new Map<string, WidgetT>());
-      }
-      map.get(backendName)!.set(widget.widgetId, widget);
-    }
-
-    return map;
+    return indexAppWidgets({
+      apiEndpointWidgets,
+      openbbSandboxWidgets,
+      openbbHubWidgets,
+      openbbWorkspaceWidgets,
+      openbbStudioWidgets,
+      customBackendWidgets,
+      sharedUserAppWidgets,
+      sharedWidgets,
+    });
   }, [
     apiEndpointWidgets,
     openbbSandboxWidgets,
@@ -175,64 +106,6 @@ export function useGetAppWidgets() {
   useEffect(() => {
     setBackendNameToWidgetMap(backendNameToWidgetMap);
   }, [backendNameToWidgetMap]);
-}
-
-type BackendTypes =
-  | "API Endpoints"
-  | "OpenBB Sandbox"
-  | "OpenBB Hub"
-  | "OpenBB Workspace"
-  | "Widget Studio"
-  | "Shared App Widgets";
-
-type BackendName<T extends BackendTypes = BackendTypes> = T | (string & {});
-
-type GetWidgetsState = {
-  lastUpdated: number;
-  backendNameToWidgetMap: Map<BackendName, Map<string, WidgetT>>;
-  getAllAppWidgets: () => WidgetT[];
-  setAppWidgets: (
-    backendNameToWidgetMap: Map<BackendName, Map<string, WidgetT>>,
-  ) => void;
-  getAppWidget: (widgetId: WidgetId, sourceName?: BackendName) => WidgetT | undefined;
-  getSqlWidget: () => WidgetT | undefined;
-  getRunCodeWidget: () => WidgetT | undefined;
-};
-
-export const useGetWidgetsStore = createWithEqualityFn<GetWidgetsState>()(
-  subscribeWithSelector((set, get) => ({
-    lastUpdated: Date.now(),
-    backendNameToWidgetMap: new Map<BackendName, Map<string, WidgetT>>(),
-    getSqlWidget: () => get().getAppWidget("global_sql_builder" as WidgetId),
-    getRunCodeWidget: () => get().getAppWidget("run_code" as WidgetId),
-    setAppWidgets: (backendNameToWidgetMap) =>
-      set({ backendNameToWidgetMap, lastUpdated: Date.now() }),
-    getAppWidget: (widgetId, sourceName) => {
-      const map = get().backendNameToWidgetMap;
-      if (sourceName)
-        return map.get(sourceName)?.get(widgetId.replace(`${sourceName}-`, ""));
-
-      // Search all sources for the widgetId
-      for (const sourceMap of map.values()) {
-        if (sourceMap.has(widgetId)) {
-          return sourceMap.get(widgetId);
-        }
-      }
-
-      return undefined;
-    },
-    getAllAppWidgets: () =>
-      Array.from(get().backendNameToWidgetMap.values()).flatMap((widgetMap) =>
-        Array.from(widgetMap.values()).filter((widget) => !widget.disabled),
-      ),
-  })),
-  shallow,
-);
-
-export function useShallowAppWidgetsStore<S extends GetWidgetsState, T>(
-  selector: Selector<S, T>,
-): T {
-  return useGetWidgetsStore(useShallow(selector), (prev, next) => isEqual(prev, next));
 }
 
 function getBuiltInWidgets(): WidgetT[] {

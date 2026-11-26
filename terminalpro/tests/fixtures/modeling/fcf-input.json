@@ -1,0 +1,129 @@
+{
+  "schema_id": "issuer_fcf_yield.inputs",
+  "schema_version": "1",
+  "provenance": {
+    "origin": "user_supplied",
+    "source": "synthetic_factor_examples",
+    "query": [],
+    "retrieved_at": "2024-05-03T16:00:00Z",
+    "acquisition_id": null
+  },
+  "tables": [
+    {
+      "table_id": "cash_flows",
+      "grain": "One annual filing amount per issuer, metric and vintage",
+      "keys": [
+        "entity_id",
+        "metric_id",
+        "observation_date",
+        "vintage_at"
+      ],
+      "nullable": false,
+      "rows": [
+        {
+          "record_id": "fixture_company.operating_cash_flow.2023-12-31",
+          "entity_id": "fixture_company",
+          "metric_id": "operating_cash_flow",
+          "observation_date": "2023-12-31",
+          "context": {
+            "unit": "currency",
+            "currency": "USD",
+            "scale": 6,
+            "quantity": "flow",
+            "basis": null,
+            "period_start": "2023-01-01",
+            "period_end": "2023-12-31",
+            "fiscal_period": null,
+            "accounting_standard": null,
+            "consolidation_scope": "issuer_consolidated",
+            "frequency": "annual",
+            "seasonal_adjustment": null,
+            "vintage_coverage": null,
+            "vintage_limitation": null
+          },
+          "value": "60",
+          "category": "raw",
+          "published_at": "2024-02-12T17:00:00Z",
+          "vintage_at": null,
+          "source_record_id": "synthetic_annual_filing_2023",
+          "transformations": []
+        },
+        {
+          "record_id": "fixture_company.capital_expenditures.2023-12-31",
+          "entity_id": "fixture_company",
+          "metric_id": "capital_expenditures",
+          "observation_date": "2023-12-31",
+          "context": {
+            "unit": "currency",
+            "currency": "USD",
+            "scale": 6,
+            "quantity": "flow",
+            "basis": "cash_outflow_negative",
+            "period_start": "2023-01-01",
+            "period_end": "2023-12-31",
+            "fiscal_period": null,
+            "accounting_standard": null,
+            "consolidation_scope": "issuer_consolidated",
+            "frequency": "annual",
+            "seasonal_adjustment": null,
+            "vintage_coverage": null,
+            "vintage_limitation": null
+          },
+          "value": "-20",
+          "category": "raw",
+          "published_at": "2024-02-12T17:00:00Z",
+          "vintage_at": null,
+          "source_record_id": "synthetic_annual_filing_2023",
+          "transformations": []
+        }
+      ]
+    },
+    {
+      "table_id": "market_value",
+      "grain": "One consolidated equity value per issuer and session",
+      "keys": [
+        "entity_id",
+        "metric_id",
+        "observation_date",
+        "vintage_at"
+      ],
+      "nullable": false,
+      "rows": [
+        {
+          "record_id": "fixture_company.equity_market_value.2024-04-03",
+          "entity_id": "fixture_company",
+          "metric_id": "equity_market_value",
+          "observation_date": "2024-04-03",
+          "context": {
+            "unit": "currency",
+            "currency": "USD",
+            "scale": 6,
+            "quantity": "stock",
+            "basis": null,
+            "period_start": null,
+            "period_end": null,
+            "fiscal_period": null,
+            "accounting_standard": null,
+            "consolidation_scope": "issuer_consolidated",
+            "frequency": null,
+            "seasonal_adjustment": null,
+            "vintage_coverage": null,
+            "vintage_limitation": null
+          },
+          "value": "800",
+          "category": "raw",
+          "published_at": "2024-04-03T21:00:00Z",
+          "vintage_at": null,
+          "source_record_id": null,
+          "transformations": []
+        }
+      ]
+    }
+  ],
+  "cutoff": {
+    "observation_date": "2024-04-03",
+    "decision_at": "2024-04-03T22:00:00Z",
+    "evaluated_at": "2024-05-03T16:00:00Z",
+    "session_timezone": "America/New_York"
+  }
+}
