@@ -1,0 +1,142 @@
+{
+  "qopenbb_saved_model_output": {
+    "category": "Modeling",
+    "data": {
+      "dataKey": "results",
+      "table": {
+        "columnsDefs": [
+          {
+            "cellDataType": "text",
+            "chartDataType": "excluded",
+            "field": "display_text",
+            "formatterFn": "none",
+            "headerName": "Value"
+          },
+          {
+            "cellDataType": "text",
+            "chartDataType": "excluded",
+            "field": "status",
+            "formatterFn": "none",
+            "headerName": "Status"
+          },
+          {
+            "cellDataType": "text",
+            "chartDataType": "excluded",
+            "field": "freshness",
+            "formatterFn": "none",
+            "headerName": "Freshness"
+          },
+          {
+            "cellDataType": "text",
+            "chartDataType": "excluded",
+            "field": "reason",
+            "formatterFn": "none",
+            "headerName": "Reason"
+          },
+          {
+            "cellDataType": "text",
+            "chartDataType": "excluded",
+            "field": "unit",
+            "formatterFn": "none",
+            "headerName": "Unit"
+          },
+          {
+            "cellDataType": "text",
+            "chartDataType": "excluded",
+            "field": "check_explanations",
+            "formatterFn": "none",
+            "headerName": "Check explanations"
+          },
+          {
+            "cellDataType": "text",
+            "chartDataType": "excluded",
+            "field": "run_detail_href",
+            "formatterFn": "none",
+            "headerName": "Run detail reference"
+          }
+        ],
+        "showAll": false
+      }
+    },
+    "description": "Enter a saved run ID and output ID to inspect the result and its checks.",
+    "endpoint": "/modeling/v1/widget-results",
+    "gridData": {
+      "h": 15,
+      "w": 40
+    },
+    "name": "Saved model output",
+    "params": [
+      {
+        "label": "Run ID",
+        "optional": false,
+        "paramName": "run_id",
+        "show": true,
+        "type": "text",
+        "value": null
+      },
+      {
+        "label": "Output ID",
+        "optional": false,
+        "paramName": "output_id",
+        "show": true,
+        "type": "text",
+        "value": null
+      },
+      {
+        "label": "Expected run ID",
+        "optional": true,
+        "paramName": "expected_run_id",
+        "show": true,
+        "type": "text",
+        "value": null
+      }
+    ],
+    "runButton": false,
+    "type": "table",
+    "widgetId": "qopenbb_saved_model_output",
+    "endpointMethod": "GET"
+  },
+  "qopenbb_issuer_fcf_yield": {
+    "widgetId": "qopenbb_issuer_fcf_yield",
+    "name": "Issuer FCF yield",
+    "category": "Modeling",
+    "description": "Evaluate issuer free cash flow yield from a supplied input snapshot and explicit assumptions.",
+    "type": "table",
+    "endpoint": "/modeling/v1/evaluations",
+    "gridData": {
+      "w": 40,
+      "h": 15
+    },
+    "params": [
+      {
+        "paramName": "snapshot",
+        "label": "Input snapshot JSON",
+        "type": "text",
+        "value": null,
+        "show": false
+      },
+      {
+        "paramName": "assumption_version",
+        "label": "Assumption version",
+        "type": "text",
+        "value": null,
+        "show": false
+      },
+      {
+        "paramName": "effective_date",
+        "label": "Effective date",
+        "type": "text",
+        "value": null,
+        "show": false
+      },
+      {
+        "paramName": "capex_sign",
+        "label": "CapEx sign convention",
+        "type": "text",
+        "value": null,
+        "show": false
+      }
+    ],
+    "endpointMethod": "POST"
+  }
+}

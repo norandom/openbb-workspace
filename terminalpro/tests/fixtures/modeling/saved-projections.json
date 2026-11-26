@@ -1,0 +1,296 @@
+{
+  "negative": {
+    "run_id": "49032eaeb04947319ece26bbc5ed818f",
+    "results": [
+      {
+        "output_id": "value",
+        "semantic_definition": "Supplied test observation",
+        "unit": "amount",
+        "value_type": "decimal",
+        "value": "-10.125",
+        "status": "verified",
+        "reason": null,
+        "trace_ids": [
+          "test-trace"
+        ],
+        "check_ids": [],
+        "exception_ids": [],
+        "display_value": -10.125,
+        "display_text": "-10.125",
+        "freshness": "saved",
+        "run_detail_href": "runs/49032eaeb04947319ece26bbc5ed818f",
+        "check_explanations": null,
+        "display_numeric": {
+          "transform": "exact_binary64",
+          "max_absolute_error": "0"
+        }
+      }
+    ],
+    "checks": [],
+    "trace": [
+      {
+        "trace_id": "test-trace",
+        "formula_id": "selection",
+        "formula_version": "1",
+        "expression": "Select the dated observation",
+        "source_record_ids": [
+          "present"
+        ],
+        "input_ids": [
+          "observations"
+        ],
+        "assumption_ids": [],
+        "substitutions": [],
+        "intermediate_values": [],
+        "transformations": [],
+        "output_id": "value",
+        "check_ids": []
+      }
+    ],
+    "verification": [
+      {
+        "output_id": "value",
+        "reference_version": "1",
+        "input_fingerprint": "6566271509404b904625934f0d72bc62e0d02d37a386fe93e41b9adc3171a1cf",
+        "assumption_fingerprint": "3f383e9a67f9bd1ef5de38d34658039e7a6e2ee062710b9108085532163cf56b",
+        "descriptor_fingerprint": "a12ac7c620af1ce956d56e31c6e5d3f6dd92dd2e8e7088b4bd68dd2fa3bb2943",
+        "output_fingerprint": "24b6890c0c0b746a23304a3c9a39bbf40d322a58ab69aaed7871a53cc089b26b",
+        "status": "match",
+        "explanation": "Observed -10.125, expected -10.125 in amount, using exact equality"
+      }
+    ],
+    "run_detail_href": "runs/49032eaeb04947319ece26bbc5ed818f",
+    "exceptions": []
+  },
+  "zero": {
+    "run_id": "74457b8daa9b4cd29fc43f02c6675a2c",
+    "results": [
+      {
+        "output_id": "value",
+        "semantic_definition": "Supplied test observation",
+        "unit": "amount",
+        "value_type": "decimal",
+        "value": "0",
+        "status": "verified",
+        "reason": null,
+        "trace_ids": [
+          "test-trace"
+        ],
+        "check_ids": [],
+        "exception_ids": [],
+        "display_value": 0.0,
+        "display_text": "0",
+        "freshness": "saved",
+        "run_detail_href": "runs/74457b8daa9b4cd29fc43f02c6675a2c",
+        "check_explanations": null,
+        "display_numeric": {
+          "transform": "exact_binary64",
+          "max_absolute_error": "0"
+        }
+      }
+    ],
+    "checks": [],
+    "trace": [
+      {
+        "trace_id": "test-trace",
+        "formula_id": "selection",
+        "formula_version": "1",
+        "expression": "Select the dated observation",
+        "source_record_ids": [
+          "present"
+        ],
+        "input_ids": [
+          "observations"
+        ],
+        "assumption_ids": [],
+        "substitutions": [],
+        "intermediate_values": [],
+        "transformations": [],
+        "output_id": "value",
+        "check_ids": []
+      }
+    ],
+    "verification": [
+      {
+        "output_id": "value",
+        "reference_version": "1",
+        "input_fingerprint": "8be9c862ae409af6264e4b942affa07cdc8d3809953ca64ef9448e3d1a9e71fb",
+        "assumption_fingerprint": "3f383e9a67f9bd1ef5de38d34658039e7a6e2ee062710b9108085532163cf56b",
+        "descriptor_fingerprint": "a12ac7c620af1ce956d56e31c6e5d3f6dd92dd2e8e7088b4bd68dd2fa3bb2943",
+        "output_fingerprint": "5afa9d509e52ce2d5696407b566bb9100d1024c4ad454e160d1c665ede6d179c",
+        "status": "match",
+        "explanation": "Observed 0, expected 0 in amount, using exact equality"
+      }
+    ],
+    "run_detail_href": "runs/74457b8daa9b4cd29fc43f02c6675a2c",
+    "exceptions": []
+  },
+  "missing": {
+    "run_id": "fabd6f815cf640a3a8bbd68b647720ca",
+    "results": [
+      {
+        "output_id": "value",
+        "semantic_definition": "Supplied test observation",
+        "unit": "amount",
+        "value_type": "decimal",
+        "value": null,
+        "status": "withheld",
+        "reason": "Observation value is missing",
+        "trace_ids": [],
+        "check_ids": [],
+        "exception_ids": [],
+        "display_value": null,
+        "display_text": null,
+        "freshness": "saved",
+        "run_detail_href": "runs/fabd6f815cf640a3a8bbd68b647720ca",
+        "check_explanations": null,
+        "display_numeric": {
+          "transform": "exact_binary64",
+          "max_absolute_error": "0"
+        }
+      }
+    ],
+    "checks": [],
+    "trace": [],
+    "verification": [
+      {
+        "output_id": "value",
+        "reference_version": "1",
+        "input_fingerprint": "f5405c2bd010aa1ee04338b542828be52756ba0ce0c07f515159195f847e304f",
+        "assumption_fingerprint": "3f383e9a67f9bd1ef5de38d34658039e7a6e2ee062710b9108085532163cf56b",
+        "descriptor_fingerprint": "a12ac7c620af1ce956d56e31c6e5d3f6dd92dd2e8e7088b4bd68dd2fa3bb2943",
+        "output_fingerprint": "c328b16bf9553f72727e2b25e52692b5b69f40e4c193913f04800ee6a9ebf09c",
+        "status": "unavailable",
+        "explanation": "Independent calculation has insufficient evidence"
+      }
+    ],
+    "run_detail_href": "runs/fabd6f815cf640a3a8bbd68b647720ca",
+    "exceptions": []
+  },
+  "partial": {
+    "run_id": "077a1b3f8b834dd9afb9555f22d04e5d",
+    "results": [
+      {
+        "output_id": "value",
+        "semantic_definition": "Supplied test observation",
+        "unit": "amount",
+        "value_type": "decimal",
+        "value": "2.5",
+        "status": "verified",
+        "reason": null,
+        "trace_ids": [
+          "test-trace"
+        ],
+        "check_ids": [],
+        "exception_ids": [],
+        "display_value": 2.5,
+        "display_text": "2.5",
+        "freshness": "saved",
+        "run_detail_href": "runs/077a1b3f8b834dd9afb9555f22d04e5d",
+        "check_explanations": null,
+        "display_numeric": {
+          "transform": "exact_binary64",
+          "max_absolute_error": "0"
+        }
+      }
+    ],
+    "checks": [],
+    "trace": [
+      {
+        "trace_id": "test-trace",
+        "formula_id": "selection",
+        "formula_version": "1",
+        "expression": "Select the dated observation",
+        "source_record_ids": [
+          "present"
+        ],
+        "input_ids": [
+          "observations"
+        ],
+        "assumption_ids": [],
+        "substitutions": [],
+        "intermediate_values": [],
+        "transformations": [],
+        "output_id": "value",
+        "check_ids": []
+      }
+    ],
+    "verification": [
+      {
+        "output_id": "value",
+        "reference_version": "1",
+        "input_fingerprint": "c2ce0f525a8038f2d4088fa328c3b5f1d4822076a291acd2b494f55542a0bd36",
+        "assumption_fingerprint": "3f383e9a67f9bd1ef5de38d34658039e7a6e2ee062710b9108085532163cf56b",
+        "descriptor_fingerprint": "835a28f849c7fb3fb701f98fe4558294e1f3d620ba6eb5dab7cc4f7630d27cde",
+        "output_fingerprint": "13afc94ca0c0614dc26319048f0f73c3f8a9fc85d744768343bbaf57fcb70757",
+        "status": "match",
+        "explanation": "Observed 2.5, expected 2.5 in amount, using exact equality"
+      }
+    ],
+    "run_detail_href": "runs/077a1b3f8b834dd9afb9555f22d04e5d",
+    "exceptions": []
+  },
+  "stale_unverified": {
+    "run_id": "830b7fa7231e42fda97560e2f911a405",
+    "results": [
+      {
+        "output_id": "value",
+        "semantic_definition": "Supplied test observation",
+        "unit": "amount",
+        "value_type": "decimal",
+        "value": "0.1",
+        "status": "unverified",
+        "reason": "Independent comparison is unavailable",
+        "trace_ids": [
+          "test-trace"
+        ],
+        "check_ids": [],
+        "exception_ids": [],
+        "display_value": null,
+        "display_text": "0.1",
+        "freshness": "stale",
+        "run_detail_href": "runs/830b7fa7231e42fda97560e2f911a405",
+        "check_explanations": null,
+        "display_numeric": {
+          "transform": "exact_binary64",
+          "max_absolute_error": "0"
+        }
+      }
+    ],
+    "checks": [],
+    "trace": [
+      {
+        "trace_id": "test-trace",
+        "formula_id": "selection",
+        "formula_version": "1",
+        "expression": "Select the dated observation",
+        "source_record_ids": [
+          "present"
+        ],
+        "input_ids": [
+          "observations"
+        ],
+        "assumption_ids": [],
+        "substitutions": [],
+        "intermediate_values": [],
+        "transformations": [],
+        "output_id": "value",
+        "check_ids": []
+      }
+    ],
+    "verification": [
+      {
+        "output_id": "value",
+        "reference_version": "1",
+        "input_fingerprint": "b3a21bc81ce9810d6e0350955f4a6a5fe86735e858db45c1d228eff1fc5143eb",
+        "assumption_fingerprint": "3f383e9a67f9bd1ef5de38d34658039e7a6e2ee062710b9108085532163cf56b",
+        "descriptor_fingerprint": "a12ac7c620af1ce956d56e31c6e5d3f6dd92dd2e8e7088b4bd68dd2fa3bb2943",
+        "output_fingerprint": "bc65ca9da6bdb2edbd306aa14da6dc9f130fc79091d5d085ea403b50c65a83c7",
+        "status": "unavailable",
+        "explanation": "Compatible independent calculation is unavailable"
+      }
+    ],
+    "run_detail_href": "runs/830b7fa7231e42fda97560e2f911a405",
+    "exceptions": []
+  }
+}

@@ -287,7 +287,13 @@ export function createWidgetEndpoint(
     query: {},
     headers: {},
     ...(typeof url === "string" ? { url } : url),
-    method: "GET",
+    // The modeling dispatcher owns the explicit POST contract. Other connectors use GET.
+    method:
+      typeof url !== "string" &&
+      url?.url === "/modeling/v1/evaluations" &&
+      url.method === "POST"
+        ? "POST"
+        : "GET",
   } as WidgetT["endpoint"];
 
   newEndpoint.url = cleanURL(newEndpoint.url);

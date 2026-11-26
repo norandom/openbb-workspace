@@ -8,6 +8,7 @@ import { FILE_EXTENSIONS } from "~/lib/constants";
 import { useTabContext } from "~/lib/contexts/TabContext";
 import { useAppStore } from "~/lib/state/app";
 import { getCleanWidgetId } from "~/lib/utils";
+import { FCF_WIDGET, SAVED_WIDGET } from "~/lib/modeling/contract";
 import WIDGETS from "~/lib/widgets.json";
 import EmptyDashboardCTA from "./General/EmptyDashboardCTA";
 import SearchResultsNotFound from "./General/SearchResultsNotFound";
@@ -15,6 +16,7 @@ import { Table } from "./General/Table/hooks/useTableContext";
 import RenderIfVisible from "./RenderIfVisible";
 import { useWidgetContext, WidgetProvider } from "./Widget.context";
 import Widgets, { getWidgetComponent, isAgGridWidget, type WidgetId } from "./Widgets";
+import ModelingWidget from "./Widgets/ModelingWidget";
 
 const WidgetFallback = () => {
   const { renderRow0Params, renderBelowNavbarRows } = useWidgetParamsPositions(false);
@@ -131,6 +133,10 @@ export function WidgetComponent() {
 
   const endpointUrl = widget?.endpoint?.url;
   const cleanWidgetId = getCleanWidgetId(widget.widgetId, widget.connectionType);
+
+  if (cleanWidgetId === FCF_WIDGET || cleanWidgetId === SAVED_WIDGET) {
+    return <ModelingWidget evaluator={cleanWidgetId === FCF_WIDGET} />;
+  }
 
   // Handle YouTube widgets - both built-in (widgetId="youtube-xxx") and backend (type="youtube")
   if (cleanWidgetId === "youtube" || widget?.type === "youtube") {
