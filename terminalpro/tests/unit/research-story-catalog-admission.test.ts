@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, expect, it, vi } from "vitest";
+import generatedSchema from "~/components/DataConnectors/WidgetsBuilder/widget-schema.json";
 import { getWidgetComponent, isAgGridWidget } from "~/components/Widgets";
 import { isEndpointlessNativeWidget } from "~/lib/utils/backendValidation/nativeWidget";
 import { validateObject, validateSource } from "~/lib/utils/validateBackend";
@@ -39,6 +40,18 @@ const app = {
 };
 
 afterEach(() => vi.unstubAllGlobals());
+
+it("exports required empty story params as a Draft 7 array schema", () => {
+  const story = generatedSchema.definitions.Widget.anyOf.find(
+    ({ properties }) => "const" in properties.type && properties.type.const === native.type,
+  );
+  expect(story?.required).toContain("params");
+  expect(story?.properties.params).toEqual({
+    type: "array",
+    maxItems: 0,
+    items: { not: {} },
+  });
+});
 
 it("admits the catalog App through the connector and dispatcher", async () => {
   const fetch = vi.fn(async (url) => new Response(JSON.stringify(

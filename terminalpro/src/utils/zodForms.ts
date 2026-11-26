@@ -232,7 +232,8 @@ const storyDeclaration = z.strictObject({
   name: z.literal(RESEARCH_STORY_NAME),
   description: z.literal("Compare proxy price returns, realized volatility and the change in real yields."),
   category: z.literal("Research"),
-  params: z.tuple([]),
+  // Draft 7 requires at least one schema in tuple-form items.
+  params: z.array(z.never()).max(0),
   gridData: z.strictObject({ w: z.literal(40), h: z.literal(24) }),
 });
 type NativeStoryWidget = Omit<z.output<typeof nativeWidgetSchema>, "type"> & {

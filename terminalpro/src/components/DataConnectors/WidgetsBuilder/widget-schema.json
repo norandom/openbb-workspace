@@ -2097,8 +2097,11 @@
               "const": "Research"
             },
             "params": {
+              "maxItems": 0,
               "type": "array",
-              "items": []
+              "items": {
+                "not": {}
+              }
             },
             "gridData": {
               "type": "object",
