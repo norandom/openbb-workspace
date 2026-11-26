@@ -18,7 +18,7 @@ export async function postDashboards(dashboardData: { [key: string]: any | "DELE
   const { data } = await apiClient.post("/pro/dash/sync", {
     items: documentDashboardState(
       dashboardData,
-      useBackendConnectorStore.getState().getApiSourceById,
+      (sourceId) => useBackendConnectorStore.getState().getApiSourceById(sourceId),
     ),
   });
   return data;
