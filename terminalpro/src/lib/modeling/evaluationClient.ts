@@ -5,9 +5,13 @@ import {
   FCF_OUTPUT,
   MODELING_PATH,
   projection,
+  runId,
   savedRun,
   type SavedSelection,
 } from "./contract";
+import type { StoryBinding, StoryRole } from "./storyContract";
+import { encodeStoryEvaluation } from "./storyControllerRequest";
+import { storyHttpError, StoryRequestError } from "./storyControllerError";
 
 export type FcfParameters = {
   snapshot: string;
@@ -93,9 +97,13 @@ export function createEvaluationClient(
     schema: z.ZodType<T>,
     signal: AbortSignal,
     body?: string,
+    story = false,
   ): Promise<T> {
     const token = getToken();
-    if (!token) throw new Error("Sign in to access modeling.");
+    if (!token) {
+      if (story) throw new StoryRequestError("Sign in to access modeling.", true);
+      throw new Error("Sign in to access modeling.");
+    }
     let response: Response;
     try {
       response = await transport(`${MODELING_PATH}/${path}`, {
@@ -111,6 +119,12 @@ export function createEvaluationClient(
         signal,
       });
     } catch {
+      if (story) {
+        throw new StoryRequestError(
+          body ? "The evaluation outcome is unknown." : "The modeling service is unavailable.",
+          true,
+        );
+      }
       throw new Error("Modeling service unavailable.");
     }
     const data: unknown = await response
@@ -118,6 +132,7 @@ export function createEvaluationClient(
       .then(decodeModelingJson)
       .catch(() => undefined);
     if (!response.ok) {
+      if (story) throw storyHttpError(response.status, data, body !== undefined);
       if (response.status === 401)
         throw new Error("Your Workspace session has expired.");
       if (response.status === 404) throw new Error("Saved run or output unavailable.");
@@ -127,6 +142,12 @@ export function createEvaluationClient(
         : "";
       throw new Error(`Modeling request failed [${response.status}]${detail}.`);
     }
+    if (story && data === undefined) {
+      throw new StoryRequestError(
+        body ? "The evaluation outcome is unknown." : "The saved run response was interrupted.",
+        true,
+      );
+    }
     const parsed = schema.safeParse(data);
     if (!parsed.success)
       throw new Error("Modeling returned an incompatible v1 response.");
@@ -134,6 +155,13 @@ export function createEvaluationClient(
   }
 
   return {
+    evaluateStory(role: StoryRole, binding: StoryBinding, signal: AbortSignal) {
+      return request("evaluations", z.unknown(), signal, encodeStoryEvaluation(role, binding), true);
+    },
+    readStoryRun(id: string, signal: AbortSignal) {
+      if (!runId.safeParse(id).success) throw new StoryRequestError("Saved run unavailable.", false);
+      return request(`runs/${encodeURIComponent(id)}`, z.unknown(), signal, undefined, true);
+    },
     async evaluate(params: FcfParameters, author: string, signal: AbortSignal) {
       const run = await request(
         "evaluations",
