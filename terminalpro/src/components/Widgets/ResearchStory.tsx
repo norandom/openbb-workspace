@@ -33,7 +33,7 @@ export default function ResearchStory() {
     hasResearchStoryIdentity(widget) &&
     widget.endpoint === undefined && widget.wsEndpoint === undefined &&
     widget.fileEndpoint === undefined && widget.params?.length === 0 &&
-    canUseResearchStorySource(widget.sourceId, source);
+    canUseResearchStorySource(widget, source);
 
   return (
     <DraggableCard>

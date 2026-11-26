@@ -163,7 +163,9 @@ it.each([false, true])("rejects a story alias when vendor cache is present: %s",
     expect(resolve("ordinary")?.id).toBe(source.id);
   }
   const getSourceById = useBackendConnectorStore.getState().getApiSourceById;
-  for (const identity of [alias, { ...raw, type: "table" }]) {
+  const alteredWidgets = [alias, { ...raw, type: "table" }];
+  if (withSource) alteredWidgets.push({ ...raw, endpoint: { url: "/undefined" } } as typeof raw);
+  for (const identity of alteredWidgets) {
     const data = {
       name: "Research",
       widgets: [{

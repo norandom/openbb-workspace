@@ -37,7 +37,7 @@ function serializeWidgetState(
 ) {
   if (isResearchStoryWidget(widget)) {
     const source = widget.sourceId ? ports.getSourceById(widget.sourceId) : undefined;
-    if (!hasResearchStoryIdentity(widget) || !canUseResearchStorySource(widget.sourceId, source))
+    if (!hasResearchStoryIdentity(widget) || !canUseResearchStorySource(widget, source))
       throw new Error("Cannot export an unvalidated research story declaration.");
     return { storage: encodeStoryStorage(widget.storage?.researchStory) };
   }

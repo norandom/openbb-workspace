@@ -20,8 +20,19 @@ function hasValidCachedStory(source: Source) {
   return declaration?.type === RESEARCH_STORY_ID && isEndpointlessNativeWidget(declaration);
 }
 
-export function canUseResearchStorySource(sourceId?: string, source?: Source) {
-  return !sourceId || (source?.id === sourceId && hasValidCachedStory(source));
+export function canUseResearchStorySource(
+  { sourceId, endpoint, fileEndpoint, wsEndpoint }: {
+    sourceId?: string;
+    endpoint?: unknown;
+    fileEndpoint?: unknown;
+    wsEndpoint?: unknown;
+  },
+  source?: Source,
+) {
+  return !sourceId || (
+    source?.id === sourceId && hasValidCachedStory(source) &&
+    endpoint === undefined && fileEndpoint === undefined && wsEndpoint === undefined
+  );
 }
 
 export function filterRejectedStoryCatalog(source: Source): Source {

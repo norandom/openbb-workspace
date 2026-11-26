@@ -48,7 +48,7 @@ type ResolveSource = (sourceId: string) => Source | undefined;
 function saveWidget(widget: WidgetT, resolveSource: ResolveSource) {
   if (isResearchStoryWidget(widget)) {
     const source = widget.sourceId ? resolveSource(widget.sourceId) : undefined;
-    if (!hasResearchStoryIdentity(widget) || !canUseResearchStorySource(widget.sourceId, source))
+    if (!hasResearchStoryIdentity(widget) || !canUseResearchStorySource(widget, source))
       throw new Error("Cannot save an unvalidated research story declaration.");
     return {
       id: widget.id,
