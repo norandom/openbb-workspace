@@ -6,7 +6,7 @@ import {
   type StoryBinding,
 } from "./storyContract";
 
-export const binding: StoryBinding = {
+const binding: StoryBinding = {
   selection: {
     commodity_symbol: "DBC",
     technology_symbol: "XLK",
