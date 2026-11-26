@@ -2,6 +2,21 @@
 resolver ${NGINX_RESOLVER} valid=10s ipv6=off;
 resolver_timeout 1s;
 proxy_connect_timeout 3s;
+# Workspace authenticates the session before creating a private modeling assertion.
+location = /modeling/v1 { return 308 /modeling/v1/; }
+location ^~ /modeling/v1/ {
+  client_max_body_size 2m;
+  proxy_pass http://openbb_backend;
+  proxy_pass_request_headers off;
+  proxy_set_header Host ${PUBLIC_HOST};
+  proxy_set_header Authorization $http_authorization;
+  proxy_set_header Content-Type $http_content_type;
+  proxy_set_header X-Forwarded-Proto ${PUBLIC_SCHEME};
+  proxy_read_timeout 75s;
+  proxy_intercept_errors off;
+}
+location = /data/modeling { return 404; }
+location ^~ /data/modeling/ { return 404; }
 location = /data { return 308 /data/; }
 location ^~ /data/ {
   set $data_origin http://data-api:6900;
