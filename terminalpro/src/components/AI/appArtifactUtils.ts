@@ -2,6 +2,7 @@ import type { WidgetT } from "~/components/types";
 import type { Item } from "~/lib/state/app";
 import type { Source, WidgetMetadataItem } from "~/lib/state/backendConnector";
 import type { AppArtifactT, AppArtifactWidgetRef, Copilot } from "~/lib/state/copilot";
+import { filterRejectedStoryCatalog } from "~/lib/utils/backendValidation/nativeWidget";
 import { createWidgetStudioWidget } from "./hooks/useGetAppWidgets";
 
 /**
@@ -17,15 +18,16 @@ export function buildWidgetSourceResolver(
   apiSources: Source[],
 ): (widgetId: string) => Source | undefined {
   const byWidgetId = new Map<string, Source>();
+  const sources = apiSources.map(filterRejectedStoryCatalog);
 
   for (const ref of widgetRefs) {
     if (byWidgetId.has(ref.widget_id)) continue;
 
     const match =
-      apiSources.find(
+      sources.find(
         (source) =>
           source.name === ref.origin && Boolean(source.widgets?.[ref.widget_id]),
-      ) ?? apiSources.find((source) => Boolean(source.widgets?.[ref.widget_id]));
+      ) ?? sources.find((source) => Boolean(source.widgets?.[ref.widget_id]));
 
     if (match) byWidgetId.set(ref.widget_id, match);
   }

@@ -8,6 +8,7 @@ import type { WidgetJsonT } from "~/components/types";
 import { useShallowAuthStore } from "~/lib/state/auth";
 import { TEMPLATES } from "~/lib/templates";
 import { duplicateTabItem } from "~/lib/utils";
+import { filterRejectedStoryCatalog } from "~/lib/utils/backendValidation/nativeWidget";
 import {
   createCustomTemplateTab,
   getUntouchedAppTabInfo,
@@ -101,6 +102,7 @@ export function useAllTemplates(isLoadingApiSources = false) {
         (source) =>
           (source.templates && source.templates.length > 0) || source.vendorApp,
       )
+      .map(filterRejectedStoryCatalog)
       .flatMap((source) => {
         const vendorApp = source.vendorApp;
         const appUuid = vendorApp?.uuid;

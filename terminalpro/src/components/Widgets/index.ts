@@ -1,7 +1,7 @@
 import { lazy } from "react";
 import { WidgetDataProcessors } from "~/components/Widgets/dataProcessors";
 import { BLOCKED_WIDGET_IDS } from "~/lib/constants";
-import type { RESEARCH_STORY_ID } from "~/lib/modeling/storyState";
+import { RESEARCH_STORY_ID } from "~/lib/modeling/storyState";
 import type { WidgetsIds } from "~/lib/utils/widget";
 import type { WidgetT } from "../types";
 import { unsupportedChartReason } from "./communityCharts";
@@ -10,6 +10,7 @@ import UnsupportedRenderer, { communityWidget } from "./UnsupportedRenderer";
 const CompanyDocumentsFC = lazy(
   () => import("./CompanyDocuments/CompanyDocumentsWidget"),
 );
+const ResearchStoryFC = lazy(() => import("./ResearchStory"));
 const PeerResearchFC = lazy(() => import("./CompanyResearch/PeerResearch"));
 const AgChartFC = lazy(() => import("./AgChart"));
 const AgWebSocketsFC = lazy(() => import("../General/Table/AgWebSockets"));
@@ -133,6 +134,7 @@ export const AgGridComponents = {
 
 export const NonAgGridComponents = {
   company_research: "PeerResearch",
+  [RESEARCH_STORY_ID]: "ResearchStory",
   company_documents: "CompanyDocuments",
   charting: "Charting",
   chart: "Chart",
@@ -192,6 +194,7 @@ export const NonAgGridComponents = {
 
 export const Widgets = {
   PeerResearch: PeerResearchFC,
+  ResearchStory: ResearchStoryFC,
   CompanyDocuments: CompanyDocumentsFC,
   AgChart: communityWidget(AgChartFC, (widget) =>
     unsupportedChartReason(widget?.storage?.chart_params),
@@ -313,7 +316,7 @@ export const WidgetComponentMap = {
   ...NonAgGridComponents,
 };
 
-type KnownWidgetId = keyof typeof WidgetComponentMap | WidgetsIds | typeof RESEARCH_STORY_ID;
+type KnownWidgetId = keyof typeof WidgetComponentMap | WidgetsIds;
 export type WidgetId<T = KnownWidgetId> = T extends KnownWidgetId ? T : string;
 
 export type WidgetComponentMapT = {

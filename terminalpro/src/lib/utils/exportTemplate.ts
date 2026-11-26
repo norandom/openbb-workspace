@@ -8,6 +8,7 @@ import { isTruthy } from "~/components/General/Table/utils";
 import {
   encodeStoryGridItem,
   encodeStoryStorage,
+  hasResearchStoryIdentity,
   isResearchStoryWidget,
   RESEARCH_STORY_ID,
 } from "~/lib/modeling/storyState";
@@ -17,6 +18,7 @@ import type {
   useBackendConnectorStore,
 } from "~/lib/state/backendConnector";
 import type { TabLayout } from "~/lib/templates";
+import { canUseResearchStorySource } from "./backendValidation/nativeWidget";
 import { documentTemplateState } from "./documentTemplateState";
 import { researchTemplateState } from "./researchTemplateState";
 import { createParamDefs } from "./widgetParams";
@@ -34,6 +36,9 @@ function serializeWidgetState(
   optionEndpoints: Record<string, string>,
 ) {
   if (isResearchStoryWidget(widget)) {
+    const source = widget.sourceId ? ports.getSourceById(widget.sourceId) : undefined;
+    if (!hasResearchStoryIdentity(widget) || !canUseResearchStorySource(widget.sourceId, source))
+      throw new Error("Cannot export an unvalidated research story declaration.");
     return { storage: encodeStoryStorage(widget.storage?.researchStory) };
   }
   const documentState = documentTemplateState(widget);
@@ -133,7 +138,7 @@ export function formatDashboardDataForTemplate(
   const { widgetIdMap, widgetStateMap, widgetMinimizedMap, optionEndpoints } =
     dashboardData.widgets.reduce(
       (acc, widget) => {
-        acc.widgetIdMap[widget.id] = isResearchStoryWidget(widget) ? RESEARCH_STORY_ID : widget.widgetId;
+        acc.widgetIdMap[widget.id] = widget.widgetId;
         if (widget.isMinimized) {
           acc.widgetMinimizedMap[widget.id] = widget.originalH;
         }

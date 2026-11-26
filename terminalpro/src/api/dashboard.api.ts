@@ -2,6 +2,7 @@ import axiosRetry from "axios-retry";
 import { toast } from "sonner";
 import { type Items, useAppStore } from "~/lib/state/app";
 import { useAuthStore } from "~/lib/state/auth";
+import { useBackendConnectorStore } from "~/lib/state/backendConnector";
 import { useFeatureFlagsStore } from "~/lib/state/featureFlags";
 import { useSharedAppStore } from "~/lib/state/sharedApp";
 import { diffItemsWithRemote, dispatchSaveState, getValidItems } from "~/lib/utils";
@@ -15,7 +16,10 @@ axiosRetry(apiClient, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
 /* Post dashboard */
 export async function postDashboards(dashboardData: { [key: string]: any | "DELETE" }) {
   const { data } = await apiClient.post("/pro/dash/sync", {
-    items: documentDashboardState(dashboardData),
+    items: documentDashboardState(
+      dashboardData,
+      useBackendConnectorStore.getState().getApiSourceById,
+    ),
   });
   return data;
 }

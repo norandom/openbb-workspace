@@ -27,6 +27,26 @@
         {
           "type": "object",
           "properties": {
+            "queryPolicy": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            },
+            "financialContract": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            },
+            "refetchOnReconnect": {
+              "type": "boolean"
+            },
+            "refetchOnWindowFocus": {
+              "type": "boolean"
+            },
             "name": {
               "type": "string"
             },
@@ -130,6 +150,27 @@
               "properties": {
                 "dataKey": {
                   "type": "string"
+                },
+                "financialQueryPolicy": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "financialContract": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "scope": {
+                  "type": "string",
+                  "enum": [
+                    "listing",
+                    "market"
+                  ]
                 },
                 "wsRowIdColumn": {
                   "anyOf": [
@@ -1012,6 +1053,26 @@
         {
           "type": "object",
           "properties": {
+            "queryPolicy": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            },
+            "financialContract": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            },
+            "refetchOnReconnect": {
+              "type": "boolean"
+            },
+            "refetchOnWindowFocus": {
+              "type": "boolean"
+            },
             "name": {
               "type": "string"
             },
@@ -1115,6 +1176,27 @@
               "properties": {
                 "dataKey": {
                   "type": "string"
+                },
+                "financialQueryPolicy": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "financialContract": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "scope": {
+                  "type": "string",
+                  "enum": [
+                    "listing",
+                    "market"
+                  ]
                 },
                 "wsRowIdColumn": {
                   "anyOf": [
@@ -1990,6 +2072,63 @@
             "description",
             "type"
           ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "widgetId": {
+              "type": "string",
+              "const": "research_story"
+            },
+            "type": {
+              "type": "string",
+              "const": "research_story"
+            },
+            "name": {
+              "type": "string",
+              "const": "Commodities versus Technology"
+            },
+            "description": {
+              "type": "string",
+              "const": "Compare proxy price returns, realized volatility and the change in real yields."
+            },
+            "category": {
+              "type": "string",
+              "const": "Research"
+            },
+            "params": {
+              "type": "array",
+              "items": []
+            },
+            "gridData": {
+              "type": "object",
+              "properties": {
+                "w": {
+                  "type": "number",
+                  "const": 40
+                },
+                "h": {
+                  "type": "number",
+                  "const": 24
+                }
+              },
+              "required": [
+                "w",
+                "h"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "widgetId",
+            "type",
+            "name",
+            "description",
+            "category",
+            "params",
+            "gridData"
+          ],
+          "additionalProperties": false
         }
       ]
     },
@@ -1999,6 +2138,16 @@
         "paramName": {
           "type": "string",
           "minLength": 1
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "validationSchema": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
         },
         "label": {
           "type": "string"
@@ -2131,6 +2280,16 @@
           "type": "string",
           "minLength": 1
         },
+        "optional": {
+          "type": "boolean"
+        },
+        "validationSchema": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
         "label": {
           "type": "string"
         },
@@ -2226,6 +2385,16 @@
         "paramName": {
           "type": "string",
           "minLength": 1
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "validationSchema": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
         },
         "label": {
           "type": "string"
@@ -2337,6 +2506,16 @@
           "type": "string",
           "minLength": 1
         },
+        "optional": {
+          "type": "boolean"
+        },
+        "validationSchema": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
         "label": {
           "type": "string"
         },
@@ -2446,6 +2625,16 @@
         "paramName": {
           "type": "string",
           "minLength": 1
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "validationSchema": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
         },
         "label": {
           "type": "string"
@@ -2570,6 +2759,16 @@
           "type": "string",
           "minLength": 1
         },
+        "optional": {
+          "type": "boolean"
+        },
+        "validationSchema": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
         "label": {
           "type": "string"
         },
@@ -2688,6 +2887,16 @@
           "type": "string",
           "minLength": 1
         },
+        "optional": {
+          "type": "boolean"
+        },
+        "validationSchema": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
         "label": {
           "type": "string"
         },
@@ -2797,6 +3006,16 @@
         "paramName": {
           "type": "string",
           "minLength": 1
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "validationSchema": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
         },
         "label": {
           "type": "string"
@@ -2918,6 +3137,16 @@
         "paramName": {
           "type": "string"
         },
+        "optional": {
+          "type": "boolean"
+        },
+        "validationSchema": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
         "label": {
           "type": "string"
         },
@@ -3031,6 +3260,16 @@
               "paramName": {
                 "type": "string",
                 "minLength": 1
+              },
+              "optional": {
+                "type": "boolean"
+              },
+              "validationSchema": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
               },
               "label": {
                 "type": "string"
@@ -3306,6 +3545,8 @@
             "chart-highcharts",
             "chart-vegalite",
             "company_research",
+            "company_documents",
+            "research_story",
             "file_viewer",
             "html",
             "iframe",

@@ -1,5 +1,6 @@
 import cloneDeep from "lodash/cloneDeep";
 import type { $ZodIssue } from "zod/v4/core";
+import { isResearchStoryWidget, RESEARCH_STORY_ID } from "~/lib/modeling/storyState";
 import type { BackendTemplate } from "~/lib/state/backendConnector";
 import { backendTemplateSchema } from "~/lib/types/app";
 import { createParamDefs } from "~/lib/utils/widgetParams";
@@ -61,7 +62,8 @@ export function validateObject(object: object): null | string {
 
   for (const widgetId in widgets) {
     const widget = widgets[widgetId];
-    widget.params = createParamDefs(widget);
+    if (widgetId !== RESEARCH_STORY_ID && !isResearchStoryWidget(widget))
+      widget.params = createParamDefs(widget);
 
     const parsedWidget = specificationSchema.safeParse({ [widgetId]: widget });
     const issues = parsedWidget.error?.issues;

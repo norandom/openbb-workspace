@@ -8,6 +8,7 @@ export const WidgetVizTypes = [
   "chart-vegalite",
   "company_research",
   "company_documents",
+  "research_story",
   "file_viewer",
   "html",
   "iframe",

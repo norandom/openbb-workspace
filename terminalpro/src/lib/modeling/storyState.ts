@@ -7,6 +7,10 @@ export function isResearchStoryWidget(widget: { widgetId?: unknown; type?: unkno
   return widget.widgetId === RESEARCH_STORY_ID || widget.type === RESEARCH_STORY_ID;
 }
 
+export function hasResearchStoryIdentity(widget: { widgetId?: unknown; type?: unknown }) {
+  return widget.widgetId === RESEARCH_STORY_ID && widget.type === RESEARCH_STORY_ID;
+}
+
 const gridItemSchema = z.object({
   i: z.string(),
   x: z.number(),

@@ -141,7 +141,7 @@ function dashboard() {
     widgets: [
       {
         id: "story",
-        widgetId: "synthetic-secret",
+        widgetId: "research_story",
         type: "research_story",
         name: "synthetic-secret",
         description: "synthetic-secret",

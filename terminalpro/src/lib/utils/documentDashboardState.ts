@@ -3,10 +3,13 @@ import type { GridLayout, WidgetT } from "~/components/types";
 import {
   encodeStoryGridItem,
   encodeStoryStorage,
+  hasResearchStoryIdentity,
   isResearchStoryWidget,
   RESEARCH_STORY_ID,
   RESEARCH_STORY_NAME,
 } from "~/lib/modeling/storyState";
+import type { Source } from "~/lib/state/backendConnector";
+import { canUseResearchStorySource } from "./backendValidation/nativeWidget";
 import { documentChoices, documentDefinition } from "./documentTemplateState";
 import { financialWidgetPolicy } from "./financialQuery";
 
@@ -40,8 +43,13 @@ const policySchema = z.object({
     .nullish(),
 });
 
-function saveWidget(widget: WidgetT) {
+type ResolveSource = (sourceId: string) => Source | undefined;
+
+function saveWidget(widget: WidgetT, resolveSource: ResolveSource) {
   if (isResearchStoryWidget(widget)) {
+    const source = widget.sourceId ? resolveSource(widget.sourceId) : undefined;
+    if (!hasResearchStoryIdentity(widget) || !canUseResearchStorySource(widget.sourceId, source))
+      throw new Error("Cannot save an unvalidated research story declaration.");
     return {
       id: widget.id,
       widgetId: RESEARCH_STORY_ID,
@@ -130,7 +138,10 @@ function saveStoryGrid(grid: GridLayout | undefined, widgets: WidgetT[]) {
 }
 
 // Project scoped widgets before their configuration reaches the dashboard API.
-export function documentDashboardState(items: Record<string, any>) {
+export function documentDashboardState(
+  items: Record<string, any>,
+  resolveSource: ResolveSource = () => undefined,
+) {
   return Object.fromEntries(
     Object.entries(items).map(([key, item]) => {
       if (item === "DELETE" || !Array.isArray(item?.data?.widgets)) return [key, item];
@@ -143,7 +154,7 @@ export function documentDashboardState(items: Record<string, any>) {
             ...(item.data.gridLayout && {
               gridLayout: saveStoryGrid(item.data.gridLayout, item.data.widgets),
             }),
-            widgets: item.data.widgets.map(saveWidget),
+            widgets: item.data.widgets.map((widget) => saveWidget(widget, resolveSource)),
           },
         },
       ];
