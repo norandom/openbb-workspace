@@ -5,6 +5,12 @@ import { trimPrompts } from "~/components/General/AppDialog/schema";
 import { getSeriesType } from "~/components/General/Table/Chart/utils";
 import { getStateStorage } from "~/components/General/Table/hooks/useUpdateColumnState";
 import { isTruthy } from "~/components/General/Table/utils";
+import {
+  encodeStoryGridItem,
+  encodeStoryStorage,
+  isResearchStoryWidget,
+  RESEARCH_STORY_ID,
+} from "~/lib/modeling/storyState";
 import type { TabData } from "~/lib/state/app";
 import type {
   BackendTemplate,
@@ -27,6 +33,9 @@ function serializeWidgetState(
   ports: ExportTemplatePorts,
   optionEndpoints: Record<string, string>,
 ) {
+  if (isResearchStoryWidget(widget)) {
+    return { storage: encodeStoryStorage(widget.storage?.researchStory) };
+  }
   const documentState = documentTemplateState(widget);
   if (documentState) return documentState;
   const { getAppWidget, getSourceById } = ports;
@@ -124,7 +133,7 @@ export function formatDashboardDataForTemplate(
   const { widgetIdMap, widgetStateMap, widgetMinimizedMap, optionEndpoints } =
     dashboardData.widgets.reduce(
       (acc, widget) => {
-        acc.widgetIdMap[widget.id] = widget.widgetId;
+        acc.widgetIdMap[widget.id] = isResearchStoryWidget(widget) ? RESEARCH_STORY_ID : widget.widgetId;
         if (widget.isMinimized) {
           acc.widgetMinimizedMap[widget.id] = widget.originalH;
         }
@@ -181,13 +190,23 @@ export function formatDashboardDataForTemplate(
           .map((layout) => {
             const isMinimized = layout.i in widgetMinimizedMap;
             const originalH = widgetMinimizedMap[layout.i];
-            return {
+            const position = {
               i: widgetIdMap[layout.i] || layout.i,
               x: layout.x,
               y: layout.y,
               w: layout.w,
               h: isMinimized && originalH ? originalH : layout.h,
               ...(isMinimized && { minimized: true }),
+            };
+            if (position.i === RESEARCH_STORY_ID) {
+              return {
+                ...encodeStoryGridItem(position),
+                state: widgetStateMap[layout.i],
+                groups: [],
+              };
+            }
+            return {
+              ...position,
               ...(Object.keys(widgetStateMap[layout.i] || {}).length && {
                 state: widgetStateMap[layout.i],
               }),

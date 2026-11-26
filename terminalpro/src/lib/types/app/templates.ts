@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  createStoryState,
+  decodeStoryState,
+  encodeStoryGridItem,
+  RESEARCH_STORY_ID,
+} from "~/lib/modeling/storyState";
 import { ChartModelSchema, ChartViewOptionsSchema } from "./chart";
 import { DataSchema } from "./table";
 
@@ -92,7 +98,27 @@ const templateShapeDefinition = {
 
 export const backendTemplateSchema = z
   .object(templateShapeDefinition)
-  .transform((val) => {
+  .transform((val, context) => {
+    for (const [tabId, tab] of Object.entries(val.tabs)) {
+      for (const [index, layout] of tab.layout.entries()) {
+        if (layout.i !== RESEARCH_STORY_ID) continue;
+        const imported = layout.state?.storage?.researchStory;
+        const story = imported === undefined ? createStoryState() : decodeStoryState(imported);
+        if (!story) {
+          context.addIssue({
+            code: "custom",
+            path: ["tabs", tabId, "layout", index, "state", "storage", "researchStory"],
+            message: "Invalid research story configuration.",
+          });
+          continue;
+        }
+        tab.layout[index] = {
+          ...encodeStoryGridItem(layout),
+          groups: [],
+          state: { storage: { researchStory: story } },
+        };
+      }
+    }
     if (val.groups?.find((g) => g.widgetIds !== undefined)) {
       val.tabs = Object.fromEntries(
         Object.entries(val.tabs).map(([key, tab]) => [

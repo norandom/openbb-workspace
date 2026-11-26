@@ -1,5 +1,12 @@
 import { z } from "zod";
-import type { WidgetT } from "~/components/types";
+import type { GridLayout, WidgetT } from "~/components/types";
+import {
+  encodeStoryGridItem,
+  encodeStoryStorage,
+  isResearchStoryWidget,
+  RESEARCH_STORY_ID,
+  RESEARCH_STORY_NAME,
+} from "~/lib/modeling/storyState";
 import { documentChoices, documentDefinition } from "./documentTemplateState";
 import { financialWidgetPolicy } from "./financialQuery";
 
@@ -33,7 +40,22 @@ const policySchema = z.object({
     .nullish(),
 });
 
-function saveDocument(widget: WidgetT) {
+function saveWidget(widget: WidgetT) {
+  if (isResearchStoryWidget(widget)) {
+    return {
+      id: widget.id,
+      widgetId: RESEARCH_STORY_ID,
+      type: RESEARCH_STORY_ID,
+      name: RESEARCH_STORY_NAME,
+      innerTab: typeof widget.innerTab === "string" ? widget.innerTab : undefined,
+      isMinimized: widget.isMinimized === true,
+      originalH: Number.isFinite(widget.originalH) ? widget.originalH : undefined,
+      showTitle: typeof widget.showTitle === "boolean" ? widget.showTitle : undefined,
+      disableRetrievalForCopilot: true,
+      params: [],
+      storage: encodeStoryStorage(widget.storage?.researchStory),
+    };
+  }
   if (widget.type !== "company_documents") return widget;
   const definition = documentDefinition(widget);
   if (!definition) throw new Error("Cannot save an unknown document dataset.");
@@ -43,6 +65,7 @@ function saveDocument(widget: WidgetT) {
   url.password = "";
   url.search = "";
   url.hash = "";
+
   const identity = Object.fromEntries(
     [
       "id",
@@ -95,7 +118,18 @@ function saveDocument(widget: WidgetT) {
   };
 }
 
-// The ordinary dashboard API and template export share the same query allowlist.
+function saveStoryGrid(grid: GridLayout | undefined, widgets: WidgetT[]) {
+  const storyIds = new Set(widgets.filter(isResearchStoryWidget).map(({ id }) => id));
+  if (!grid || !storyIds.size) return grid;
+  return Object.fromEntries(
+    Object.entries(grid).map(([tabId, layouts]) => [
+      tabId,
+      layouts.map((layout) => storyIds.has(layout.i) ? encodeStoryGridItem(layout) : layout),
+    ]),
+  );
+}
+
+// Project scoped widgets before their configuration reaches the dashboard API.
 export function documentDashboardState(items: Record<string, any>) {
   return Object.fromEntries(
     Object.entries(items).map(([key, item]) => {
@@ -104,7 +138,13 @@ export function documentDashboardState(items: Record<string, any>) {
         key,
         {
           ...item,
-          data: { ...item.data, widgets: item.data.widgets.map(saveDocument) },
+          data: {
+            ...item.data,
+            ...(item.data.gridLayout && {
+              gridLayout: saveStoryGrid(item.data.gridLayout, item.data.widgets),
+            }),
+            widgets: item.data.widgets.map(saveWidget),
+          },
         },
       ];
     }),
