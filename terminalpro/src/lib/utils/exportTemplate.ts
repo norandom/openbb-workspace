@@ -201,6 +201,7 @@ export function formatDashboardDataForTemplate(
             if (position.i === RESEARCH_STORY_ID) {
               return {
                 ...encodeStoryGridItem(position),
+                i: RESEARCH_STORY_ID,
                 state: widgetStateMap[layout.i],
                 groups: [],
               };

@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { WidgetDataProcessors } from "~/components/Widgets/dataProcessors";
 import { BLOCKED_WIDGET_IDS } from "~/lib/constants";
+import type { RESEARCH_STORY_ID } from "~/lib/modeling/storyState";
 import type { WidgetsIds } from "~/lib/utils/widget";
 import type { WidgetT } from "../types";
 import { unsupportedChartReason } from "./communityCharts";
@@ -312,8 +313,8 @@ export const WidgetComponentMap = {
   ...NonAgGridComponents,
 };
 
-export type WidgetId<T = keyof typeof WidgetComponentMap | WidgetsIds> =
-  T extends keyof typeof WidgetComponentMap ? T : T extends WidgetsIds ? T : string;
+type KnownWidgetId = keyof typeof WidgetComponentMap | WidgetsIds | typeof RESEARCH_STORY_ID;
+export type WidgetId<T = KnownWidgetId> = T extends KnownWidgetId ? T : string;
 
 export type WidgetComponentMapT = {
   [key in WidgetId]: WidgetComponentName;
