@@ -53,7 +53,11 @@ const widgetContext = createContext<any>(null);
 vi.mock("~/components/Widget.context", () => ({
   useWidgetContext: () => useContext(widgetContext),
 }));
-vi.mock("~/lib/utils", () => ({
+vi.unmock("~/components/General/Table/Chart/hooks/useChartOptions");
+vi.unmock("~/components/General/Table/hooks");
+
+vi.mock("~/lib/utils", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("~/lib/utils")>()),
   cn: (...values: any[]) =>
     values.filter((v) => typeof v === "string").join(" "),
   formatNumber: String,
@@ -63,13 +67,6 @@ vi.mock("~/lib/utils", () => ({
   getEndpointParamGroupByIds: () => ({}),
   getEndpointParamName: () => "",
   triggerCustomEvent: vi.fn(),
-}));
-vi.mock("~/lib/constants", () => ({
-  CHART_TYPE_TO_SERIES_TYPE: {
-    groupedColumn: "bar",
-    stackedColumn: "bar",
-    line: "line",
-  },
 }));
 vi.mock("~/components/General/Table/AgGridUtils", () => ({
   getColumnDefs: () => fixture.processed.columnDefs,
@@ -173,6 +170,15 @@ vi.mock("~/components/General/Table/Chart/echarts/EChartsHost", () => ({
     return <div data-testid="chart-canvas" style={props.style} />;
   }),
 }));
+function gridColumn(definition: (typeof fixture.processed.columnDefs)[number]) {
+  return {
+    getColId: () => definition.field,
+    getColDef: () => definition,
+    isVisible: () => true,
+    isRowGroupActive: () => false,
+    isPivotActive: () => false,
+  };
+}
 const api = {
   isDestroyed: () => false,
   getGridOption: (key: string) =>
@@ -183,18 +189,14 @@ const api = {
     data: fixture.processed.rowData[fixture.visible[index]],
   }),
   getCellValue: vi.fn(({ rowNode, colKey }: any) => rowNode.data[colKey]),
-  getColumns: () => [],
+  getColumns: () => fixture.processed.columnDefs.map(gridColumn),
   getPinnedTopRowCount: () => 0,
   getPinnedBottomRowCount: () => 0,
-  getAllDisplayedColumns: () =>
-    fixture.processed.columnDefs.map((def) => ({
-      getColId: () => def.field,
-      isVisible: () => true,
-    })),
-  getColumn: (id: string) => ({
-    getColDef: () =>
-      fixture.processed.columnDefs.find((def) => def.field === id),
-  }),
+  getAllDisplayedColumns: () => fixture.processed.columnDefs.map(gridColumn),
+  getColumn: (id: string) => {
+    const definition = fixture.processed.columnDefs.find((def) => def.field === id);
+    return definition ? gridColumn(definition) : null;
+  },
   getColumnDef: () => undefined,
   updateGridOptions: vi.fn(),
   applyColumnState: vi.fn(),

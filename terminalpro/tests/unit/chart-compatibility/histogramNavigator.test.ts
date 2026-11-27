@@ -145,7 +145,9 @@ it("host zoom, pan, reset, legend, resize and refresh retain geometry and curren
     getOption: vi.fn(() => native), resize: vi.fn(), dispose: vi.fn(),
     getDataURL: vi.fn(() => "data:image/png;base64,current"),
     on: vi.fn((event: string, fn: () => void) => listeners.set(event, fn)),
-    off: vi.fn((event: string) => listeners.delete(event)),
+    off: vi.fn((event: string, fn: () => void) => {
+      if (listeners.get(event) === fn) listeners.delete(event);
+    }),
     dispatchAction: vi.fn((action: any) => { native = { ...native, dataZoom: (native.dataZoom as any[]).map(z => ({ ...z, start: action.start, end: action.end })) }; listeners.get("datazoom")?.(); }),
   };
   mocks.init.mockReturnValue(chart);
@@ -171,13 +173,25 @@ it("host zoom, pan, reset, legend, resize and refresh retain geometry and curren
   native = { ...native, legend: [{ selected: { amount: true } }] };
   listeners.get("legendselectchanged")!();
   expect(native.yAxis[0].show).toBe(true);
+  const registrations = chart.on.mock.calls.slice();
+  expect(registrations.map(([event]) => event).sort()).toEqual([
+    "click",
+    "datazoom",
+    "legendselectchanged",
+  ]);
   owner.resize();
-  expect(chart.on).toHaveBeenCalledTimes(2);
+  expect(chart.on.mock.calls).toEqual(registrations);
   expect(calculate.mock.calls.length).toBe(calculated);
   owner.update({ options, revision: 2, legendScope: "histogram-1", projectLegendSelection: legend });
+  expect(chart.on.mock.calls).toEqual(registrations);
+  expect(chart.off).not.toHaveBeenCalled();
   expect(() => owner.exportImage(undefined, 1)).toThrow();
   expect(owner.exportImage(undefined, 2)).toBe("data:image/png;base64,current");
   owner.dispose();
+  expect(chart.off).toHaveBeenCalledTimes(registrations.length);
+  for (const [event, listener] of registrations) {
+    expect(chart.off).toHaveBeenCalledWith(event, listener);
+  }
   expect(listeners.size).toBe(0);
   expect(chart.dispose).toHaveBeenCalledOnce();
 });

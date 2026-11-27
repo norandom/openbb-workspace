@@ -1,4 +1,5 @@
-// @vitest-environment node
+// @vitest-environment jsdom
+import "vitest-canvas-mock";
 import { describe, expect, it } from "vitest";
 import type { RadialMappingInput } from "../../../src/components/General/Table/Chart/compatibility/radialContracts";
 import { prepareRadialModel } from "../../../src/components/General/Table/Chart/echarts/radialLayout";

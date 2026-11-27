@@ -588,6 +588,7 @@ describe("Zod Schemas from app.ts", () => {
           "exportable",
           "external",
           "fileEndpoint",
+          "financialContract",
           "groupById",
           "groupId",
           "id",
@@ -595,8 +596,11 @@ describe("Zod Schemas from app.ts", () => {
           "inputType",
           "name",
           "params",
+          "queryPolicy",
           "raw",
           "refetchInterval",
+          "refetchOnReconnect",
+          "refetchOnWindowFocus",
           "runButton",
           "showTitle",
           "staleTime",
@@ -673,6 +677,7 @@ describe("Zod Schemas from app.ts", () => {
           "exportable",
           "external",
           "fileEndpoint",
+          "financialContract",
           "groupById",
           "groupId",
           "id",
@@ -681,8 +686,11 @@ describe("Zod Schemas from app.ts", () => {
           "isSharedWidget",
           "name",
           "params",
+          "queryPolicy",
           "raw",
           "refetchInterval",
+          "refetchOnReconnect",
+          "refetchOnWindowFocus",
           "runButton",
           "schemaName",
           "showTitle",
@@ -981,29 +989,31 @@ describe("Zod Schemas from app.ts", () => {
     });
 
     it("should validate cellRangeCols structure", () => {
-      const validCellRange = {
+      const unknownChartKey = {
         enabled: false,
         cellRangeCols: {
           line: ["series1", "series2"],
-          invalidChartType: ["data"], // This key itself uses ChartTypeSchema
+          invalidChartType: ["data"],
         },
       };
-      const result = ChartViewOptionsSchema.safeParse(validCellRange);
+      const result = ChartViewOptionsSchema.safeParse(unknownChartKey);
       expect(result.success).toBe(false);
       if (!result.success) {
-        const issue = result.error.issues.find((i) => i.code === "unrecognized_keys");
-        expect(issue).toBeDefined();
-        expect(issue?.path).toEqual(["cellRangeCols"]);
-        expect(issue?.keys).toEqual(["invalidChartType"]);
+        expect(result.error.issues).toContainEqual(
+          expect.objectContaining({
+            code: "invalid_key",
+            path: ["cellRangeCols", "invalidChartType"],
+          }),
+        );
       }
-      const validCellRange2 = {
+      const invalidColumnId = {
         enabled: false,
         cellRangeCols: {
           line: ["series1", "series2"],
           bar: [123], // Value of array should be string
         },
       };
-      const result2 = ChartViewOptionsSchema.safeParse(validCellRange2);
+      const result2 = ChartViewOptionsSchema.safeParse(invalidColumnId);
       expect(result2.success).toBe(false);
       if (!result2.success) {
         expect(
@@ -1155,6 +1165,7 @@ describe("Zod Schemas from app.ts", () => {
           "exportable",
           "external",
           "fileEndpoint",
+          "financialContract",
           "groupById",
           "groupId",
           "id",
@@ -1162,8 +1173,11 @@ describe("Zod Schemas from app.ts", () => {
           "inputType",
           "name",
           "params",
+          "queryPolicy",
           "raw",
           "refetchInterval",
+          "refetchOnReconnect",
+          "refetchOnWindowFocus",
           "runButton",
           "showTitle",
           "staleTime",
