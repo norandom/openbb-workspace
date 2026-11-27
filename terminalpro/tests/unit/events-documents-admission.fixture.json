@@ -1,0 +1,323 @@
+{
+  "equity_calendar_earnings_fmp_obb": {
+    "name": "Earnings",
+    "description": "Market-wide earnings calendar; both dates required, at most 7 days inclusive and 250 rows.",
+    "type": "table",
+    "widgetId": "equity_calendar_earnings_fmp_obb",
+    "endpoint": "/api/v1/equity/calendar/earnings",
+    "source": [
+      "FMP"
+    ],
+    "queryPolicy": {
+      "completeness": "unknown",
+      "dateWindow": {
+        "application": "upstream_window",
+        "endParameter": "end_date",
+        "inclusive": true,
+        "maxInclusiveDays": 7,
+        "mode": "required_pair",
+        "ordered": true,
+        "startParameter": "start_date"
+      },
+      "maxRequests": 1,
+      "maxReturnedRows": 250,
+      "maxSymbols": 0,
+      "parameters": {
+        "end_date": {
+          "format": "date",
+          "title": "End Date",
+          "type": "string"
+        },
+        "start_date": {
+          "format": "date",
+          "title": "Start Date",
+          "type": "string"
+        }
+      },
+      "preserveSourceOrder": true,
+      "rejectExplicitNull": true,
+      "required": [
+        "start_date",
+        "end_date"
+      ],
+      "returnedRowsLimitParameter": null,
+      "schemaVersion": 1
+    },
+    "data": {
+      "dataKey": "results",
+      "scope": "market"
+    },
+    "financialContract": {
+      "dataset": "CalendarEarnings",
+      "provider_policy": "explicit",
+      "providers": [
+        "fmp"
+      ],
+      "schema_version": 1,
+      "variants": {
+        "fmp": {}
+      }
+    }
+  },
+  "equity_fundamental_filings_fmp_obb": {
+    "name": "Filings",
+    "description": "Filing metadata for one listing. Both dates required, at most 365 days inclusive; page 0-99, limit 1-100. Linked documents are not retrieved.",
+    "type": "company_documents",
+    "widgetId": "equity_fundamental_filings_fmp_obb",
+    "endpoint": "/api/v1/equity/fundamental/filings",
+    "source": [
+      "FMP"
+    ],
+    "queryPolicy": {
+      "completeness": "unknown",
+      "dateWindow": {
+        "application": "upstream_window",
+        "endParameter": "end_date",
+        "inclusive": true,
+        "maxInclusiveDays": 365,
+        "mode": "required_pair",
+        "ordered": true,
+        "startParameter": "start_date"
+      },
+      "maxRequests": 1,
+      "maxReturnedRows": 100,
+      "maxSymbols": 1,
+      "parameters": {
+        "end_date": {
+          "format": "date",
+          "title": "End Date",
+          "type": "string"
+        },
+        "limit": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "page": {
+          "default": 0,
+          "maximum": 99,
+          "minimum": 0,
+          "title": "Page",
+          "type": "integer"
+        },
+        "start_date": {
+          "format": "date",
+          "title": "Start Date",
+          "type": "string"
+        },
+        "symbol": {
+          "maxLength": 50,
+          "minLength": 1,
+          "title": "Symbol",
+          "type": "string"
+        }
+      },
+      "preserveSourceOrder": true,
+      "rejectExplicitNull": true,
+      "required": [
+        "symbol",
+        "start_date",
+        "end_date"
+      ],
+      "returnedRowsLimitParameter": "limit",
+      "schemaVersion": 1
+    },
+    "data": {
+      "dataKey": "results",
+      "scope": "listing"
+    },
+    "financialContract": {
+      "dataset": "CompanyFilings",
+      "provider_policy": "explicit",
+      "providers": [
+        "fmp"
+      ],
+      "schema_version": 1,
+      "variants": {
+        "fmp": {}
+      }
+    }
+  },
+  "equity_fundamental_transcript_fmp_obb": {
+    "name": "Transcript",
+    "description": "One transcript for the exact listing, year 1900-2100 and quarter 1-4. Empty means unavailable; completeness is unknown.",
+    "type": "company_documents",
+    "widgetId": "equity_fundamental_transcript_fmp_obb",
+    "endpoint": "/api/v1/equity/fundamental/transcript",
+    "source": [
+      "FMP"
+    ],
+    "queryPolicy": {
+      "completeness": "unknown",
+      "dateWindow": null,
+      "maxRequests": 1,
+      "maxReturnedRows": 1,
+      "maxSymbols": 1,
+      "parameters": {
+        "quarter": {
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Quarter",
+          "type": "integer"
+        },
+        "symbol": {
+          "maxLength": 50,
+          "minLength": 1,
+          "title": "Symbol",
+          "type": "string"
+        },
+        "year": {
+          "maximum": 2100,
+          "minimum": 1900,
+          "title": "Year",
+          "type": "integer"
+        }
+      },
+      "preserveSourceOrder": true,
+      "rejectExplicitNull": true,
+      "required": [
+        "symbol",
+        "year",
+        "quarter"
+      ],
+      "returnedRowsLimitParameter": null,
+      "schemaVersion": 1
+    },
+    "data": {
+      "dataKey": "results",
+      "scope": "listing"
+    },
+    "financialContract": {
+      "dataset": "EarningsCallTranscript",
+      "provider_policy": "explicit",
+      "providers": [
+        "fmp"
+      ],
+      "schema_version": 1,
+      "variants": {
+        "fmp": {}
+      }
+    }
+  },
+  "news_company_fmp_obb": {
+    "name": "Company",
+    "description": "Stock news excerpts for one listing. Omit both dates or supply a pair spanning at most 31 days inclusive; page 0-99, limit 1-50. Completeness is unknown.",
+    "type": "company_documents",
+    "widgetId": "news_company_fmp_obb",
+    "endpoint": "/api/v1/news/company",
+    "source": [
+      "FMP"
+    ],
+    "queryPolicy": {
+      "completeness": "unknown",
+      "dateWindow": {
+        "application": "upstream_window",
+        "endParameter": "end_date",
+        "inclusive": true,
+        "maxInclusiveDays": 31,
+        "mode": "optional_pair",
+        "ordered": true,
+        "startParameter": "start_date"
+      },
+      "maxRequests": 1,
+      "maxReturnedRows": 50,
+      "maxSymbols": 1,
+      "parameters": {
+        "end_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Date"
+        },
+        "limit": {
+          "default": 10,
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "page": {
+          "default": 0,
+          "maximum": 99,
+          "minimum": 0,
+          "title": "Page",
+          "type": "integer"
+        },
+        "start_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Date"
+        },
+        "symbol": {
+          "maxLength": 50,
+          "minLength": 1,
+          "title": "Symbol",
+          "type": "string"
+        }
+      },
+      "preserveSourceOrder": true,
+      "rejectExplicitNull": true,
+      "required": [
+        "symbol"
+      ],
+      "returnedRowsLimitParameter": "limit",
+      "schemaVersion": 1
+    },
+    "data": {
+      "dataKey": "results",
+      "scope": "listing"
+    },
+    "financialContract": {
+      "dataset": "CompanyNews",
+      "provider_policy": "explicit",
+      "providers": [
+        "fmp"
+      ],
+      "schema_version": 1,
+      "variants": {
+        "fmp": {}
+      }
+    }
+  },
+  "research_story": {
+    "category": "Research",
+    "description": "Compare proxy price returns, realized volatility and the change in real yields.",
+    "gridData": {
+      "h": 24,
+      "w": 40
+    },
+    "name": "Commodities versus Technology",
+    "params": [],
+    "type": "research_story",
+    "widgetId": "research_story"
+  },
+  "events_documents_story": {
+    "category": "Research",
+    "description": "What earnings figures does FMP report for this company, and which filings, transcript or news items can I inspect?",
+    "gridData": {
+      "h": 24,
+      "w": 40
+    },
+    "name": "Events and Documents",
+    "params": [],
+    "type": "events_documents_story",
+    "widgetId": "events_documents_story"
+  }
+}

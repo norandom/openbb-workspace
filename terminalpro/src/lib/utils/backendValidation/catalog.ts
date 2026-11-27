@@ -1,11 +1,16 @@
 import cloneDeep from "lodash/cloneDeep";
 import type { $ZodIssue } from "zod/v4/core";
-import { isResearchStoryWidget, RESEARCH_STORY_ID } from "~/lib/modeling/storyState";
 import type { BackendTemplate } from "~/lib/state/backendConnector";
 import { backendTemplateSchema } from "~/lib/types/app";
 import { createParamDefs } from "~/lib/utils/widgetParams";
 import {
-  specificationSchema,
+  EVENTS_DOCUMENTS_STORY_ID,
+  hasEventsDocumentsBindings,
+  hasMatchingNativeStoryKey,
+  hasNativeStoryIdentity,
+} from "~/utils/nativeStorySchema";
+import {
+  widgetSchema,
   type UnrecognizedKeysReport,
   type WidgetType,
 } from "~/utils/zodForms";
@@ -30,7 +35,7 @@ export function normalizeBackendTemplate(template: unknown) {
 }
 
 const isValidWidget = (widget: any): widget is WidgetType => {
-  return specificationSchema.safeParse({ data_widget: widget }).success;
+  return !hasNativeStoryIdentity(widget) && widgetSchema.safeParse(widget).success;
 };
 
 /**
@@ -62,12 +67,24 @@ export function validateObject(object: object): null | string {
 
   for (const widgetId in widgets) {
     const widget = widgets[widgetId];
-    if (widgetId !== RESEARCH_STORY_ID && !isResearchStoryWidget(widget))
+    if (widget && hasMatchingNativeStoryKey(widgetId, widget) && !hasNativeStoryIdentity(widget)) {
       widget.params = createParamDefs(widget);
+    }
 
-    const parsedWidget = specificationSchema.safeParse({ [widgetId]: widget });
-    const issues = parsedWidget.error?.issues;
-    formatZodIssues(issues, errors, widget, widgetId);
+    const parsedWidget = widgetSchema.safeParse(widget);
+    if (!parsedWidget.success) {
+      const issues = parsedWidget.error.issues.map((issue) => ({
+        ...issue,
+        path: [widgetId, ...issue.path],
+      }));
+      formatZodIssues(issues, errors, widget, widgetId);
+    } else if (!hasMatchingNativeStoryKey(widgetId, parsedWidget.data)) {
+      errors.push(`[widgets.json]: Invalid native story catalog key ${widgetId}.`);
+    }
+  }
+
+  if (Object.hasOwn(widgets, EVENTS_DOCUMENTS_STORY_ID) && !hasEventsDocumentsBindings(widgets)) {
+    errors.push(`[widgets.json]: ${EVENTS_DOCUMENTS_STORY_ID} requires four valid FMP source bindings.`);
   }
 
   if (import.meta.env.DEV) console.log("Valid widgets.json");

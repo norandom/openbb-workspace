@@ -1,10 +1,5 @@
 import { z } from "zod";
 import {
-  isResearchStoryWidget,
-  RESEARCH_STORY_ID,
-  RESEARCH_STORY_NAME,
-} from "~/lib/modeling/storyState";
-import {
   ChartViewOptionsSchema,
   CronExpressionSchema,
   FormatterFnSchema,
@@ -14,6 +9,14 @@ import {
   type WidgetVizType,
   widgetTypesSchema,
 } from "~/lib/types/app";
+import {
+  eventsDocumentsDeclaration,
+  EVENTS_DOCUMENTS_STORY_ID,
+  hasMatchingNativeStoryKey,
+  hasNativeStoryIdentity,
+  researchStoryDeclaration,
+  validateNativeStoryBindings,
+} from "./nativeStorySchema";
 export const banned_keywords = [
   "add",
   "alter",
@@ -215,41 +218,34 @@ const widgetShapeDefinition = {
 };
 
 const endpointWidgetSchema = z.object(widgetShapeDefinition).refine(
-  (widget) => !isResearchStoryWidget(widget) && widget.defaultViz !== RESEARCH_STORY_ID,
-  "Research stories require the native declaration.",
+  (widget) => !hasNativeStoryIdentity(widget),
+  "Stories require the native declaration.",
 );
 const nativeWidgetSchema = z.object({
   ...widgetShapeDefinition,
   type: z.literal("company_research"),
   endpoint: z.string().optional(),
 }).refine(
-  (widget) => widget.widgetId !== RESEARCH_STORY_ID && widget.defaultViz !== RESEARCH_STORY_ID,
-  "Research stories require the native declaration.",
+  (widget) => !hasNativeStoryIdentity(widget),
+  "Stories require the native declaration.",
 );
-const storyDeclaration = z.strictObject({
-  widgetId: z.literal(RESEARCH_STORY_ID),
-  type: z.literal(RESEARCH_STORY_ID),
-  name: z.literal(RESEARCH_STORY_NAME),
-  description: z.literal("Compare proxy price returns, realized volatility and the change in real yields."),
-  category: z.literal("Research"),
-  // Draft 7 requires at least one schema in tuple-form items.
-  params: z.array(z.never()).max(0),
-  gridData: z.strictObject({ w: z.literal(40), h: z.literal(24) }),
-});
 type NativeStoryWidget = Omit<z.output<typeof nativeWidgetSchema>, "type"> & {
-  type: typeof RESEARCH_STORY_ID;
+  type: z.output<typeof researchStoryDeclaration>["type"] | typeof EVENTS_DOCUMENTS_STORY_ID;
 };
-const storyWidgetSchema = storyDeclaration.transform(
+const storyWidgetSchema = researchStoryDeclaration.transform(
+  (widget): NativeStoryWidget => ({ ...widget, params: [] }),
+);
+const eventsWidgetSchema = eventsDocumentsDeclaration.transform(
   (widget): NativeStoryWidget => ({ ...widget, params: [] }),
 );
 const widgetSchemaBase = z
-  .union([endpointWidgetSchema, nativeWidgetSchema, storyWidgetSchema])
+  .union([endpointWidgetSchema, nativeWidgetSchema, storyWidgetSchema, eventsWidgetSchema])
   .meta({ id: "Widget" });
 
 export const widgetSchema = z
   .preprocess(
     (raw: z.output<typeof widgetSchemaBase> & { defaultViz?: WidgetVizType }) => {
-      if (isResearchStoryWidget(raw) || raw.defaultViz === RESEARCH_STORY_ID) return raw;
+      if (!raw || hasNativeStoryIdentity(raw)) return raw;
       const { subCategory, defaultViz, type, ...rest } = raw;
       if ((rest.runButton && !rest.refetchInterval) || rest.refetchInterval === false) {
         rest.staleTime = false;
@@ -301,27 +297,26 @@ export type WidgetsType = {
     defaultViz?: WidgetVizType;
   };
 };
-export const specificationSchema = z.record(z.string(), widgetSchema).refine(
-  (widgets) => Object.entries(widgets).every(
-    ([key, widget]) => (key === RESEARCH_STORY_ID) === isResearchStoryWidget(widget),
-  ),
-  "Use the research_story catalog key for the native story declaration.",
-).meta({
-  properties: {
-    $id: {
-      type: "string",
-      format: "uri-reference",
+export const specificationSchema = z
+  .preprocess(
+    validateNativeStoryBindings,
+    z.record(z.string(), widgetSchema).refine(
+      (widgets) => Object.entries(widgets).every(([key, widget]) => hasMatchingNativeStoryKey(key, widget)),
+      "Use the exact catalog key for the native story declaration.",
+    ),
+  )
+  .meta({
+    properties: {
+      $id: {
+        type: "string",
+        format: "uri-reference",
+      },
+      $schema: {
+        type: "string",
+        format: "uri",
+      },
     },
-    $schema: {
-      type: "string",
-      format: "uri",
-    },
-  },
-});
-
-// console.warn(
-//   z.toJSONSchema(specificationSchema, { reused: "inline", target: "draft-7" }),
-// );
+  });
 
 // Derived from the Zod schema shape so it stays in sync automatically.
 export const KNOWN_WIDGET_KEYS = new Set(Object.keys(widgetShapeDefinition));

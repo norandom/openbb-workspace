@@ -1,5 +1,15 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "$id": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+    "$schema": {
+      "type": "string",
+      "format": "uri"
+    }
+  },
   "type": "object",
   "propertyNames": {
     "type": "string"
@@ -10,16 +20,6 @@
         "$ref": "#/definitions/Widget"
       }
     ]
-  },
-  "properties": {
-    "$id": {
-      "type": "string",
-      "format": "uri-reference"
-    },
-    "$schema": {
-      "type": "string",
-      "format": "uri"
-    }
   },
   "definitions": {
     "Widget": {
@@ -2076,22 +2076,6 @@
         {
           "type": "object",
           "properties": {
-            "widgetId": {
-              "type": "string",
-              "const": "research_story"
-            },
-            "type": {
-              "type": "string",
-              "const": "research_story"
-            },
-            "name": {
-              "type": "string",
-              "const": "Commodities versus Technology"
-            },
-            "description": {
-              "type": "string",
-              "const": "Compare proxy price returns, realized volatility and the change in real yields."
-            },
             "category": {
               "type": "string",
               "const": "Research"
@@ -2120,16 +2104,92 @@
                 "h"
               ],
               "additionalProperties": false
+            },
+            "widgetId": {
+              "type": "string",
+              "const": "research_story"
+            },
+            "type": {
+              "type": "string",
+              "const": "research_story"
+            },
+            "name": {
+              "type": "string",
+              "const": "Commodities versus Technology"
+            },
+            "description": {
+              "type": "string",
+              "const": "Compare proxy price returns, realized volatility and the change in real yields."
             }
           },
           "required": [
+            "category",
+            "params",
+            "gridData",
             "widgetId",
             "type",
             "name",
-            "description",
+            "description"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "string",
+              "const": "Research"
+            },
+            "params": {
+              "maxItems": 0,
+              "type": "array",
+              "items": {
+                "not": {}
+              }
+            },
+            "gridData": {
+              "type": "object",
+              "properties": {
+                "w": {
+                  "type": "number",
+                  "const": 40
+                },
+                "h": {
+                  "type": "number",
+                  "const": 24
+                }
+              },
+              "required": [
+                "w",
+                "h"
+              ],
+              "additionalProperties": false
+            },
+            "widgetId": {
+              "type": "string",
+              "const": "events_documents_story"
+            },
+            "type": {
+              "type": "string",
+              "const": "events_documents_story"
+            },
+            "name": {
+              "type": "string",
+              "const": "Events and Documents"
+            },
+            "description": {
+              "type": "string",
+              "const": "What earnings figures does FMP report for this company, and which filings, transcript or news items can I inspect?"
+            }
+          },
+          "required": [
             "category",
             "params",
-            "gridData"
+            "gridData",
+            "widgetId",
+            "type",
+            "name",
+            "description"
           ],
           "additionalProperties": false
         }
@@ -3550,6 +3610,7 @@
             "company_research",
             "company_documents",
             "research_story",
+            "events_documents_story",
             "file_viewer",
             "html",
             "iframe",

@@ -9,6 +9,7 @@ export const WidgetVizTypes = [
   "company_research",
   "company_documents",
   "research_story",
+  "events_documents_story",
   "file_viewer",
   "html",
   "iframe",
