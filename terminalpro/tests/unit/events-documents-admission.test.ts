@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, expect, it, vi } from "vitest";
 import type { WidgetId } from "~/components/Widgets";
 import fixture from "./events-documents-admission.fixture.json";
-import type { BackendTemplate, Source } from "~/lib/state/backendConnector";
+import { useBackendConnectorStore, type BackendTemplate, type Source } from "~/lib/state/backendConnector";
 import {
   canUseEventsDocumentsStorySource,
   filterRejectedStoryCatalog,
@@ -90,6 +90,52 @@ it("admits the generated catalog in fresh and cached discovery without probing a
   expect(filterRejectedStoryCatalog(source).widgets?.[storyId]).toEqual(generated[storyId]);
   expect(canUseEventsDocumentsStorySource(launchWidget, source)).toBe(true);
   expect(fetch).not.toHaveBeenCalled();
+});
+
+it("admits the catalog through manual Connect Backend with only its own runtime decorations", async () => {
+  const store = useBackendConnectorStore;
+  const originalSources = store.getState().apiSources;
+  const source = { ...base, endpointHeaders: [{ key: "X-Test", value: "connect" }] };
+  const fetch = vi.fn(async (url: URL | string) => new Response(JSON.stringify(
+    String(url).endsWith("widgets.json") ? widgets() :
+      String(url).endsWith("apps.json") ? [app] : [],
+  )));
+  vi.stubGlobal("fetch", fetch);
+
+  try {
+    const { errorMessage } = await store.getState().updateApiSource(source);
+    expect(errorMessage).toBeNull();
+    const connected = store.getState().getApiSourceById(source.id)!;
+    expect(connected.status).toBe("success");
+    const connectedWidgets = connected.widgets!;
+    const declaration = connectedWidgets[storyId];
+    expect(Object.hasOwn(declaration, "subCategory")).toBe(true);
+    expect(declaration).toHaveProperty("endpointHeaders", connected.endpointHeaders);
+    expect(canUseEventsDocumentsStorySource(launchWidget, connected)).toBe(true);
+    expect(canUseEventsDocumentsStorySource({ ...launchWidget, widgetId: "alias" }, connected)).toBe(false);
+
+    // A runtime projection must never make decorated raw or cached JSON admissible.
+    expect(validateObject(connectedWidgets)).toContain(storyId);
+    expect(canUseEventsDocumentsStorySource(launchWidget, cached(connectedWidgets))).toBe(false);
+
+    for (const patch of [
+      { widgetId: "alias" },
+      { subCategory: "Other" },
+      { endpointHeaders: null },
+      { endpointHeaders: [{ key: "X-Test", value: "connect" }] },
+      { endpoint: "/forged" },
+      { fileEndpoint: "" },
+      { wsEndpoint: "/forged" },
+      { defaultViz: "table" },
+    ] as const) {
+      expect(canUseEventsDocumentsStorySource(launchWidget, {
+        ...connected,
+        widgets: { ...connectedWidgets, [storyId]: { ...declaration, ...patch } },
+      })).toBe(false);
+    }
+  } finally {
+    store.setState({ apiSources: originalSources });
+  }
 });
 
 it("rejects story aliases and request overrides while preserving existing research stories", () => {

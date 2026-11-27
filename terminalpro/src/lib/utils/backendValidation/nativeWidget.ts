@@ -2,6 +2,8 @@ import { isResearchStoryWidget, RESEARCH_STORY_ID } from "~/lib/modeling/storySt
 import type { Source } from "~/lib/state/backendConnector";
 import {
   EVENTS_DOCUMENTS_STORY_ID,
+  eventsDocumentsDeclaration,
+  hasEventsDocumentsBindings,
   hasEventsDocumentsCatalog,
   isEventsDocumentsWidget,
 } from "~/utils/nativeStorySchema";
@@ -52,12 +54,28 @@ type EventsStoryRequest = {
   wsEndpoint?: unknown;
 };
 
+function hasInstalledEventsCatalog(source: Source) {
+  const widgets = source.widgets;
+  const declaration = widgets?.[EVENTS_DOCUMENTS_STORY_ID];
+  if (source.status !== "success" || !widgets || !declaration ||
+      !Object.hasOwn(declaration, "subCategory") ||
+      !Object.hasOwn(declaration, "endpointHeaders") || !("endpointHeaders" in declaration)) {
+    return hasEventsDocumentsCatalog(widgets);
+  }
+
+  // Manual Connect Backend copies these fields from the admitted widget and its source.
+  const { subCategory, endpointHeaders, ...catalogDeclaration } = declaration;
+  return subCategory === undefined && endpointHeaders === source.endpointHeaders &&
+    eventsDocumentsDeclaration.safeParse(catalogDeclaration).success &&
+    hasEventsDocumentsBindings(widgets);
+}
+
 export function canUseEventsDocumentsStorySource(widget: EventsStoryRequest, source?: Source) {
   if (!widget.sourceId || source?.id !== widget.sourceId) return false;
   return widget.widgetId === EVENTS_DOCUMENTS_STORY_ID &&
     widget.type === EVENTS_DOCUMENTS_STORY_ID && widget.defaultViz === undefined &&
     widget.endpoint === undefined && widget.fileEndpoint === undefined &&
-    widget.wsEndpoint === undefined && hasEventsDocumentsCatalog(source.widgets) &&
+    widget.wsEndpoint === undefined && hasInstalledEventsCatalog(source) &&
     (source.status === "success" ||
       (source.status === "error" && hasEventsDocumentsCatalog(source.vendorApp?.widgetsJsonCache)));
 }
