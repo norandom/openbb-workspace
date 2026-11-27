@@ -3,6 +3,7 @@ import { WidgetDataProcessors } from "~/components/Widgets/dataProcessors";
 import { BLOCKED_WIDGET_IDS } from "~/lib/constants";
 import { RESEARCH_STORY_ID } from "~/lib/modeling/storyState";
 import type { WidgetsIds } from "~/lib/utils/widget";
+import { EVENTS_DOCUMENTS_STORY_ID } from "~/utils/nativeStorySchema";
 import type { WidgetT } from "../types";
 import { unsupportedChartReason } from "./communityCharts";
 import UnsupportedRenderer, { communityWidget } from "./UnsupportedRenderer";
@@ -11,6 +12,7 @@ const CompanyDocumentsFC = lazy(
   () => import("./CompanyDocuments/CompanyDocumentsWidget"),
 );
 const ResearchStoryFC = lazy(() => import("./ResearchStory"));
+const EventsDocumentsFC = lazy(() => import("./EventsDocuments/Story"));
 const PeerResearchFC = lazy(() => import("./CompanyResearch/PeerResearch"));
 const AgChartFC = lazy(() => import("./AgChart"));
 const AgWebSocketsFC = lazy(() => import("../General/Table/AgWebSockets"));
@@ -135,6 +137,7 @@ export const AgGridComponents = {
 export const NonAgGridComponents = {
   company_research: "PeerResearch",
   [RESEARCH_STORY_ID]: "ResearchStory",
+  [EVENTS_DOCUMENTS_STORY_ID]: "EventsDocuments",
   company_documents: "CompanyDocuments",
   charting: "Charting",
   chart: "Chart",
@@ -195,6 +198,7 @@ export const NonAgGridComponents = {
 export const Widgets = {
   PeerResearch: PeerResearchFC,
   ResearchStory: ResearchStoryFC,
+  EventsDocuments: EventsDocumentsFC,
   CompanyDocuments: CompanyDocumentsFC,
   AgChart: communityWidget(AgChartFC, (widget) =>
     unsupportedChartReason(widget?.storage?.chart_params),
@@ -325,8 +329,15 @@ export type WidgetComponentMapT = {
 
 type DataProcessorT = (queryData: any, widget: WidgetT) => { rowData: any[] };
 
-const getDataProcessor = (widgetId: WidgetId): DataProcessorT | undefined => {
-  return WidgetDataProcessors?.[WidgetComponentMap?.[widgetId]];
+const componentName = (widgetId: string): WidgetComponentName | undefined =>
+  Object.hasOwn(WidgetComponentMap, widgetId)
+    ? WidgetComponentMap[widgetId as keyof typeof WidgetComponentMap]
+    : undefined;
+
+const getDataProcessor = (widgetId?: WidgetId): DataProcessorT | undefined => {
+  if (!widgetId) return;
+  const name = componentName(widgetId);
+  return name ? WidgetDataProcessors[name as keyof typeof WidgetDataProcessors] as DataProcessorT : undefined;
 };
 
 type QueryDataT = { results?: any[] };
@@ -340,10 +351,10 @@ export function getParsedWidgetData(queryData: QueryDataT, widget: WidgetT) {
 
 export const getWidgetComponent = (
   widgetId: WidgetId,
-): WidgetComponent<WidgetComponentName> => {
+): WidgetComponent<WidgetComponentName> | undefined => {
   if (BLOCKED_WIDGET_IDS.has(widgetId)) return;
-
-  return Widgets?.[WidgetComponentMap?.[widgetId]];
+  const name = componentName(widgetId);
+  return name ? Widgets[name] : undefined;
 };
 
 export const isAgGridWidget = (widgetId: WidgetId): boolean => {
