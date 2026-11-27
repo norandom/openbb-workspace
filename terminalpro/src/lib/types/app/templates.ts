@@ -1,10 +1,12 @@
 import { z } from "zod";
+import { projectEventsDocumentsLayout } from "~/lib/eventsDocuments/state";
 import {
   createStoryState,
   decodeStoryState,
   encodeStoryGridItem,
   RESEARCH_STORY_ID,
 } from "~/lib/modeling/storyState";
+import { EVENTS_DOCUMENTS_STORY_ID } from "~/utils/nativeStorySchema";
 import { ChartModelSchema, ChartViewOptionsSchema } from "./chart";
 import { DataSchema } from "./table";
 
@@ -97,7 +99,25 @@ const templateShapeDefinition = {
 };
 
 export const backendTemplateSchema = z
-  .object(templateShapeDefinition)
+  .object({
+    ...templateShapeDefinition,
+    tabs: z.record(z.string(), z.object({
+      id: z.string(),
+      name: z.string(),
+      layout: z.array(z.preprocess((raw, context) => {
+        if (!raw || typeof raw !== "object" || !("i" in raw) || raw.i !== EVENTS_DOCUMENTS_STORY_ID)
+          return raw;
+        try {
+          return projectEventsDocumentsLayout(raw as Record<string, unknown>);
+        } catch (issue) {
+          if (!(issue instanceof z.ZodError)) throw issue;
+          for (const { path, message } of issue.issues)
+            context.addIssue({ code: "custom", path, message });
+          return z.NEVER;
+        }
+      }, TemplateLayoutItemSchema)),
+    })),
+  })
   .transform((val, context) => {
     for (const [tabId, tab] of Object.entries(val.tabs)) {
       for (const [index, layout] of tab.layout.entries()) {
@@ -119,7 +139,8 @@ export const backendTemplateSchema = z
         };
       }
     }
-    if (val.groups?.find((g) => g.widgetIds !== undefined)) {
+    const configuredGroups = val.groups;
+    if (configuredGroups?.some(({ widgetIds }) => widgetIds !== undefined)) {
       val.tabs = Object.fromEntries(
         Object.entries(val.tabs).map(([key, tab]) => [
           key,
@@ -129,13 +150,20 @@ export const backendTemplateSchema = z
               ...layout,
               groups:
                 layout.groups ??
-                val.groups
-                  .filter((g) => g.widgetIds.includes(layout.i))
+                configuredGroups
+                  .filter((g) => g.widgetIds?.includes(layout.i))
                   .map((g) => g.name),
             })),
           },
         ]),
       );
+    }
+    const layouts = Object.values(val.tabs).flatMap((tab) => tab.layout);
+    if (layouts.some(({ i }) => i === EVENTS_DOCUMENTS_STORY_ID)) {
+      const companionGroups = new Set(layouts.flatMap(({ i, groups }) =>
+        i === EVENTS_DOCUMENTS_STORY_ID || i === "navigation_bar" ? [] : groups ?? [],
+      ));
+      val.groups = val.groups?.filter(({ name }) => companionGroups.has(name));
     }
     return val;
   });

@@ -7,6 +7,7 @@ import FeatureLock from "~/components/General/FeatureLock";
 import MoveTo from "~/components/LayoutAuth/DropdownSubs/MoveTo";
 import Tooltip from "~/components/Tooltip";
 import { inSnowflakeNativeApp } from "~/lib/constants";
+import { validStorySource } from "~/lib/eventsDocuments/access";
 import {
   hasResearchStoryIdentity,
   isResearchStoryWidget,
@@ -18,6 +19,7 @@ import { useShallowFeatureFlagsStore } from "~/lib/state/featureFlags";
 import { useShallowThemeStore } from "~/lib/state/theme";
 import { dispatchSaveState } from "~/lib/utils";
 import { canUseResearchStorySource } from "~/lib/utils/backendValidation/nativeWidget";
+import { isEventsDocumentsWidget } from "~/utils/nativeStorySchema";
 
 type DashboardPopupProps = {
   item: TreeItem<any> & { index: string };
@@ -66,9 +68,13 @@ export function DashboardPopup(props: DashboardPopupProps) {
   const hasAdvancedBackendWidgets =
     widgets?.some((widget) => widget.connectionType === "advanced-backend") ?? false;
   const stories = widgets?.filter(isResearchStoryWidget) ?? [];
+  const eventsStories = widgets?.filter(isEventsDocumentsWidget) ?? [];
   const canExportTemplate = useShallowBackendConnectorStore(
     ({ getApiSourceById }) =>
-      (hasAdvancedBackendWidgets || stories.length > 0) &&
+      (hasAdvancedBackendWidgets || stories.length > 0 || eventsStories.length > 0) &&
+      eventsStories.every((widget) => Boolean(validStorySource(
+        widget, widget.sourceId ? getApiSourceById(widget.sourceId) : undefined,
+      ))) &&
       stories.every((widget) => {
         const source = widget.sourceId ? getApiSourceById(widget.sourceId) : undefined;
         return (

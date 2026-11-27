@@ -5,6 +5,14 @@ import { trimPrompts } from "~/components/General/AppDialog/schema";
 import { getSeriesType } from "~/components/General/Table/Chart/utils";
 import { getStateStorage } from "~/components/General/Table/hooks/useUpdateColumnState";
 import { isTruthy } from "~/components/General/Table/utils";
+import { validStorySource } from "~/lib/eventsDocuments/access";
+import {
+  encodeEventsDocumentsGrid,
+  encodeEventsDocumentsStorage,
+  eventsDocumentsCompanions,
+  eventsDocumentsNavigationTabs,
+  widgetUsesLayoutGroup,
+} from "~/lib/eventsDocuments/state";
 import {
   encodeStoryGridItem,
   encodeStoryStorage,
@@ -18,6 +26,7 @@ import type {
   useBackendConnectorStore,
 } from "~/lib/state/backendConnector";
 import type { TabLayout } from "~/lib/templates";
+import { EVENTS_DOCUMENTS_STORY_ID, isEventsDocumentsWidget } from "~/utils/nativeStorySchema";
 import { canUseResearchStorySource } from "./backendValidation/nativeWidget";
 import { documentTemplateState } from "./documentTemplateState";
 import { researchTemplateState } from "./researchTemplateState";
@@ -35,6 +44,12 @@ function serializeWidgetState(
   ports: ExportTemplatePorts,
   optionEndpoints: Record<string, string>,
 ) {
+  if (isEventsDocumentsWidget(widget)) {
+    const source = validStorySource(widget, widget.sourceId ? ports.getSourceById(widget.sourceId) : undefined);
+    if (!source)
+      throw new Error("Cannot export an unvalidated Events and Documents declaration.");
+    return { storage: encodeEventsDocumentsStorage(widget.storage?.eventsDocuments, source) };
+  }
   if (isResearchStoryWidget(widget)) {
     const source = widget.sourceId ? ports.getSourceById(widget.sourceId) : undefined;
     if (!hasResearchStoryIdentity(widget) || !canUseResearchStorySource(widget, source))
@@ -135,10 +150,13 @@ export function formatDashboardDataForTemplate(
   formData: AppMetadataForm,
   ports: ExportTemplatePorts,
 ) {
+  const widgets = dashboardData.widgets ?? [];
+  const hasEventsDocuments = widgets.some(isEventsDocumentsWidget);
+  const companions = hasEventsDocuments ? eventsDocumentsCompanions(widgets) : widgets;
   const { widgetIdMap, widgetStateMap, widgetMinimizedMap, optionEndpoints } =
-    dashboardData.widgets.reduce(
+    widgets.reduce(
       (acc, widget) => {
-        acc.widgetIdMap[widget.id] = widget.widgetId;
+        acc.widgetIdMap[widget.id] = isEventsDocumentsWidget(widget) ? EVENTS_DOCUMENTS_STORY_ID : widget.widgetId;
         if (widget.isMinimized) {
           acc.widgetMinimizedMap[widget.id] = widget.originalH;
         }
@@ -151,16 +169,17 @@ export function formatDashboardDataForTemplate(
         return acc;
       },
       {
-        widgetIdMap: {},
-        widgetStateMap: {},
-        widgetMinimizedMap: {},
+        widgetIdMap: {} as Partial<Record<string, TabLayout["i"]>>,
+        widgetStateMap: {} as Record<string, ReturnType<typeof serializeWidgetState>>,
+        widgetMinimizedMap: {} as Partial<Record<string, number>>,
         optionEndpoints: {},
       },
     );
 
-  const navigationBarNames = dashboardData.widgets.reduce((acc, widget) => {
+  const navigationBarNames = widgets.reduce<Record<string, string>>((acc, widget) => {
     if (widget.widgetId === "navigation_bar") {
-      for (const tab of widget.storage.tabs) acc[tab.id] = tab.name;
+      const tabs = hasEventsDocuments ? eventsDocumentsNavigationTabs(widget) : widget.storage?.tabs ?? [];
+      for (const tab of tabs) acc[tab.id] = tab.name;
     }
     return acc;
   }, {});
@@ -172,15 +191,10 @@ export function formatDashboardDataForTemplate(
       paramName: optionEndpoints?.[group.groupById] ?? group.groupById,
     }),
     defaultValue: group.type === "ticker" ? group.value?.symbol : group.value,
-    widgetIds: dashboardData.widgets
-      .filter((widget) => {
-        if (group.type === "param" || group.type === "endpointParam")
-          return widget?.paramGroups?.[group?.groupById] === group.id;
-
-        return widget.groupId === group.id;
-      })
+    widgetIds: companions
+      .filter((widget) => widgetUsesLayoutGroup(widget, group))
       .map((widget) => widget.id),
-  }));
+  })).filter((group) => !hasEventsDocuments || group.widgetIds.length > 0);
 
   const tabs = Object.entries(dashboardData.gridLayout).reduce(
     (acc, [tabId, layouts]) => {
@@ -191,33 +205,39 @@ export function formatDashboardDataForTemplate(
         id: effectiveTabId,
         name: tabName,
         layout: layouts
-          .filter((layout) => widgetIdMap[layout.i] !== "navigation_bar")
+          .filter(({ i }) => {
+            if (hasEventsDocuments && (!i || !Object.hasOwn(widgetIdMap, i))) return false;
+            return !i || widgetIdMap[i] !== "navigation_bar";
+          })
           .map((layout) => {
-            const isMinimized = layout.i in widgetMinimizedMap;
-            const originalH = widgetMinimizedMap[layout.i];
-            const position = {
-              i: widgetIdMap[layout.i] || layout.i,
-              x: layout.x,
-              y: layout.y,
-              w: layout.w,
-              h: isMinimized && originalH ? originalH : layout.h,
+            const instanceId = layout.i!;
+            const isMinimized = instanceId in widgetMinimizedMap;
+            const originalH = widgetMinimizedMap[instanceId];
+            const position: TabLayout<{ minimized?: boolean }> = {
+              i: (widgetIdMap[instanceId] || instanceId) as TabLayout["i"],
+              x: layout.x!,
+              y: layout.y!,
+              w: layout.w!,
+              h: isMinimized && originalH ? originalH : layout.h!,
               ...(isMinimized && { minimized: true }),
             };
-            if (position.i === RESEARCH_STORY_ID) {
+            if (position.i === EVENTS_DOCUMENTS_STORY_ID || position.i === RESEARCH_STORY_ID) {
+              const encodeGrid = position.i === EVENTS_DOCUMENTS_STORY_ID
+                ? encodeEventsDocumentsGrid : encodeStoryGridItem;
               return {
-                ...encodeStoryGridItem(position),
-                i: RESEARCH_STORY_ID,
-                state: widgetStateMap[layout.i],
+                ...encodeGrid(position),
+                i: position.i,
+                state: widgetStateMap[instanceId],
                 groups: [],
               };
             }
             return {
               ...position,
-              ...(Object.keys(widgetStateMap[layout.i] || {}).length && {
-                state: widgetStateMap[layout.i],
+              ...(Object.keys(widgetStateMap[instanceId] || {}).length && {
+                state: widgetStateMap[instanceId],
               }),
               groups: groups
-                .filter((group) => group.widgetIds.includes(layout.i))
+                .filter((group) => group.widgetIds.includes(instanceId))
                 .map((group) => group.name),
             };
           }),

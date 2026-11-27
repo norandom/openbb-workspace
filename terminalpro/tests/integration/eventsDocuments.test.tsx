@@ -1,3 +1,12 @@
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { MemoryRouter } from "react-router-dom";
+import { apiClient } from "~/api/api";
+import { postDashboards, saveDashboards } from "~/api/dashboard.api";
+import { DashboardPopup } from "~/components/LayoutAuth/DropdownSubs/DashboardPopup";
+import { useTemplateExportStore } from "~/lib/state/exportTemplate";
+import { backendTemplateSchema } from "~/lib/types/app/templates";
+import { formatDashboardDataForTemplate } from "~/lib/utils/exportTemplate";
+import { createCustomTemplateTab } from "~/lib/utils/createTemplates";
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -44,6 +53,8 @@ afterEach(() => {
   restoreStores.forEach((restore) => restore());
   vi.unstubAllGlobals();
   chart.mockClear();
+  useTemplateExportStore.getState().setDashboardId(null);
+  vi.restoreAllMocks();
 });
 
 async function fromCatalog() {
@@ -315,4 +326,210 @@ it("requires a reset before acquiring malformed saved choices", async () => {
   await waitFor(() => expect(sends.map(({ slot }) => slot)).toEqual(slots));
   expect(sends[2].url.searchParams.get("year")).toBe("2025");
   expect(sends[2].url.searchParams.get("quarter")).toBe("1");
+});
+
+const injected = { token: "discard-token", providerRows: [{ eps_actual: 123456 }],
+  excerpt: "discard-excerpt", link: "https://discard.example", conclusion: "discard-conclusion" };
+const choices = {
+  version: 1, symbol: "MSFT",
+  calendar: { start_date: "2026-11-17", end_date: "2026-11-23" },
+  filings: { start_date: "2026-11-01", end_date: "2026-11-21", page: 1, limit: 9 },
+  transcript: { year: 2024, quarter: 2 },
+  news: { start_date: "2026-11-15", end_date: "2026-11-20", page: 2, limit: 5 },
+  charts: { eps: "point", revenue: "bar" },
+};
+const tainted = { ...choices, ...injected,
+  transcript: { ...choices.transcript, ...injected }, charts: { ...choices.charts, ...injected } };
+const geometry = { x: 5, y: 3, w: 30, h: 24 };
+const storyId = "events_documents_story";
+const orphanGroup = { id: "unbound", name: "Unbound", type: "param" as const,
+  color: "blue", groupById: "view", value: injected as unknown as string };
+
+function verifyProjection(value: unknown) {
+  const json = JSON.stringify(value);
+  expect(json).not.toContain("discard");
+  expect(json).not.toContain("123456");
+}
+
+async function verifyRestoration(context: WidgetContextType) {
+  const sends = mount(context);
+  await waitFor(() => expect(sends.map(({ slot }) => slot)).toEqual(slots));
+  expect(sends.map(({ url }) => Object.fromEntries(url.searchParams))).toEqual([
+    { ...choices.calendar, provider: "fmp" },
+    { ...choices.filings, page: "1", limit: "9", symbol: "MSFT", provider: "fmp" },
+    { year: "2024", quarter: "2", symbol: "MSFT", provider: "fmp" },
+    { ...choices.news, page: "2", limit: "5", symbol: "MSFT", provider: "fmp" },
+  ]);
+  expect(screen.getByRole("combobox", { name: "EPS chart display" })).toHaveValue("point");
+  expect(screen.getByRole("combobox", { name: "Revenue chart display" })).toHaveValue("bar");
+  await act(async () => {
+    sends[0].resolve(response(sends[0], calendarRows));
+    sends[1].resolve(response(sends[1], [
+      { symbol: "MSFT", filing_date: "2026-11-18", report_type: "10-Q", content_status: "metadata_only" },
+    ]));
+    sends[2].resolve(response(sends[2], [
+      { symbol: "MSFT", year: 2024, quarter: "Q2", date: "2024-07-31", content: "Fresh call", content_status: "completeness_unknown" },
+    ]));
+    sends[3].resolve(response(sends[3], [
+      { symbol: "MSFT", date: "2026-11-19T09:00:00Z", title: "Fresh headline", excerpt: "Fresh excerpt", content_status: "partial" },
+    ]));
+  });
+  const { region, status } = await conclusion();
+  expect(status).toHaveTextContent("Evidence available");
+  expect(region).toHaveTextContent("eps_actual · 5");
+  expect(region).toHaveTextContent("2026-11-18 · 10-Q");
+  expect(region).toHaveTextContent("2024-07-31 · Completeness unknown");
+  expect(region).toHaveTextContent("Fresh headline");
+  expect(sends).toHaveLength(4);
+}
+
+it("projects ordinary save and reopens four reads with restored choices and the export menu", async () => {
+  const { context, dashboard, source } = await fromCatalog();
+  const id = context.activeDashboardId!;
+  const initial = useAppStore.getState().items;
+  const widget = { ...context.widget, ...injected, storage: { eventsDocuments: tainted, ...injected } };
+  const data = { ...dashboard.data!, ...injected, widgets: [widget], groups: [orphanGroup], gridLayout: {
+    [widget.innerTab!]: [{ ...geometry, i: widget.id, ...injected }, { ...geometry, i: "orphan", ...injected }],
+  } };
+  useAppStore.setState({ items: { ...initial, [id]: { ...dashboard, ...injected, data } }, itemsStoredInCloud: {} });
+  const post = vi.spyOn(apiClient, "post").mockResolvedValue({ data: {} });
+  vi.spyOn(apiClient, "get").mockResolvedValue({ data: {} });
+  await saveDashboards();
+  expect(post).toHaveBeenCalledOnce();
+  expect(post.mock.calls[0][0]).toBe("/pro/dash/sync");
+  const wire = JSON.parse(JSON.stringify(post.mock.calls[0][1])).items;
+  verifyProjection(wire[id]);
+  expect(wire[id].data.widgets[0].storage).toEqual({ eventsDocuments: choices });
+  expect(wire[id].data.gridLayout[widget.innerTab!]).toEqual([{ i: widget.id, ...geometry }]);
+
+  useAuthStore.setState({ user: null });
+  useAppStore.setState({ items: {}, itemsStoredInCloud: {} });
+  useBackendConnectorStore.setState({ apiSources: [] });
+  useAuthStore.setState({ user: { uuid: "analyst", token: "fresh-synthetic" } } as never);
+  useBackendConnectorStore.setState({ apiSources: [structuredClone(source)] });
+  useAppStore.getState().updateRemoteItems(Object.fromEntries(Object.entries(wire).map(([key, content]) =>
+    [key, { content, is_shared: false, created_by: "analyst" }])) as never);
+  const reopened = useAppStore.getState().items[id].data?.widgets?.[0] as WidgetContextType["widget"];
+  await verifyRestoration({ ...context, widget: reopened, widgetFromJSON: reopened, widgetRef: { current: reopened } });
+
+  render(<MemoryRouter><DropdownMenu.Root open modal={false}><DropdownMenu.Content>
+    <DashboardPopup item={{ index: id, data: { name: data.name } }} depth={0} deleteItem={vi.fn()} />
+  </DropdownMenu.Content></DropdownMenu.Root></MemoryRouter>);
+  fireEvent.click(screen.getByRole("menuitem", { name: "Export apps.json" }));
+  expect(useTemplateExportStore.getState().dashboardId).toBe(id);
+  useTemplateExportStore.getState().setDashboardId(null);
+  act(() => useBackendConnectorStore.setState({ apiSources: [] }));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Export apps.json" }));
+  expect(useTemplateExportStore.getState().dashboardId).toBeNull();
+});
+
+it("projects export and imported layouts, rebinds the installed source and requires resetting invalid choices", async () => {
+  const { context, dashboard, source } = await fromCatalog();
+  const widget = { ...context.widget, ...injected, storage: { eventsDocuments: tainted, ...injected } };
+  const dashboardData = { ...dashboard.data!, ...injected, widgets: [widget], groups: [orphanGroup],
+    gridLayout: { overview: [{ i: widget.id, ...geometry, ...injected }, { i: "orphan", ...geometry, ...injected }] },
+  };
+  const template = formatDashboardDataForTemplate(dashboardData,
+  { name: "Saved Events", description: "Restored configuration", imageUrl: "", prompts: [] },
+  { getAppWidget: () => undefined, getSourceById: () => source });
+  verifyProjection(template);
+  expect(template.tabs.overview.layout[0]).toEqual({
+    i: storyId, ...geometry, groups: [], state: { storage: { eventsDocuments: choices } },
+  });
+  expect(template.tabs.overview.layout).toHaveLength(1);
+  const contaminated = (eventsDocuments: unknown) => ({
+    ...template, ...injected, groups: [{ ...orphanGroup, defaultValue: injected }],
+    tabs: { overview: { ...template.tabs.overview, ...injected, layout: [{
+      i: storyId, ...geometry, ...injected,
+      groups: [orphanGroup.name],
+      state: { ...injected, storage: { ...injected, eventsDocuments } },
+    }] } },
+  });
+  const importedSource = { ...source, id: "current-installation" };
+  useBackendConnectorStore.setState({ apiSources: [importedSource] });
+  verifyProjection(backendTemplateSchema.parse(contaminated(tainted)));
+  const invalidLayout = contaminated(tainted);
+  invalidLayout.tabs.overview.layout[0].w = 0;
+  expect(backendTemplateSchema.safeParse(invalidLayout).success).toBe(false);
+
+  async function reopen(imported: ReturnType<typeof contaminated>) {
+    const { items, addTab } = useAppStore.getState();
+    const id = await createCustomTemplateTab({
+      items, addTab, source: importedSource, template: imported as unknown as BackendTemplate, dashboardBehavior: "new",
+    });
+    const current = useAppStore.getState().items[id!].data?.widgets?.[0] as WidgetContextType["widget"];
+    expect(current.sourceId).toBe(importedSource.id);
+    verifyProjection(current.storage);
+    return { ...context, activeDashboardId: id, widget: current, widgetRef: { current }, widgetFromJSON: current };
+  }
+  await verifyRestoration(await reopen(contaminated(tainted)));
+  cleanup();
+  const sends = mount(await reopen(contaminated({ ...tainted, transcript: { quarter: 5, ...injected } })));
+  expect(await screen.findByRole("alert")).toHaveTextContent("saved Events and Documents choices are invalid");
+  expect(sends).toHaveLength(0);
+  await userEvent.click(screen.getByRole("button", { name: "Reset to catalog choices" }));
+  await waitFor(() => expect(sends.map(({ slot }) => slot)).toEqual(slots));
+});
+
+it("preserves mixed dashboard layout, navigation and groups bound to ordinary widgets", async () => {
+  const { context, dashboard, source } = await fromCatalog();
+  const id = context.activeDashboardId!;
+  const tab = "research";
+  const story = { ...context.widget, innerTab: tab, paramGroups: { view: orphanGroup.id } };
+  const other = {
+    ...context.widget, id: "ordinary", innerTab: tab, name: "Desk notes",
+    widgetId: "markdown" as const, type: "markdown" as const,
+    paramGroups: { view: "linked" }, storage: { text: "Ordinary widget notes" },
+    params: [],
+  };
+  const navigation = {
+    ...other, id: "navigation", widgetId: "navigation_bar" as const,
+    storage: { tabs: [{ id: tab, name: "Research view", ...injected }], ...injected },
+  };
+  const group = { ...orphanGroup, id: "linked", name: "View", value: "Daily" };
+  const otherLayout = { i: other.id, ...geometry, x: 0, static: true };
+  const data = { ...dashboard.data!, ...injected, widgets: [story, other, navigation],
+    groups: [group, orphanGroup, { ...orphanGroup, id: "unreferenced" }],
+    currentTab: tab, gridLayout: { [tab]: [
+      { i: story.id, ...geometry, ...injected }, otherLayout, { i: "orphan", ...geometry, ...injected },
+    ] },
+  };
+  const post = vi.spyOn(apiClient, "post").mockResolvedValue({ data: {} });
+  await postDashboards({ [id]: { ...dashboard, ...injected, data } });
+  const sent = post.mock.calls.findLast(([url, body]) =>
+    url === "/pro/dash/sync" && Boolean((body as { items?: Record<string, unknown> })?.items?.[id]),
+  );
+  expect(sent).toBeDefined();
+  const persisted = JSON.parse(JSON.stringify(sent![1])).items[id].data;
+  verifyProjection(persisted);
+  expect(persisted).toMatchObject({ currentTab: tab, groups: [group] });
+  expect(persisted.gridLayout[tab]).toEqual([{ i: story.id, ...geometry }, otherLayout]);
+  expect(persisted.widgets[1]).toEqual(other);
+  expect(persisted.widgets[2].storage).toEqual({ tabs: [{ id: tab, name: "Research view" }] });
+
+  const template = formatDashboardDataForTemplate(
+    data, { name: "Mixed", description: "Saved view", imageUrl: "", prompts: [] },
+    { getAppWidget: () => undefined, getSourceById: () => source },
+  );
+  verifyProjection(template);
+  expect(template.groups).toEqual([{ name: "View", paramName: "view", type: "param", defaultValue: "Daily" }]);
+  expect(template.tabs[tab].name).toBe("Research view");
+  expect(template.tabs[tab].layout).toMatchObject([
+    { i: storyId, groups: [] },
+    { i: "markdown", groups: ["View"], state: { storage: { text: "Ordinary widget notes" } } },
+  ]);
+  const imported = backendTemplateSchema.parse({
+    ...template,
+    groups: [
+      { ...orphanGroup, defaultValue: injected, widgetIds: [storyId] },
+      { ...template.groups?.[0], widgetIds: ["markdown"] },
+      { ...orphanGroup, name: "Unreferenced", defaultValue: injected },
+    ],
+    tabs: { [tab]: { ...template.tabs[tab], layout: template.tabs[tab].layout.map((layout) => ({
+      ...layout, groups: undefined,
+    })) } },
+  });
+  verifyProjection(imported);
+  expect(imported.groups?.map(({ name }) => name)).toEqual(["View"]);
+  expect(imported.tabs[tab].layout.map(({ groups }) => groups)).toEqual([[], ["View"]]);
 });
