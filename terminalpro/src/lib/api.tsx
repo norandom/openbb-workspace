@@ -227,6 +227,19 @@ export function fetchWithToken(
   });
 }
 
+export function currentSessionFetch() {
+  const token = useAuthStore.getState().user?.token;
+  if (!token) return;
+  const isCurrent = () => useAuthStore.getState().user?.token === token;
+  return {
+    isCurrent,
+    fetch: (url: URL, signal: AbortSignal) =>
+      isCurrent()
+        ? fetchWithToken(url, { cache: "no-store", redirect: "error" }, signal)
+        : Promise.reject(new Error("Workspace session changed.")),
+  };
+}
+
 export function useMultipleQueries<
   TQueryFnData = any | any[],
   TError = Error,
