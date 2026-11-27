@@ -2,6 +2,7 @@ import { EVENTS_DOCUMENTS_BINDINGS } from "~/utils/nativeStorySchema";
 import { currentSessionFetch } from "../api";
 import { parseFinancialEvidence, type FinancialEvidence, type FinancialMetadata } from "../companyResearch/financialEnvelope";
 import { validateFinancialQuery, type FinancialQueryPolicy } from "../utils/financialQuery";
+import { calendarFields, validateEvidence, type CalendarField } from "./evidence";
 import { normalizeListingSymbol, type Query, type Slot } from "./selection";
 
 export const eventsDocumentsBindings = EVENTS_DOCUMENTS_BINDINGS;
@@ -14,8 +15,7 @@ export type Scope<K extends Slot = Slot> = {
   route: string;
 };
 
-const calendarFields = ["eps_actual", "eps_consensus", "revenue_actual", "revenue_consensus"] as const;
-export type CalendarField = (typeof calendarFields)[number];
+export type { CalendarField } from "./evidence";
 type RowTokens = Partial<Record<CalendarField, string>>;
 export type CalendarTokens = Readonly<Record<number, RowTokens>>;
 
@@ -147,7 +147,7 @@ function matchesMetadata(scope: Scope, metadata: FinancialMetadata): boolean {
   const limit = slot === "calendar" ? queryPolicy.maxReturnedRows : parameters.limit;
   return bounds.requested_limit === limit && bounds.effective_limit === limit &&
     (bounds.truncated === true
-      ? slot === "calendar" && bounds.returned_count === limit
+      ? bounds.returned_count === limit && bounds.completeness === "partial"
       : bounds.completeness === "unknown");
 }
 
@@ -221,7 +221,8 @@ function successReceipt<K extends Slot>(scope: Scope<K>, body: string, validate?
 
   const knownEvidence: KnownEvidence = { ...evidence, metadata: evidence.metadata };
   const tokens = isCalendar ? calendarTokens(evidence.originalRows, tokensByRow) : undefined;
-  if ((isCalendar && tokens === undefined) || (validate && !validate(scope, knownEvidence, tokens))) {
+  if ((isCalendar && tokens === undefined) || !validateEvidence(scope, knownEvidence, tokens) ||
+      (validate && !validate(scope, knownEvidence, tokens))) {
     return failure(scope, 200, "invalid_evidence");
   }
   return {

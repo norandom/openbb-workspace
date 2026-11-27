@@ -110,6 +110,43 @@ describe("Events and Documents reader", () => {
     }
   });
 
+  it("rejects foreign document rows through the default reader", async () => {
+    const rows = JSON.stringify([{
+      symbol: "MSFT", date: "2026-01-02T09:00:00", title: "Synthetic title", content_status: "metadata_only",
+    }]);
+    const body = envelope(news, "news/stock", 10, rows, 1, { symbol: "AAPL" });
+    for (const extraValidation of [undefined, () => true]) {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(body));
+      const read = createEventsDocumentsReader(access(), extraValidation);
+      await expect(read(news, new AbortController().signal)).resolves.toMatchObject({
+        status: "failure", code: "invalid_evidence", httpStatus: 200,
+      });
+    }
+  });
+
+  it.each(["news", "filings"] as const)("keeps observed installed clipping for %s and rejects contradictory counts", async (slot) => {
+    const scope: Scope = slot === "news" ? news : {
+      generation: 1, provider: "fmp", dataset: "fmp_company_filings", route: "/data/api/v1/equity/fundamental/filings",
+      query: { slot, parameters: { provider: "fmp", symbol: "AAPL", start_date: "2026-01-01", end_date: "2026-11-18", page: 0, limit: 10 } },
+    };
+    const endpoint = slot === "news" ? "news/stock" : "sec-filings-search/symbol";
+    const { provider: _, ...query } = scope.query.parameters;
+    const read = createEventsDocumentsReader(access());
+    const signal = new AbortController().signal;
+    const row = slot === "news"
+      ? { symbol: "AAPL", date: "2026-01-02T09:00:00", title: "Synthetic title", content_status: "metadata_only" }
+      : { symbol: "AAPL", filing_date: "2026-01-02", content_status: "metadata_only" };
+    for (const [count, completeness, status] of [[10, "partial", "success"], [9, "partial", "failure"], [10, "unknown", "failure"]] as const) {
+      const rows = JSON.stringify(Array.from({ length: count }, () => row));
+      const body = envelope(scope, endpoint, 10, rows, count, query)
+        .replace('"truncated":null,"completeness":"unknown"', `"truncated":true,"completeness":"${completeness}"`);
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(body));
+      expect(await read(scope, signal)).toMatchObject(status === "success"
+        ? { status, evidence: { metadata: { value: { bounds: { truncated: true, completeness: "partial" } } } } }
+        : { status, code: "invalid_evidence" });
+    }
+  });
+
   it("discards malformed tuples before I/O and hands only bound evidence to downstream validation", async () => {
     const validate = vi.fn(() => false);
     const signal = new AbortController().signal;
@@ -124,7 +161,7 @@ describe("Events and Documents reader", () => {
   });
 
   it("preserves exact numeric tokens from each original ordinal, even on duplicate dates", async () => {
-    const rows = `[{"symbol":"MSFT"},{"symbol":"AAPL","report_date":"2026-11-19","eps_actual":0,"eps_consensus":1.25,"revenue_actual":9007199254740993,"revenue_consensus":null},{"symbol":"AAPL","report_date":"2026-11-19","eps_actual":-0,"revenue_actual":4.20e1}]`;
+    const rows = `[{"symbol":"MSFT","report_date":"2026-11-19"},{"symbol":"AAPL","report_date":"2026-11-19","eps_actual":0,"eps_consensus":1.25,"revenue_actual":9007199254740993,"revenue_consensus":null},{"symbol":"AAPL","report_date":"2026-11-19","eps_actual":-0,"revenue_actual":4.20e1}]`;
     const wire = envelope(calendar, "earnings-calendar", 250, rows, 3, { start_date: "2026-11-16", end_date: "2026-11-22" });
     vi.mocked(fetch).mockResolvedValueOnce(new Response(wire));
     const read = createEventsDocumentsReader(access());
