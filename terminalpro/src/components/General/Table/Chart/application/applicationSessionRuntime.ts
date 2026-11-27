@@ -32,6 +32,7 @@ import { observationSnapshotPolicy } from "./histogramCapture";
 import { isPieChartFamily } from "./pieSessionTypes";
 import { isRadarChartFamily } from "./radarSessionProjection";
 import { isRadialChartFamily } from "./radialSessionProjection";
+import { isRangeChartFamily } from "./rangeSessionTypes";
 import { sankeySetupKey, storedSankeySetup } from "./sankeySelection";
 import { advanceSessionStamp } from "./sessionState";
 import { DEFAULT_SETUP_CATEGORY } from "./setupTypes";
@@ -263,7 +264,7 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
   const appearanceKey = sessionAppearanceKey(inputs);
   const actionKey = sessionActionKey(storage);
   if (
-    (inputs.family === "rangeBar" || inputs.family === "rangeArea") &&
+    isRangeChartFamily(inputs.family) &&
     state.dataKey !== dataKey &&
     !preference &&
     baseline.model.categoryAxisType == null
@@ -272,7 +273,8 @@ export function synchronizeApplicationSession<F extends ApplicationChartFamily>(
   const dataChanged =
     observationSnapshotPolicy(state.sourceFamily ?? "") !==
       observationSnapshotPolicy(inputs.family) ||
-    state.sourceFamily !== inputs.family ||
+    (state.sourceFamily !== inputs.family &&
+      !(isRangeChartFamily(state.sourceFamily) && isRangeChartFamily(inputs.family))) ||
     (inputs.family === "sankey" &&
       state.sankeySetupKey !== sankeySetupKey(storage, inputs.address)) ||
     state.dataKey !== dataKey ||

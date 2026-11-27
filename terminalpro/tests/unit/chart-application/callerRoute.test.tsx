@@ -320,6 +320,27 @@ afterEach(() => {
 });
 describe("ordinary table joins the production session", () => {
   it.each([false, true])(
+    "reuses Grid observations when switching between Range gallery choices (file=%s)",
+    async (file) => {
+      fixture.fileMode = file;
+      render(<Owner file={file} family="rangeBar" enabled settingsOpen />);
+      await waitFor(() => expect(fixture.options?.series?.[0]?.id).toBe("income"));
+      const reads = api.getCellValue.mock.calls.length;
+      expect(reads).toBeGreaterThan(0);
+      for (const [label, family, seriesId] of [
+        ["Range Area", "rangeArea", '["income","visible"]'],
+        ["Range Bar", "rangeBar", "income"],
+      ]) {
+        fireEvent.click(screen.getByRole("button", { name: label }));
+        await waitFor(() => {
+          expect(fixture.owner.widget.storage.default.chartModel.chartType).toBe(family);
+          expect(fixture.options?.series?.[0]?.id).toBe(seriesId);
+        });
+        expect(api.getCellValue).toHaveBeenCalledTimes(reads);
+      }
+    },
+  );
+  it.each([false, true])(
     "joins the actual combo editor and retains custom assignments through ordinary gallery choices (file=%s)",
     async (file) => {
       fixture.fileMode = file;

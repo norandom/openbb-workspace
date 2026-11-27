@@ -16,6 +16,7 @@ import type {
 } from "./applicationSessionTypes";
 import type { ComboConcreteAxis } from "./comboAppearance";
 import type { ApplicationChartFamily } from "./comboSessionTypes";
+import { isRangeChartFamily } from "./rangeSessionTypes";
 import type { ResolvedRange, SessionResult } from "./types";
 
 function invalid(message: string): SessionResult<never> {
@@ -178,14 +179,18 @@ export function commitFamilyTransition(
     next = ranged.value;
   }
   const persisted = (next[key] as any).chartModel as ChartModel;
+  // Both Range renderers consume the same raw observations and category provenance.
+  const captureChanged =
+    gallery &&
+    baseline.chartType !== chartType &&
+    !(isRangeChartFamily(context.inputs.family) && isRangeChartFamily(chartType));
   return {
     status: "ready",
     stamp: context.local.stamp,
     value: {
       storage: next,
-      capture:
-        gallery && baseline.chartType !== chartType ? undefined : context.capture,
-      change: gallery && baseline.chartType !== chartType ? "data" : "render",
+      capture: captureChanged ? undefined : context.capture,
+      change: captureChanged ? "data" : "render",
       local: {
         ...rebuiltLocal(context, assignments, gallery),
         range,
