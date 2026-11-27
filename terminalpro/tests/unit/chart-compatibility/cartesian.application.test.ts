@@ -1,7 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { translateCartesian } from "../../../src/components/General/Table/Chart/echarts/cartesian";
-import { applicationStyle, mappingContext } from "./cartesian.application.fixtures";
+import {
+  applicationStyle,
+  mappingContext,
+  stubCanvasForFallbackMetrics,
+} from "./cartesian.application.fixtures";
 import { validSnapshotInput as snapshot, validStyle } from "./snapshot.fixtures";
+
+beforeAll(stubCanvasForFallbackMetrics);
 
 function mapped(
   family = "line",

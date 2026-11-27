@@ -100,14 +100,38 @@ describe("Community callers", () => {
     render(<Suspense fallback={null}><Renderer /></Suspense>);
     await waitFor(() => expect(screen.getByText("Standalone chart retained")).toBeTruthy());
   });
-  it.each(["ag_chart_from_table", "ssrm_table", "ssrm_advanced", "chart-highcharts"])("preserves saved legacy payload for unavailable renderer %s", (id) => {
-    fixture.widget.storage = { content: [{ date: "2025-12-31", revenue: 42 }], chartModel: { chartType: "line" }, arbitraryLegacyOptions: { retained: true } };
+  it.each([
+    ["ag_chart_from_table", "legacy charts or hierarchical/remote tables"],
+    ["ssrm_table", "legacy charts or hierarchical/remote tables"],
+    ["ssrm_advanced", "legacy charts or hierarchical/remote tables"],
+    ["chart-highcharts", "legacy Highcharts configurations"],
+  ])("preserves saved legacy payload for unavailable renderer %s", (id, reason) => {
+    fixture.widget.storage = {
+      content: [{ date: "2025-12-31", revenue: 42 }],
+      chartModel: { chartType: "line" },
+      rawDataView: true,
+      arbitraryLegacyOptions: { retained: true },
+    };
     const before = structuredClone(fixture.widget);
     const Renderer = getWidgetComponent(id as any);
     render(<Suspense fallback={null}><Renderer /></Suspense>);
-    expect(screen.getByRole("status").textContent).toContain("saved configuration is preserved");
+    expect(screen.getByRole("status").textContent).toBe(
+      `This view is unavailable: ${reason}. The saved configuration is preserved.`,
+    );
     expect(fixture.widget).toEqual(before);
     expect(fixture.updates).toEqual([]);
+  });
+  it("preserves imported formulas without mounting the Community grid", () => {
+    fixture.widget.storage = {
+      formulas: [{ id: "margin", name: "Margin", expression: [] }],
+    };
+    const before = structuredClone(fixture.widget);
+    render(<Table><AgGridProvider /></Table>);
+    expect(screen.getByRole("status").textContent).toContain("legacy table formulas");
+    expect(screen.queryByTestId("grid")).toBeNull();
+    expect(api.updateGridOptions).not.toHaveBeenCalled();
+    expect(fixture.updates).toEqual([]);
+    expect(fixture.widget).toEqual(before);
   });
   it("uses theme pagination then saved settings on mount, settings changes, refresh and reopen", async () => {
     const rows = Array.from({ length: 250 }, (_, index) => ({ currency: `C${index}`, revenue: index }));

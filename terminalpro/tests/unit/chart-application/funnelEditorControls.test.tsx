@@ -54,7 +54,7 @@ it.each([
   fireEvent.click(screen.getByRole("switch", { name: "Stage Labels" }));
   expect(screen.queryByRole("radio", { name: "Horizontal" })).toBeNull();
   expect(onEdit.mock.calls.map(([intent]) => intent)).toEqual([
-    { panel: "labels", edit: { field: "enabled", value: false } },
+    { panel: "labels", edit: { field: "enabled", value: true } },
     { panel: "stageLabels", edit: { field: "enabled", value: false } },
   ]);
   expect(!!screen.queryByRole("switch", { name: "Shadow" })).toBe(

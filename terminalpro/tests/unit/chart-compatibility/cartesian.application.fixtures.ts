@@ -1,9 +1,20 @@
+import { vi } from "vitest";
 import type { ResolvedApplicationAppearance } from "../../../src/components/General/Table/Chart/application/appearanceModel";
 import type {
   CartesianMappingContext,
   ResolvedCartesianStyle,
 } from "../../../src/components/General/Table/Chart/echarts/cartesianTypes";
 import { validStyle } from "./snapshot.fixtures";
+
+export function stubCanvasForFallbackMetrics() {
+  // Use ECharts' font-size-aware fallback metrics in both Vitest configurations.
+  const canvas = vi
+    .spyOn(HTMLCanvasElement.prototype, "getContext")
+    .mockReturnValue(null);
+  return () => {
+    canvas.mockRestore();
+  };
+}
 
 type Mutable<T> = {
   -readonly [K in keyof T]: T[K] extends object ? Mutable<T[K]> : T[K];

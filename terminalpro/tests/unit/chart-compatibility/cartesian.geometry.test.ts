@@ -1,8 +1,14 @@
 import { init } from "echarts";
-import { expect, it } from "vitest";
+import { beforeAll, expect, it } from "vitest";
 import { translateCartesian } from "../../../src/components/General/Table/Chart/echarts/cartesian";
-import { applicationStyle, mappingContext } from "./cartesian.application.fixtures";
+import {
+  applicationStyle,
+  mappingContext,
+  stubCanvasForFallbackMetrics,
+} from "./cartesian.application.fixtures";
 import { validSnapshotInput as snapshot } from "./snapshot.fixtures";
+
+beforeAll(stubCanvasForFallbackMetrics);
 
 function drawn(style = applicationStyle(), width = 800, input = snapshot) {
   const result = translateCartesian(input, "line", style, {

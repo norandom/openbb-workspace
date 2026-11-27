@@ -105,18 +105,22 @@ const renderApplyColumnState = ({
 const flushRestore = () => new Promise((resolve) => setTimeout(resolve, 30));
 
 describe("Community column state restoration", () => {
-  it("restores modern saved widths without automatic resizing", async () => {
+  it.each([false, true])("restores modern saved widths with chart view enabled=%s", async (chartEnabled) => {
     const api = createGridApi();
-    const applyColumnState = renderApplyColumnState({ widget: createWidget(false), previousChartEnabledRef: { current: false } });
+    const widget = createWidget(chartEnabled);
+    const before = structuredClone(widget);
+    const applyColumnState = renderApplyColumnState({ widget, previousChartEnabledRef: { current: false } });
     applyColumnState({ api } as any);
     await flushRestore();
     expect(api.setState).toHaveBeenCalledWith(expect.objectContaining({ columnSizing: { columnSizingModel: savedWidths } }));
     expect(api.sizeColumnsToFit).not.toHaveBeenCalled();
     expect(api.autoSizeAllColumns).not.toHaveBeenCalled();
+    expect(widget).toEqual(before);
   });
-  it("leaves an imported integrated chart untouched without grid calls", async () => {
+  it("leaves an imported Enterprise pivot untouched without grid calls", async () => {
     const api = createGridApi();
-    const widget = createWidget(true);
+    const baseWidget = createWidget(true);
+    const widget = { ...baseWidget, storage: { ...baseWidget.storage, isPivotMode: true } };
     const before = structuredClone(widget);
     const applyColumnState = renderApplyColumnState({ widget, previousChartEnabledRef: { current: false } });
     applyColumnState({ api } as any);

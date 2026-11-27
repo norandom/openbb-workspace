@@ -109,10 +109,14 @@ it.each([
   view.rerender(<ApplicationChartEditor {...input} activeTab="customize" />);
   expect(screen.queryByRole("combobox", { name: "Direction" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Series" }));
-  fireEvent.click(screen.getByRole("switch", { name: "Labels" }));
-  fireEvent.click(screen.getByRole("switch", { name: "Stage Labels" }));
+  const numericLabels = screen.getByRole("switch", { name: "Labels" });
+  const stageLabels = screen.getByRole("switch", { name: "Stage Labels" });
+  expect(numericLabels.getAttribute("aria-checked")).toBe("false");
+  expect(stageLabels.getAttribute("aria-checked")).toBe("true");
+  fireEvent.click(numericLabels);
+  fireEvent.click(stageLabels);
   expect(input.onIntent.mock.calls.slice(1).map(([intent]) => intent)).toEqual([
-    { panel: "labels", edit: { field: "enabled", value: false } },
+    { panel: "labels", edit: { field: "enabled", value: true } },
     { panel: "stageLabels", edit: { field: "enabled", value: false } },
   ]);
   expect(!!screen.queryByRole("switch", { name: "Drop-Off" })).toBe(

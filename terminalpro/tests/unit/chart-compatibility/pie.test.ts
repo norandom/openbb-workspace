@@ -1,8 +1,16 @@
+import type { LegendComponentOption } from "echarts";
 import { beforeEach, expect, it, vi } from "vitest";
 import { resolvePieAssignments } from "../../../src/components/General/Table/Chart/compatibility/pieAssignments";
 import { translatePie } from "../../../src/components/General/Table/Chart/echarts/pie";
 import { admitPie } from "../../../src/components/General/Table/Chart/echarts/pieAdmission";
 import { companions, key, mains, pieInput, pieOptions } from "./pie.fixtures";
+
+function legendLabel(options: { legend: LegendComponentOption[] }, itemKey: string) {
+  const item = options.legend.find((legend) =>
+    legend.data?.some((entry) => typeof entry === "object" && entry.name === itemKey),
+  );
+  return typeof item?.formatter === "function" ? item.formatter(itemKey) : undefined;
+}
 
 beforeEach(() =>
   vi
@@ -24,13 +32,16 @@ it("normalizes independent raw ring totals and retains duplicate labels with dis
       ),
     ),
   );
-  expect(options.legend.data.map((d: any) => d.name)).toEqual([
-    key("revenue", "r0"),
-    key("revenue", "r1"),
-    key("profit", "r0"),
-    key("profit", "r1"),
-  ]);
-  expect(options.legend.formatter(key("revenue", "r0"))).toBe(
+  expect(options.legend[0]).toMatchObject({
+    show: false,
+    data: [
+      key("revenue", "r0"),
+      key("revenue", "r1"),
+      key("profit", "r0"),
+      key("profit", "r1"),
+    ],
+  });
+  expect(legendLabel(options, key("revenue", "r0"))).toBe(
     "Revenue - legend:A",
   );
   expect(mains(options)[0].data[0].metadata).toMatchObject({
@@ -92,7 +103,7 @@ it("reprojects disabled observations independently without changing keys or raw 
       ),
     ),
   );
-  expect(options.legend.selected[key("revenue", "r0")]).toBe(false);
+  expect(options.legend[0].selected[key("revenue", "r0")]).toBe(false);
   expect(mains(options)[0].data[0].metadata.rawValue).toBe(3);
 });
 it("aggregates only when configured, preserving source IDs and rejecting overflow", () => {
@@ -240,7 +251,7 @@ it("captures display strings and metadata eagerly and survives later caller muta
   expect(options.tooltip.formatter({ data: datum })).toBe(
     "&lt;A&gt;<br/>Revenue: 3",
   );
-  expect(options.legend.formatter(datum.name)).toBe("<A>");
+  expect(legendLabel(options, datum.name)).toBe("<A>");
   expect(mains(options)[0].label.formatter({ data: datum })).toBe("label:A");
   expect(companions(options)[0].label.formatter({ data: datum })).toBe(
     "label:3",
@@ -298,16 +309,16 @@ it("does not prefix one-field donut, missing titles or first-field pie legends",
     chartType: "donut",
     valueColumns: [{ colId: "profit", selected: true }],
   }) as any;
-  expect(pieOptions(single).legend.formatter(key("profit", "r0"))).toBe(
+  expect(legendLabel(pieOptions(single), key("profit", "r0"))).toBe(
     "legend:A",
   );
   const input = pieInput();
   input.snapshot.columns[1].label = "";
-  expect(pieOptions(input).legend.formatter(key("revenue", "r0"))).toBe(
+  expect(legendLabel(pieOptions(input), key("revenue", "r0"))).toBe(
     "legend:A",
   );
   expect(
-    pieOptions(pieInput("pie")).legend.formatter(key("revenue", "r0")),
+    legendLabel(pieOptions(pieInput("pie")), key("revenue", "r0")),
   ).toBe("legend:A");
 });
 it("formats fiscal and numeric categories before adding their exact field title prefix", () => {
@@ -321,10 +332,10 @@ it("formats fiscal and numeric categories before adding their exact field title 
         ? "FY2025 Q1"
         : "wrong-input";
   const options = pieOptions(input);
-  expect(options.legend.formatter(key("revenue", "r0"))).toBe(
+  expect(legendLabel(options, key("revenue", "r0"))).toBe(
     "Revenue - FY2025 Q1",
   );
-  expect(options.legend.formatter(key("profit", "r1"))).toBe("Profit - FY2025");
+  expect(legendLabel(options, key("profit", "r1"))).toBe("Profit - FY2025");
   expect(options.tooltip.formatter({ data: mains(options)[0].data[0] })).toBe(
     "FY2025 Q1<br/>Revenue: 3",
   );

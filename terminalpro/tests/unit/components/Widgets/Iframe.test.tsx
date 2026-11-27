@@ -14,12 +14,12 @@ const iframeProtocolMock = vi.hoisted(() => ({
 }));
 
 const appStoreMock = vi.hoisted(() => ({
-  getWidgetGroups: vi.fn((..._args) => []),
+  getTabById: vi.fn(),
   updateGroup: vi.fn(),
 }));
 
 const sharedAppStoreMock = vi.hoisted(() => ({
-  getWidgetGroups: vi.fn((..._args) => []),
+  getDashboardById: vi.fn(),
 }));
 
 const queryParamsMock = vi.hoisted(() => ({
@@ -70,13 +70,7 @@ vi.mock("~/lib/state/app", () => ({
   useShallowAppStore: (selector: any) =>
     selector({
       items: {},
-      getWidgetGroups: vi.fn((...args) => {
-        const [tabId] = args;
-        if (tabId === "shared-tab") {
-          return sharedAppStoreMock.getWidgetGroups(...args);
-        }
-        return appStoreMock.getWidgetGroups(...args);
-      }),
+      getTabById: appStoreMock.getTabById,
       updateGroup: appStoreMock.updateGroup,
     }),
 }));
@@ -84,7 +78,7 @@ vi.mock("~/lib/state/app", () => ({
 vi.mock("~/lib/state/sharedApp", () => ({
   useShallowSharedAppStore: (selector: any) =>
     selector({
-      getWidgetGroups: sharedAppStoreMock.getWidgetGroups,
+      getDashboardById: sharedAppStoreMock.getDashboardById,
     }),
 }));
 
@@ -106,6 +100,29 @@ vi.mock("~/components/General/Table/NavBar/QueryParams", () => ({
   useWidgetParamsPositions: () => queryParamsMock,
 }));
 
+const groupedWidgetId = "browse-markets-instance";
+
+function selectionDashboard(value: string) {
+  return {
+    data: {
+      widgets: [
+        {
+          id: groupedWidgetId,
+          paramGroups: { "selection-options": "selection-group" },
+        },
+      ],
+      groups: [
+        {
+          id: "selection-group",
+          type: "endpointParam",
+          groupById: "selection-options",
+          value,
+        },
+      ],
+    },
+  };
+}
+
 describe("Iframe Widget", () => {
   beforeEach(() => {
     useThemeStore.setState({ theme: "dark" });
@@ -113,9 +130,9 @@ describe("Iframe Widget", () => {
     iframeProtocolMock.state.paramDefs = null;
     iframeProtocolMock.state.requestWidgetData = vi.fn();
     iframeProtocolMock.state.sendParamsUpdate = vi.fn();
-    appStoreMock.getWidgetGroups.mockReturnValue([]);
+    appStoreMock.getTabById.mockReset();
     appStoreMock.updateGroup.mockReset();
-    sharedAppStoreMock.getWidgetGroups.mockReturnValue([]);
+    sharedAppStoreMock.getDashboardById.mockReset();
     queryParamsMock.renderRow0Params = null;
     queryParamsMock.renderBelowNavbarRows = null;
   });
@@ -279,18 +296,12 @@ describe("Iframe Widget", () => {
   });
 
   it("uses grouped params in the iframe URL even when widget storage is stale", () => {
-    appStoreMock.getWidgetGroups.mockReturnValue([
-      {
-        id: "selection-group",
-        type: "endpointParam",
-        groupById: "selection-options",
-        value: "Sports",
-      },
-    ]);
+    appStoreMock.getTabById.mockReturnValue(selectionDashboard("Sports"));
 
     renderWidget(<Iframe />, {
       widgetOverrides: {
         id: "browse_markets",
+        uuid: groupedWidgetId,
         storage: {
           html: "https://example.com/browse",
           scale: 1.0,
@@ -316,18 +327,12 @@ describe("Iframe Widget", () => {
   });
 
   it("uses grouped params in the iframe URL when widget params are row-grouped", () => {
-    appStoreMock.getWidgetGroups.mockReturnValue([
-      {
-        id: "selection-group",
-        type: "endpointParam",
-        groupById: "selection-options",
-        value: "Sports",
-      },
-    ]);
+    appStoreMock.getTabById.mockReturnValue(selectionDashboard("Sports"));
 
     renderWidget(<Iframe />, {
       widgetOverrides: {
         id: "browse_markets",
+        uuid: groupedWidgetId,
         storage: {
           html: "https://example.com/browse",
           scale: 1.0,
@@ -353,20 +358,14 @@ describe("Iframe Widget", () => {
   });
 
   it("uses shared grouped params in the iframe URL", () => {
-    sharedAppStoreMock.getWidgetGroups.mockReturnValue([
-      {
-        id: "selection-group",
-        type: "endpointParam",
-        groupById: "selection-options",
-        value: "Crypto",
-      },
-    ]);
+    sharedAppStoreMock.getDashboardById.mockReturnValue(selectionDashboard("Crypto"));
 
     renderWidget(<Iframe />, {
       isShared: true,
       activeDashboardId: "shared-tab",
       widgetOverrides: {
         id: "browse_markets",
+        uuid: groupedWidgetId,
         storage: {
           html: "https://example.com/browse",
           scale: 1.0,

@@ -70,7 +70,7 @@ describe("controlled chart gallery", () => {
       />,
     );
     const items = chartTypeGalleryGroups.flatMap((group) => group.items);
-    expect(items).toHaveLength(34);
+    expect(items).toHaveLength(35);
     expect(screen.getAllByRole("button").map((button) => button.title)).toEqual(
       items.map((item) => item.name),
     );

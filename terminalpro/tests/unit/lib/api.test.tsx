@@ -5,15 +5,14 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { useJsonData } from "~/lib/api";
 import { useAuthStore } from "~/lib/state/auth";
 import { HttpResponse, http, server, setupMSW } from "../../mocks/msw-utils";
-import "../../mocks/runtimeConfig";
+import { mockConfig } from "../../mocks/runtimeConfig";
 
-// Matches mockConfig.urls.backend from tests/mocks/runtimeConfig
-const BACKEND_URL = "http://localhost:3000";
+const BACKEND_URL = "http://localhost:3000/api";
 const TEST_TOKEN = "test-token";
 const CSV_BODY = "a,b\n1,2";
 
-function fileHandler(origin: string) {
-  return http.get(`${origin}/pro/files/:fileName`, ({ request }) => {
+function fileHandler(backendUrl: string) {
+  return http.get(`${backendUrl}/pro/files/:fileName`, ({ request }) => {
     if (request.headers.get("Authorization") !== `Bearer ${TEST_TOKEN}`) {
       return HttpResponse.json(
         { detail: "Not authenticated", status: 401 },
@@ -35,14 +34,25 @@ describe("useJsonData bearer token on stored file URLs", () => {
   setupMSW();
 
   beforeEach(() => {
+    const previousBackend = mockConfig.urls.backend;
+    mockConfig.urls.backend = BACKEND_URL;
     useAuthStore.setState({ user: { token: TEST_TOKEN } } as never);
+    return () => {
+      mockConfig.urls.backend = previousBackend;
+    };
   });
 
   it.each([
     "https://payments.openbb.co",
     "https://payments.openbb.dev",
-  ])("authenticates legacy %s file URLs even when the configured backend differs", async (legacyOrigin) => {
-    server.use(fileHandler(legacyOrigin));
+  ])("keeps the Workspace session out of legacy %s file requests", async (legacyOrigin) => {
+    let authHeader: string | null = "unset";
+    server.use(
+      http.get(`${legacyOrigin}/pro/files/:fileName`, ({ request }) => {
+        authHeader = request.headers.get("Authorization");
+        return HttpResponse.text(CSV_BODY);
+      }),
+    );
 
     const { result } = renderHook(
       () =>
@@ -58,9 +68,10 @@ describe("useJsonData bearer token on stored file URLs", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toBe(CSV_BODY);
+    expect(authHeader).toBeNull();
   });
 
-  it("still authenticates URLs on the configured backend origin", async () => {
+  it("authenticates file URLs under the configured Workspace backend path", async () => {
     server.use(fileHandler(BACKEND_URL));
 
     const { result } = renderHook(

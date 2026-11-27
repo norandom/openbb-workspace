@@ -9,6 +9,8 @@ import {
 } from "../../../src/components/General/Table/Chart/hooks/useChartOptions";
 import { useAgExportFuncs } from "../../../src/components/General/Table/hooks/communityActions";
 
+vi.unmock("~/components/General/Table/Chart/hooks/useChartOptions");
+
 const context = vi.hoisted(() => ({
   widget: { storage: {} } as any,
   updateWidget: vi.fn(),

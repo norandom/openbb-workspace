@@ -5,14 +5,12 @@ import { mockConfig } from "../../../../mocks/runtimeConfig";
 import { renderWidget } from "../WidgetTestWrapper";
 
 const appStoreMock = vi.hoisted(() => ({
-  getWidgetGroups: vi.fn(() => []),
   getTabById: vi.fn(() => undefined),
   updateGroup: vi.fn(),
 }));
 
 const sharedAppStoreMock = vi.hoisted(() => ({
   getDashboardById: vi.fn(() => undefined),
-  getWidgetGroups: vi.fn(() => []),
 }));
 
 vi.mock("~/components/DraggableCard", () => ({
@@ -37,7 +35,6 @@ vi.mock("~/lib/api", () => ({
 vi.mock("~/lib/state/app", () => ({
   useShallowAppStore: (selector: any) =>
     selector({
-      getWidgetGroups: appStoreMock.getWidgetGroups,
       getTabById: appStoreMock.getTabById,
       updateGroup: appStoreMock.updateGroup,
     }),
@@ -47,7 +44,6 @@ vi.mock("~/lib/state/sharedApp", () => ({
   useShallowSharedAppStore: (selector: any) =>
     selector({
       getDashboardById: sharedAppStoreMock.getDashboardById,
-      getWidgetGroups: sharedAppStoreMock.getWidgetGroups,
     }),
 }));
 
@@ -171,11 +167,9 @@ describe("HtmlViewer - iframe params bridge", () => {
       error: null,
       dataUpdatedAt: Date.now(),
     });
-    appStoreMock.getWidgetGroups.mockReturnValue([]);
     appStoreMock.getTabById.mockReturnValue(undefined);
     appStoreMock.updateGroup.mockReset();
     sharedAppStoreMock.getDashboardById.mockReturnValue(undefined);
-    sharedAppStoreMock.getWidgetGroups.mockReturnValue([]);
   });
 
   it("includes storage params in the run-button html query key", async () => {
@@ -296,25 +290,39 @@ describe("HtmlViewer - iframe params bridge", () => {
   });
 
   it("updates matching dashboard param groups from nested widget params", () => {
-    appStoreMock.getWidgetGroups.mockReturnValue([
-      {
-        id: "sectors-group",
-        type: "param",
-        groupById: "sectors",
-        value: "",
+    appStoreMock.getTabById.mockReturnValue({
+      data: {
+        widgets: [
+          {
+            id: "market-filters",
+            paramGroups: {
+              sectors: "sectors-group",
+              uses_of_proceeds: "proceeds-group",
+            },
+          },
+        ],
+        groups: [
+          {
+            id: "sectors-group",
+            type: "param",
+            groupById: "sectors",
+            value: "",
+          },
+          {
+            id: "proceeds-group",
+            type: "param",
+            groupById: "uses_of_proceeds",
+            value: "",
+          },
+        ],
       },
-      {
-        id: "proceeds-group",
-        type: "param",
-        groupById: "uses_of_proceeds",
-        value: "",
-      },
-    ]);
+    });
 
     renderWidget(<HtmlViewer />, {
       activeDashboardId: "market-dashboard",
       widgetOverrides: {
         id: "market-filters",
+        uuid: "market-filters",
         endpoint: { url: "https://api.example.com/html" },
         storage: { params: {} },
         params: [{ paramName: "sectors" }, { paramName: "uses_of_proceeds" }],
