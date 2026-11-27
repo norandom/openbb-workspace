@@ -65,18 +65,18 @@ async function mount(replay = false) {
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 const empty = () => new Response(null, { status: 204 });
 
-function calendarResponse() {
+function calendarResponse(symbol = "AAPL") {
   const binding = eventsDocumentsBindings.calendar;
   const metadata = {
     schema_version: 1, provider: "fmp", dataset: binding.metadataDataset,
     source: { endpoint: binding.sourceEndpoint }, retrieved_at: "2026-11-27T09:00:00Z",
-    effective_query: choices.calendar,
-    bounds: { requested_limit: 250, effective_limit: 250, returned_count: 2, truncated: null, completeness: "unknown" },
+    effective_query: { ...choices.calendar, symbol },
+    bounds: { requested_limit: 250, effective_limit: 250, returned_count: 1, truncated: null, completeness: "unknown" },
   };
   const rows = [
     { symbol: "AAPL", report_date: "2026-11-19", eps_actual: 0 },
     { symbol: "MSFT", report_date: "2026-11-19", eps_actual: 2 },
-  ];
+  ].filter((row) => row.symbol === symbol);
   return new Response(JSON.stringify({
     results: rows, extra: { results_metadata: { __qopenbb_financial__: metadata } },
   }));
@@ -88,10 +88,10 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it.each([false, true])("filters the same market receipt for the current issuer (resolved first: %s)", async (resolved) => {
+it.each([false, true])("reacquires the calendar for a changed listing (resolved first: %s)", async (resolved) => {
   const { state, requests, sends } = await mount();
   const [market] = requests("calendar");
-  expect(market.url.searchParams.has("symbol")).toBe(false);
+  expect(market.url.searchParams.get("symbol")).toBe("AAPL");
   if (resolved) {
     market.resolve(calendarResponse());
     await flush();
@@ -100,18 +100,21 @@ it.each([false, true])("filters the same market receipt for the current issuer (
 
   state().controls.onApplySymbol("msft");
   expect(state().controls.choices.symbol).toBe("MSFT");
-  expect(state().calendar?.rows.some((row) => row.symbol === "AAPL")).toBe(resolved ? false : undefined);
-  expect(requests("calendar")).toHaveLength(1);
-  expect(market.signal?.aborted).toBe(false);
+  expect(state().calendar).toBeUndefined();
+  expect(requests("calendar")).toHaveLength(2);
+  expect(market.signal?.aborted).toBe(!resolved);
   expect(sends.slice(4).map((send) => [send.slot, send.url.searchParams.get("symbol")])).toEqual([
-    ["filings", "MSFT"], ["transcript", "MSFT"], ["news", "MSFT"],
+    ["calendar", "MSFT"], ["filings", "MSFT"], ["transcript", "MSFT"], ["news", "MSFT"],
   ]);
 
   if (!resolved) {
     market.resolve(calendarResponse());
     await flush();
   }
-  expect(state().calendar?.rows).toMatchObject([{ symbol: "MSFT", ordinal: 1 }]);
+  expect(state().calendar).toBeUndefined();
+  requests("calendar")[1].resolve(calendarResponse("MSFT"));
+  await flush();
+  expect(state().calendar?.rows).toMatchObject([{ symbol: "MSFT", ordinal: 0 }]);
 });
 
 it("coalesces choices, validates fields, and invalidates independently", async () => {
@@ -165,13 +168,13 @@ it("ignores delayed success and error through A/B/A and retries only the request
   await flush();
   expect(state().slots.news).toMatchObject({ status: "failure", code: "transport" });
   expect(JSON.stringify(state().slots.news)).not.toContain("untrusted transport detail");
-  expect(sends).toHaveLength(10);
+  expect(sends).toHaveLength(12);
   state().onRetry("news");
   expect(state().slots.news).toMatchObject({ status: "pending" });
   requests("news")[3].resolve(empty());
   await flush();
   expect(state().slots.news).toMatchObject({ status: "empty", scope: { query: { parameters: { symbol: "AAPL" } } } });
-  expect(sends).toHaveLength(11);
+  expect(sends).toHaveLength(13);
 });
 
 it("clears only the revoked slot, ignores its pending result and reacquires on restored access", async () => {

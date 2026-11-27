@@ -81,6 +81,11 @@ const optionalDate: { anyOf: { type: string; format?: string }[]; default: null 
   default: null,
 };
 const symbol = { type: "string", title: "Symbol", maxLength: 50, minLength: 1 };
+const optionalSymbol = {
+  anyOf: [{ type: "string", minLength: 1, maxLength: 50 }, { type: "null" }],
+  default: null,
+  title: "Symbol",
+};
 const page = { type: "integer", title: "Page", default: 0, minimum: 0, maximum: 99 };
 
 function limit(defaultValue: number, maximum: number) {
@@ -101,9 +106,9 @@ export const EVENTS_DOCUMENTS_BINDINGS = {
     queryPolicy: {
       ...queryPolicy,
       dateWindow: dateWindow("required_pair", 7),
-      maxSymbols: 0,
+      maxSymbols: 1,
       maxReturnedRows: 250,
-      parameters: dates,
+      parameters: { ...dates, symbol: optionalSymbol },
       required: ["start_date", "end_date"],
       returnedRowsLimitParameter: null,
     },

@@ -97,7 +97,7 @@ function boundParameters(scope: Scope): Record<string, string | number> | undefi
   if (!binding || scope.route !== binding.route || scope.dataset !== binding.dataset ||
       scope.provider !== "fmp" || !Number.isSafeInteger(scope.generation) || scope.generation < 1) return;
   const policy: FinancialQueryPolicy = { ...binding.queryPolicy, required: [...binding.queryPolicy.required] };
-  if (scope.query.parameters.provider !== "fmp") return;
+  if (scope.query.parameters.provider !== "fmp" || !scope.query.parameters.symbol) return;
   const parameters: Record<string, string | number> = { provider: "fmp" };
   for (const [name, value] of Object.entries(scope.query.parameters)) {
     if (name === "provider") continue;

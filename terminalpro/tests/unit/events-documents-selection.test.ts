@@ -21,7 +21,7 @@ const defaults: Choices = {
 const expectedQueries: { [K in Slot]: Query<K> } = {
   calendar: {
     slot: "calendar",
-    parameters: { provider: "fmp", start_date: "2026-11-16", end_date: "2026-11-22" },
+    parameters: { provider: "fmp", symbol: "AAPL", start_date: "2026-11-16", end_date: "2026-11-22" },
   },
   filings: {
     slot: "filings",
@@ -46,7 +46,7 @@ const symbolParameter = { type: "string", maxLength: 50 };
 const integer = (minimum: number, maximum: number) => ({ type: "integer", minimum, maximum });
 const policies: Record<Slot, FinancialQueryPolicy> = {
   calendar: {
-    parameters: dates,
+    parameters: { ...dates, symbol: symbolParameter },
     required: ["start_date", "end_date"],
     dateWindow: { mode: "required_pair", maxInclusiveDays: 7 },
   },
@@ -86,7 +86,6 @@ describe("Events and Documents selection", () => {
     if (result.valid) {
       const { query } = result;
       expect(query).toEqual(expectedQueries[slot]);
-      expect(Object.hasOwn(query.parameters, "symbol")).toBe(slot !== "calendar");
     }
   });
 
@@ -102,23 +101,17 @@ describe("Events and Documents selection", () => {
     else expect(issue).toEqual({ field: "symbol", bounds: expect.stringContaining("1–50") });
   });
 
-  it("applies a canonical exchange-suffixed listing to the document tuples only", () => {
+  it("applies a canonical exchange-suffixed listing to every input", () => {
     const choices = { ...defaults, symbol: "ry.to" };
     for (const slot of slots) {
-      const expected = slot === "calendar"
-        ? expectedQueries.calendar
-        : { slot, parameters: { ...expectedQueries[slot].parameters, symbol: "RY.TO" } };
+      const expected = { slot, parameters: { ...expectedQueries[slot].parameters, symbol: "RY.TO" } };
       expect(validateSelection(slot, choices, policy(slot))).toEqual({ valid: true, query: expected });
     }
   });
 
-  it("keeps the market window independently valid when the issuer choice is invalid", () => {
+  it("rejects every input when the issuer choice is invalid", () => {
     const choices = { ...defaults, symbol: "AAPL,MSFT" };
-    expect(validateSelection("calendar", choices, policy("calendar"))).toEqual({
-      valid: true,
-      query: expectedQueries.calendar,
-    });
-    for (const slot of ["filings", "transcript", "news"] as const) {
+    for (const slot of slots) {
       expect(validateSelection(slot, choices, policy(slot))).toMatchObject({
         valid: false,
         issue: { field: "symbol", bounds: expect.stringContaining("1–50") },

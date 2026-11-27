@@ -1,7 +1,7 @@
 {
   "equity_calendar_earnings_fmp_obb": {
     "name": "Earnings",
-    "description": "Market-wide earnings calendar; both dates required, at most 7 days inclusive and 250 rows.",
+    "description": "Earnings within seven inclusive calendar days. An optional listing filters the market response before the first 250 matching rows are returned.",
     "type": "table",
     "widgetId": "equity_calendar_earnings_fmp_obb",
     "endpoint": "/api/v1/equity/calendar/earnings",
@@ -21,7 +21,7 @@
       },
       "maxRequests": 1,
       "maxReturnedRows": 250,
-      "maxSymbols": 0,
+      "maxSymbols": 1,
       "parameters": {
         "end_date": {
           "format": "date",
@@ -32,6 +32,20 @@
           "format": "date",
           "title": "Start Date",
           "type": "string"
+        },
+        "symbol": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Symbol"
         }
       },
       "preserveSourceOrder": true,

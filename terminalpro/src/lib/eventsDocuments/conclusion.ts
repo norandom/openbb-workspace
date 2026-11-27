@@ -31,7 +31,7 @@ export type ConclusionInput = {
   source?: ConclusionSource;
   coverage?: "unknown";
   clipped: boolean;
-  marketCount?: number;
+  returnedCount?: number;
   calendarRows: readonly CalendarRow[];
   documents: readonly DocumentCitation[];
   failure?: Failure;
@@ -76,12 +76,11 @@ function calendarInput(snapshot: EventsDocumentsSnapshot): ConclusionInput {
   if (!("providerRetrievedAt" in state)) return unresolvedInput(state);
   const { symbol } = snapshot.controls.choices;
   const current = snapshot.calendar;
-  // The market receipt can outlive a listing selection. Reuse only a projection for both current inputs.
   const projection = current?.receipt === state && current.symbol === symbol ? current : projectCalendar(state, symbol);
   return {
     ...inputSummary(projection.reason ?? "available"),
     source: sourceFor(state), coverage: projection.coverage, clipped: projection.clipped,
-    marketCount: projection.marketCount, calendarRows: projection.rows,
+    returnedCount: projection.returnedCount, calendarRows: projection.rows,
   };
 }
 

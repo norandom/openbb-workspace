@@ -6,7 +6,7 @@ import type { BodyReceipt, KnownEvidence, Scope } from "../../src/lib/eventsDocu
 
 const retrieved = "2026-11-27T09:00:00Z";
 const calendar: Scope<"calendar"> = {
-  query: { slot: "calendar", parameters: { provider: "fmp", start_date: "2026-11-16", end_date: "2026-11-22" } },
+  query: { slot: "calendar", parameters: { provider: "fmp", symbol: "AAPL", start_date: "2026-11-16", end_date: "2026-11-22" } },
   generation: 2, provider: "fmp", dataset: "fmp_calendar_earnings", route: "/data/api/v1/equity/calendar/earnings",
 };
 const transcript: Scope<"transcript"> = {
@@ -47,20 +47,18 @@ function calendarReceipt(rows: Record<string, unknown>[], tokens: BodyReceipt<Kn
 describe("Events and Documents evidence", () => {
   it("keeps duplicate report dates in source order and exposes exact source amounts and units", () => {
     const receipt = calendarReceipt([
-      { ...calendarRow, symbol: "MSFT" },
-      { ...calendarRow, eps_actual: 0, eps_currency: "EUR", revenue_actual: Number("9007199254740993"), revenue_consensus: null },
-      { ...calendarRow, symbol: "aapl" },
+      { ...calendarRow, symbol: "aApL", eps_actual: 0, eps_currency: "EUR", revenue_actual: Number("9007199254740993"), revenue_consensus: null },
       { ...calendarRow, eps_actual: 1.5 },
-    ], { 1: { eps_actual: "0", revenue_actual: "9007199254740993" }, 3: { eps_actual: "1.5" } });
+    ], { 0: { eps_actual: "0", revenue_actual: "9007199254740993" }, 1: { eps_actual: "1.5" } });
     expect(validateEvidence(calendar, receipt.evidence, receipt.tokens)).toBe(true);
     const result = projectCalendar(receipt, "AAPL");
-    expect(result).toMatchObject({ receipt, marketCount: 4, limit: 250, coverage: "unknown", reason: null });
-    expect(result.rows.map((row) => row.ordinal)).toEqual([1, 3]);
+    expect(result).toMatchObject({ receipt, returnedCount: 2, limit: 250, coverage: "unknown", reason: null });
+    expect(result.rows.map((row) => row.ordinal)).toEqual([0, 1]);
     expect(result.rows[0]).toMatchObject({
-      reportDate: "2026-11-19", lastUpdated: "2026-11-20", timezone: "unknown",
+      symbol: "AAPL", reportDate: "2026-11-19", lastUpdated: "2026-11-20", timezone: "unknown",
       fiscalPeriod: "unknown", confirmationStatus: "unknown",
       fields: {
-        eps_actual: { currency: "EUR", scale: null, unit: "currency_per_share", mark: { ordinal: 1, generation: 2, field: "eps_actual", plotValue: 0, exactText: "0" } },
+        eps_actual: { currency: "EUR", scale: null, unit: "currency_per_share", mark: { ordinal: 0, generation: 2, field: "eps_actual", plotValue: 0, exactText: "0" } },
         revenue_actual: { currency: "JPY", scale: 1000, unit: "currency", mark: { exactText: "9007199254740993" } },
         revenue_consensus: { currency: null, scale: null, unit: "currency", mark: null },
       },
@@ -71,17 +69,18 @@ describe("Events and Documents evidence", () => {
     const empty = { status: "empty", httpStatus: 204, scope: calendar, providerRetrievedAt: null, respondedAt: retrieved } as const;
     expect(projectCalendar(empty, "AAPL")).toMatchObject({ receipt: empty, reason: "empty_market", coverage: "unknown" });
     const bodyEmpty = calendarReceipt([]);
-    expect(projectCalendar(bodyEmpty, "AAPL")).toMatchObject({ receipt: bodyEmpty, reason: "empty_market" });
+    expect(projectCalendar(bodyEmpty, "AAPL")).toMatchObject({ receipt: bodyEmpty, reason: "no_issuer_match" });
     expect(projectCalendar(calendarReceipt([calendarRow]), "MSFT").reason).toBe("no_issuer_match");
     expect(projectCalendar(calendarReceipt([calendarRow]), "AAPL").reason).toBe("missing_figures");
     const full = Array.from({ length: 250 }, (_, ordinal) => ordinal === 249 ? { ...calendarRow, eps_actual: 0 } : { ...calendarRow, symbol: "MSFT" });
     for (const clipped of [true, null] as const) {
       const receipt = calendarReceipt(full, { 249: { eps_actual: "0" } }, clipped);
-      expect(projectCalendar(receipt, "AAPL")).toMatchObject({ clipped: clipped === true, coverage: "unknown", marketCount: 250, reason: null, rows: [{ ordinal: 249 }] });
+      expect(projectCalendar(receipt, "AAPL")).toMatchObject({ clipped: clipped === true, coverage: "unknown", returnedCount: 250, reason: null, rows: [{ ordinal: 249 }] });
     }
   });
 
   it.each([
+    [{ ...calendarRow, symbol: "MSFT" }, {}],
     [{ ...calendarRow, report_date: "2026-11-23" }, {}],
     [{ ...calendarRow, last_updated: "2026-02-30" }, {}],
     [{ ...calendarRow, eps_actual: 1 }, {}],

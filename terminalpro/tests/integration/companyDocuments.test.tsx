@@ -226,8 +226,9 @@ describe("public registered document host", () => {
       expect(calendar.data.scope).toBe("market");
       expect(calendar.refetchInterval).toBe(false);
       expect(
-        calendar.params.some((p) => p.paramName === "symbol" || p.type === "ticker"),
-      ).toBe(false);
+        calendar.params.some((p) => p.paramName === "symbol" && p.optional),
+      ).toBe(name === "earnings");
+      expect(calendar.params.some((p) => p.type === "ticker")).toBe(false);
     }
   });
   it.each([
@@ -423,6 +424,13 @@ describe("actual catalog bounded acquisition policies", () => {
     vi.useRealTimers();
     fireEvent.click(screen.getByRole("button", { name: "Probe retry" }));
     await waitFor(() => expect(calls).toHaveLength(2));
+  });
+  it("sends the optional earnings listing through normal table acquisition", async () => {
+    probe(widget(catalog.equity_calendar_earnings_fmp_obb, {
+      provider: "fmp", symbol: "RY.TO", start_date: "2026-01-01", end_date: "2026-01-07",
+    }));
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0].url.searchParams.get("symbol")).toBe("RY.TO");
   });
   it("blocks invalid calendar windows at the normal table acquisition boundary", async () => {
     const input = widget(catalog.equity_calendar_earnings_fmp_obb, {

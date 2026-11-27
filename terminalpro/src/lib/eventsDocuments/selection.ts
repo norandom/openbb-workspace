@@ -18,7 +18,7 @@ export type Choices = {
 };
 
 type RequestParameters = {
-  calendar: Choices["calendar"] & { symbol?: never };
+  calendar: Choices["calendar"] & { symbol: string };
   filings: Choices["filings"] & { symbol: string };
   transcript: Choices["transcript"] & { symbol: string };
   news: Choices["news"] & { symbol: string };
@@ -142,7 +142,7 @@ export function validateSelection<K extends Slot>(
   choices: Choices,
   policy: FinancialQueryPolicy,
 ): SelectionResult<K> {
-  const symbolIssue = slot === "calendar" ? undefined : validateListingSymbol(choices.symbol);
+  const symbolIssue = validateListingSymbol(choices.symbol);
   const bounds: Record<string, unknown> = choices[slot];
   const issue = symbolIssue ?? validateBounds(slot, bounds, policy);
   if (issue) return { valid: false, issue };
@@ -150,7 +150,7 @@ export function validateSelection<K extends Slot>(
   const fields = slotFields[slot].filter((field) => bounds[field] !== undefined);
   const parameters = {
     ...Object.fromEntries(fields.map((field) => [field, bounds[field]])),
-    ...(slot !== "calendar" && { symbol: normalizeListingSymbol(choices.symbol) }),
+    symbol: normalizeListingSymbol(choices.symbol),
     provider: "fmp",
   };
   return { valid: true, query: { slot, parameters } as Query<K> };

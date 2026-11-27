@@ -16,7 +16,7 @@ const conditions: Record<ConclusionInput["condition"], string> = {
   pending: "Request pending.",
   failure: "Acquisition failed.",
   empty_market: "The market calendar returned no rows.",
-  no_issuer_match: "No market rows match the selected listing.",
+  no_issuer_match: "FMP returned no calendar rows for the selected listing in this window.",
   missing_figures: "Matching rows have no reported figures.",
 };
 const contentLabels = {
@@ -62,7 +62,7 @@ function InputSummary({ input, slot }: { input: ConclusionInput; slot: Slot }) {
       {coverage && <p>Coverage beyond the returned slice is unknown.</p>}
       {calendarRows.length > 0 && <ul className="list-disc pl-5">
         {calendarRows.map((row) => (
-          <li key={row.ordinal}>Report date {row.reportDate} · Source row {row.ordinal + 1} · Receipt {row.generation}
+          <li key={row.ordinal}>Report date {row.reportDate} · Listing row {row.ordinal + 1} · Receipt {row.generation}
             <ul className="pl-4">
               {calendarFields.map((field) => (
                 <li key={field}>{field} · {row.fields[field].mark?.exactText ?? "Missing"}</li>

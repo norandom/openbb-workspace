@@ -3,7 +3,7 @@ type Parameter = {
   minimum?: number;
   maximum?: number;
   maxLength?: number;
-  anyOf?: { format?: string }[];
+  anyOf?: { type?: string; format?: string }[];
 };
 export type FinancialWidgetPolicy = {
   queryPolicy?: FinancialQueryPolicy & { maxRequests?: number };

@@ -24,7 +24,7 @@ const retrievedAt = "2026-11-22T11:58:52.123456Z";
 const reportDate = "2026-11-19";
 const lastUpdated = "2026-11-20T11:13:00.123456";
 const scope: Scope<"calendar"> = {
-  query: { slot: "calendar", parameters: { provider: "fmp", start_date: "2026-11-16", end_date: "2026-11-22" } },
+  query: { slot: "calendar", parameters: { provider: "fmp", symbol: "AAPL", start_date: "2026-11-16", end_date: "2026-11-22" } },
   provider: "fmp", dataset: "earnings_calendar_fmp", route: "equity/calendar/earnings", generation: 3,
 };
 const row = { symbol: "AAPL", report_date: reportDate, last_updated: lastUpdated };
@@ -73,7 +73,7 @@ describe("Events and Documents earnings calendar", () => {
     render(<Earnings {...props()} />);
     const region = screen.getByRole("region", { name: "FMP earnings calendar" });
     expect(region).toHaveTextContent(/2026-11-16.*2026-11-22/);
-    expect(region).toHaveTextContent(/Market rows returned.*3/);
+    expect(region).toHaveTextContent(/Listing rows returned.*3/);
     expect(region).toHaveTextContent(/Source-order cap.*250/);
     expect(region).toHaveTextContent(/Clipping observed/);
     expect(region).toHaveTextContent(retrievedAt);
@@ -104,7 +104,7 @@ describe("Events and Documents earnings calendar", () => {
     await user.keyboard("{Enter}");
     const detail = screen.getByRole("region", { name: /Actual revenue source/ });
     expect(detail).toHaveFocus();
-    expect(detail).toHaveTextContent(/Receipt generation.*3.*Source row ordinal.*1.*Source field.*revenue_actual.*Exact source value.*9007199254740993/);
+    expect(detail).toHaveTextContent(/Receipt generation.*3.*Listing result ordinal.*1.*Source field.*revenue_actual.*Exact source value.*9007199254740993/);
     expect(detail).toHaveTextContent(retrievedAt);
     await user.keyboard("{Escape}");
     expect(trigger).toHaveFocus();
@@ -167,15 +167,15 @@ describe("Events and Documents earnings calendar", () => {
     expect(screen.getByRole("status")).toHaveTextContent(/Empty market calendar/);
     expect(screen.getByText("Provider retrieval time unavailable")).toBeInTheDocument();
     expect(screen.getByText("Local response time")).toBeInTheDocument();
-    expect(screen.getByText("Wider market coverage unknown")).toBeInTheDocument();
+    expect(screen.getByText("Provider coverage unknown")).toBeInTheDocument();
 
     rerender(<Earnings {...props(receipt([], false, {}))} />);
-    expect(screen.getByRole("status")).toHaveTextContent(/Empty market calendar/);
+    expect(screen.getByRole("status")).toHaveTextContent(/FMP returned no calendar rows for AAPL/);
     expect(screen.queryByText("Local response time")).not.toBeInTheDocument();
     expect(screen.getByText(retrievedAt)).toBeInTheDocument();
 
     rerender(<Earnings {...props(receipt([other], false))} />);
-    expect(screen.getByRole("status")).toHaveTextContent(/No returned market rows match AAPL/);
+    expect(screen.getByRole("status")).toHaveTextContent(/FMP returned no calendar rows for AAPL/);
     rerender(<Earnings {...props(receipt([row], false, {}))} />);
     expect(screen.getByRole("status")).toHaveTextContent(/Matching rows have no reported figures/);
     expect(screen.getAllByText("Missing")).toHaveLength(4);

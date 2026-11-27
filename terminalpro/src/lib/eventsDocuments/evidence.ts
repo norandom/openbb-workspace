@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { BodyReceipt, BodylessEmpty, KnownEvidence, ValidateEvidence } from "./reader";
-import type { Query } from "./selection";
+import { normalizeListingSymbol, type Query } from "./selection";
 
 export const calendarFields = ["eps_actual", "eps_consensus", "revenue_actual", "revenue_consensus"] as const;
 export type CalendarField = (typeof calendarFields)[number];
@@ -69,7 +69,8 @@ export const validateEvidence: ValidateEvidence = ({ query }, evidence, tokens) 
     case "calendar":
       return tokens !== undefined && rows.every((row, ordinal) => {
         const parsed = calendarRow.safeParse(row);
-        return parsed.success && withinDates(parsed.data.report_date, query.parameters) &&
+        return parsed.success && normalizeListingSymbol(parsed.data.symbol) === query.parameters.symbol &&
+          withinDates(parsed.data.report_date, query.parameters) &&
           calendarFields.every((field) => matchesToken(row[field], tokens[ordinal]?.[field]));
       });
     case "filings":

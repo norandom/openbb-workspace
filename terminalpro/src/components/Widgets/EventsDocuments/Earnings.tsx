@@ -45,7 +45,7 @@ const failureCopy: Record<FailureCode, string> = {
 
 const conditions = {
   empty_market: "Empty market calendar for this window.",
-  no_issuer_match: (symbol: string) => `No returned market rows match ${symbol}.`,
+  no_issuer_match: (symbol: string) => `FMP returned no calendar rows for ${symbol} in this window.`,
   missing_figures: "Matching rows have no reported figures.",
 };
 
@@ -57,7 +57,7 @@ function rowKey(row: CalendarRow) {
 }
 
 function rowTitle(row: CalendarRow) {
-  return `Report date ${row.reportDate} · market row ${row.ordinal + 1}`;
+  return `Report date ${row.reportDate} · listing row ${row.ordinal + 1}`;
 }
 
 function units({ unit, currency, scale }: CalendarRow["fields"][CalendarField]) {
@@ -207,9 +207,9 @@ function SourceDetail({ row, field, projection, onClose }: {
         <dt>Source</dt><dd>FMP · {endpoint}</dd>
         <dt>Listing</dt><dd>{row.symbol}</dd>
         <dt>Report date</dt><dd>{row.reportDate}</dd>
-        <dt>Effective market window</dt><dd>{start_date} to {end_date} inclusive</dd>
+        <dt>Effective calendar window</dt><dd>{start_date} to {end_date} inclusive</dd>
         <dt>Receipt generation</dt><dd>{row.generation}</dd>
-        <dt>Source row ordinal</dt><dd>{row.ordinal}</dd>
+        <dt>Listing result ordinal</dt><dd>{row.ordinal}</dd>
         <dt>Source field</dt><dd>{field}</dd>
         <dt>Exact source value</dt><dd className="break-all">{observation.mark?.exactText ?? "Missing"}</dd>
         <dt>Units</dt><dd>{units(observation)}</dd>
@@ -243,14 +243,14 @@ function CalendarScope({ state, projection, symbol }: Pick<EarningsProps, "state
   const dates = "scope" in state ? state.scope.query.parameters : undefined;
   return (
     <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3">
-      <dt>Listing filter</dt><dd>{symbol}</dd>
-      {dates && <><dt>Effective market window</dt><dd>{dates.start_date} to {dates.end_date} inclusive</dd></>}
-      <dt>Source-order cap</dt><dd>{projection?.limit ?? 250} rows</dd>
+      <dt>Selected listing</dt><dd>{symbol}</dd>
+      {dates && <><dt>Effective calendar window</dt><dd>{dates.start_date} to {dates.end_date} inclusive</dd></>}
+      <dt>Source-order cap</dt><dd>{projection?.limit ?? 250} matching rows</dd>
       {projection && (
         <>
-          <dt>Market rows returned</dt><dd>{projection.marketCount}</dd>
-          <dt>Market slice</dt><dd>{projection.clipped ? "Clipping observed" : "Clipping not observed"}</dd>
-          <dt>Coverage</dt><dd>Wider market coverage unknown</dd>
+          <dt>Listing rows returned</dt><dd>{projection.returnedCount}</dd>
+          <dt>Listing result</dt><dd>{projection.clipped ? "Clipping observed" : "Clipping not observed"}</dd>
+          <dt>Coverage</dt><dd>Provider coverage unknown</dd>
           <ReceiptTimes receipt={projection.receipt} />
         </>
       )}

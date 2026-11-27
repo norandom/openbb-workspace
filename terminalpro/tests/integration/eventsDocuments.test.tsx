@@ -131,7 +131,7 @@ function response(send: Send, results: Record<string, unknown>[]) {
 async function resolveInitial(sends: Send[]) {
   await waitFor(() => expect(sends.map(({ slot }) => slot)).toEqual(slots));
   await act(async () => {
-    sends[0].resolve(response(sends[0], calendarRows));
+    sends[0].resolve(response(sends[0], calendarRows.filter((row) => row.symbol === sends[0].url.searchParams.get("symbol"))));
     sends[1].resolve(response(sends[1], [
       { symbol: "AAPL", filing_date: "2026-11-18", report_type: "10-Q", content_status: "metadata_only" },
     ]));
@@ -167,7 +167,7 @@ it.each(["light", "dark"] as const)("launches current evidence from the generate
   expect(region).toHaveTextContent("content · 2025-01-30 · Completeness unknown");
   expect(region).toHaveTextContent("Synthetic news · Partial content");
   expect(chart.mock.calls[0]?.[0].options.textStyle?.color).toBe(theme === "dark" ? "#e1e6ef" : "#263044");
-  expect(sends[0].url.searchParams.has("symbol")).toBe(false);
+  expect(sends[0].url.searchParams.get("symbol")).toBe("AAPL");
   expect(new Headers(sends[0].request?.headers).has("Authorization")).toBe(false);
   expect(sends[0].request).toMatchObject({ cache: "no-store", redirect: "error" });
 
@@ -190,16 +190,19 @@ it.each(["light", "dark"] as const)("launches current evidence from the generate
   listing.focus();
   await user.keyboard("{Enter}");
   expect(sends.slice(4).map(({ slot, url }) => [slot, url.searchParams.get("symbol")])).toEqual([
-    ["filings", "MSFT"], ["transcript", "MSFT"], ["news", "MSFT"],
+    ["calendar", "MSFT"], ["filings", "MSFT"], ["transcript", "MSFT"], ["news", "MSFT"],
   ]);
+  expect(status).toHaveTextContent("Pending");
+  expect(region).not.toHaveTextContent("eps_actual · 0");
+  await act(async () => sends[4].resolve(response(sends[4], calendarRows.filter((row) => row.symbol === "MSFT"))));
   expect(status).toHaveTextContent("Partial evidence");
   expect(region).toHaveTextContent("eps_actual · 5");
   expect(region).not.toHaveTextContent("Synthetic news");
 
   await user.type(custom, "rds-a.l");
-  expect(sends).toHaveLength(7);
+  expect(sends).toHaveLength(8);
   await user.keyboard("{Enter}");
-  expect(sends.slice(7).map(({ url }) => url.searchParams.get("symbol"))).toEqual(Array(3).fill("RDS-A.L"));
+  expect(sends.slice(8).map(({ url }) => url.searchParams.get("symbol"))).toEqual(Array(4).fill("RDS-A.L"));
   expect(screen.getByText("RDS-A.L", { selector: "strong" })).toBeVisible();
 });
 
@@ -355,7 +358,7 @@ async function verifyRestoration(context: WidgetContextType) {
   const sends = mount(context);
   await waitFor(() => expect(sends.map(({ slot }) => slot)).toEqual(slots));
   expect(sends.map(({ url }) => Object.fromEntries(url.searchParams))).toEqual([
-    { ...choices.calendar, provider: "fmp" },
+    { ...choices.calendar, symbol: "MSFT", provider: "fmp" },
     { ...choices.filings, page: "1", limit: "9", symbol: "MSFT", provider: "fmp" },
     { year: "2024", quarter: "2", symbol: "MSFT", provider: "fmp" },
     { ...choices.news, page: "2", limit: "5", symbol: "MSFT", provider: "fmp" },
@@ -363,7 +366,7 @@ async function verifyRestoration(context: WidgetContextType) {
   expect(screen.getByRole("combobox", { name: "EPS chart display" })).toHaveValue("point");
   expect(screen.getByRole("combobox", { name: "Revenue chart display" })).toHaveValue("bar");
   await act(async () => {
-    sends[0].resolve(response(sends[0], calendarRows));
+    sends[0].resolve(response(sends[0], calendarRows.filter((row) => row.symbol === sends[0].url.searchParams.get("symbol"))));
     sends[1].resolve(response(sends[1], [
       { symbol: "MSFT", filing_date: "2026-11-18", report_type: "10-Q", content_status: "metadata_only" },
     ]));

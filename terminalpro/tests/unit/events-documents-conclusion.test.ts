@@ -19,7 +19,7 @@ function scope<K extends Slot>(query: Query<K>, generation = 2): Scope<K> {
 }
 
 const scopes = {
-  calendar: scope({ slot: "calendar", parameters: { provider: "fmp", ...choices.calendar } }),
+  calendar: scope({ slot: "calendar", parameters: { provider: "fmp", symbol: choices.symbol, ...choices.calendar } }),
   filings: scope({ slot: "filings", parameters: { provider: "fmp", symbol: choices.symbol, ...choices.filings } }),
   transcript: scope({ slot: "transcript", parameters: { provider: "fmp", symbol: choices.symbol, ...choices.transcript } }),
   news: scope({ slot: "news", parameters: { provider: "fmp", symbol: choices.symbol, ...choices.news } }),
@@ -72,7 +72,7 @@ describe("Events and Documents conclusion", () => {
     const result = deriveConclusion(snapshot);
     expect(result).toMatchObject({ status: "Evidence available", usableCount: 4 });
     const { calendar, filings, transcript, news } = result.inputs;
-    expect(calendar).toMatchObject({ clipped: true, coverage: "unknown", marketCount: 3,
+    expect(calendar).toMatchObject({ clipped: true, coverage: "unknown", returnedCount: 3,
       source: { scope: scopes.calendar, providerRetrievedAt: retrieved, bounds: { effective_limit: 250, returned_count: 3 } },
       calendarRows: [
         { ordinal: 1, generation: 2, reportDate: date, lastUpdated: "2026-11-20", fields: {

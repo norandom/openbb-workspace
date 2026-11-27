@@ -779,34 +779,11 @@
       "table": {
         "columnsDefs": [
           {
-            "cellDataType": "dateString",
-            "field": "report_date",
-            "formatterFn": null,
-            "headerName": "Report Date",
-            "headerTooltip": "The date of the earnings report."
-          },
-          {
-            "cellDataType": "text",
-            "field": "symbol",
-            "formatterFn": "none",
-            "headerName": "Symbol",
-            "headerTooltip": "Symbol representing the entity requested in the data.",
-            "pinned": "left",
-            "renderFn": null
-          },
-          {
-            "cellDataType": "text",
-            "field": "name",
-            "formatterFn": null,
-            "headerName": "Name",
-            "headerTooltip": "Name of the entity."
-          },
-          {
             "cellDataType": "number",
-            "field": "eps_previous",
+            "field": "eps_actual",
             "formatterFn": null,
-            "headerName": "EPS Previous",
-            "headerTooltip": "The earnings-per-share from the same previously reported period."
+            "headerName": "EPS Actual",
+            "headerTooltip": "The actual earnings per share announced."
           },
           {
             "cellDataType": "number",
@@ -817,17 +794,31 @@
           },
           {
             "cellDataType": "number",
-            "field": "eps_actual",
+            "field": "eps_previous",
             "formatterFn": null,
-            "headerName": "EPS Actual",
-            "headerTooltip": "The actual earnings per share announced."
+            "headerName": "EPS Previous",
+            "headerTooltip": "The earnings-per-share from the same previously reported period."
           },
           {
-            "cellDataType": "number",
-            "field": "revenue_consensus",
+            "cellDataType": "dateString",
+            "field": "last_updated",
             "formatterFn": null,
-            "headerName": "Revenue Consensus",
-            "headerTooltip": "The revenue forecast consensus."
+            "headerName": "Last Updated",
+            "headerTooltip": "The date the data was updated last."
+          },
+          {
+            "cellDataType": "text",
+            "field": "name",
+            "formatterFn": null,
+            "headerName": "Name",
+            "headerTooltip": "Name of the entity."
+          },
+          {
+            "cellDataType": "dateString",
+            "field": "report_date",
+            "formatterFn": null,
+            "headerName": "Report Date",
+            "headerTooltip": "The date of the earnings report."
           },
           {
             "cellDataType": "number",
@@ -837,18 +828,27 @@
             "headerTooltip": "The actual reported revenue."
           },
           {
-            "cellDataType": "dateString",
-            "field": "last_updated",
+            "cellDataType": "number",
+            "field": "revenue_consensus",
             "formatterFn": null,
-            "headerName": "Last Updated",
-            "headerTooltip": "The date the data was updated last."
+            "headerName": "Revenue Consensus",
+            "headerTooltip": "The revenue forecast consensus."
+          },
+          {
+            "cellDataType": "text",
+            "field": "symbol",
+            "formatterFn": "none",
+            "headerName": "Symbol",
+            "headerTooltip": "Symbol representing the entity requested in the data.",
+            "pinned": "left",
+            "renderFn": null
           }
         ],
         "enableAdvanced": true,
         "showAll": true
       }
     },
-    "description": "Market-wide earnings calendar; both dates required, at most 7 days inclusive and 250 rows.",
+    "description": "Earnings within seven inclusive calendar days. An optional listing filters the market response before the first 250 matching rows are returned.",
     "endpoint": "/api/v1/equity/calendar/earnings",
     "financialContract": {
       "dataset": "CalendarEarnings",
@@ -1064,7 +1064,7 @@
           },
           "procedural_bounds": {
             "max_calendar_years": null,
-            "max_symbols": null
+            "max_symbols": 1
           },
           "query_schema": {
             "$ref": "#/components/schemas/QOpenBBFinancial_43616c656e6461724561726e696e6773_666d70_7175657279"
@@ -1138,6 +1138,31 @@
           "type": "string"
         },
         "value": "2026-11-22"
+      },
+      {
+        "description": "Optional listing symbol. Omit for the market calendar.",
+        "label": "Symbol",
+        "multiSelect": false,
+        "multiple": false,
+        "optional": true,
+        "paramName": "symbol",
+        "show": true,
+        "type": "text",
+        "validationSchema": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Symbol"
+        },
+        "value": null
       }
     ],
     "queryPolicy": {
@@ -1153,7 +1178,7 @@
       },
       "maxRequests": 1,
       "maxReturnedRows": 250,
-      "maxSymbols": 0,
+      "maxSymbols": 1,
       "parameters": {
         "end_date": {
           "format": "date",
@@ -1164,6 +1189,20 @@
           "format": "date",
           "title": "Start Date",
           "type": "string"
+        },
+        "symbol": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Symbol"
         }
       },
       "preserveSourceOrder": true,

@@ -15,7 +15,7 @@ const news: Scope<"news"> = {
   generation: 1, provider: "fmp", dataset: "fmp_company_news", route: "/data/api/v1/news/company",
 };
 const calendar: Scope<"calendar"> = {
-  query: { slot: "calendar", parameters: { provider: "fmp", start_date: "2026-11-16", end_date: "2026-11-22" } },
+  query: { slot: "calendar", parameters: { provider: "fmp", symbol: "AAPL", start_date: "2026-11-16", end_date: "2026-11-22" } },
   generation: 1, provider: "fmp", dataset: "fmp_calendar_earnings", route: "/data/api/v1/equity/calendar/earnings",
 };
 const retrieved = "2026-11-27T09:00:00Z";
@@ -161,8 +161,8 @@ describe("Events and Documents reader", () => {
   });
 
   it("preserves exact numeric tokens from each original ordinal, even on duplicate dates", async () => {
-    const rows = `[{"symbol":"MSFT","report_date":"2026-11-19"},{"symbol":"AAPL","report_date":"2026-11-19","eps_actual":0,"eps_consensus":1.25,"revenue_actual":9007199254740993,"revenue_consensus":null},{"symbol":"AAPL","report_date":"2026-11-19","eps_actual":-0,"revenue_actual":4.20e1}]`;
-    const wire = envelope(calendar, "earnings-calendar", 250, rows, 3, { start_date: "2026-11-16", end_date: "2026-11-22" });
+    const rows = `[{"symbol":"AAPL","report_date":"2026-11-19"},{"symbol":"AAPL","report_date":"2026-11-19","eps_actual":0,"eps_consensus":1.25,"revenue_actual":9007199254740993,"revenue_consensus":null},{"symbol":"AAPL","report_date":"2026-11-19","eps_actual":-0,"revenue_actual":4.20e1}]`;
+    const wire = envelope(calendar, "earnings-calendar", 250, rows, 3, { symbol: "AAPL", start_date: "2026-11-16", end_date: "2026-11-22" });
     vi.mocked(fetch).mockResolvedValueOnce(new Response(wire));
     const read = createEventsDocumentsReader(access());
     const signal = new AbortController().signal;

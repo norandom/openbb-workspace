@@ -1,6 +1,7 @@
 import { getObservation } from "../companyResearch/financialEnvelope";
 import { calendarFields, type CalendarField } from "./evidence";
 import type { BodyReceipt, BodylessEmpty, KnownEvidence } from "./reader";
+import { normalizeListingSymbol } from "./selection";
 
 export type CalendarMark = {
   generation: number;
@@ -33,7 +34,7 @@ type CalendarReceipt = BodyReceipt<KnownEvidence, "calendar"> | BodylessEmpty<"c
 export type CalendarProjection = {
   receipt: CalendarReceipt;
   symbol: string;
-  marketCount: number;
+  returnedCount: number;
   limit: number;
   clipped: boolean;
   coverage: "unknown";
@@ -63,7 +64,7 @@ function suppliedText(value: unknown): string | undefined {
 
 function issuerRows(receipt: BodyReceipt<KnownEvidence, "calendar">, symbol: string): CalendarRow[] {
   return receipt.evidence.originalRows.flatMap((row, ordinal) => {
-    if (row.symbol !== symbol || typeof row.report_date !== "string") return [];
+    if (normalizeListingSymbol(row.symbol) !== symbol || typeof row.report_date !== "string") return [];
     return [{
       generation: receipt.scope.generation,
       ordinal,
@@ -85,17 +86,17 @@ function issuerRows(receipt: BodyReceipt<KnownEvidence, "calendar">, symbol: str
 
 export function projectCalendar(receipt: CalendarReceipt, symbol: string): CalendarProjection {
   const bounds = receipt.httpStatus === 200 ? receipt.evidence.metadata.value.bounds : undefined;
-  const marketCount = bounds?.returned_count ?? 0;
+  const returnedCount = bounds?.returned_count ?? 0;
   const rows = receipt.httpStatus === 200 ? issuerRows(receipt, symbol) : [];
   let reason: CalendarProjection["reason"] = null;
-  if (marketCount === 0) reason = "empty_market";
+  if (receipt.httpStatus === 204) reason = "empty_market";
   else if (rows.length === 0) reason = "no_issuer_match";
   else if (rows.every((row) => calendarFields.every((field) => row.fields[field].mark === null))) reason = "missing_figures";
 
   return {
     receipt,
     symbol,
-    marketCount,
+    returnedCount,
     limit: bounds?.effective_limit ?? 250,
     clipped: bounds?.truncated === true,
     coverage: "unknown",
