@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 
 export type CompanyDocumentKind = "news" | "transcript" | "filings";
 export type CompanyDocumentRow = Readonly<{
@@ -29,9 +29,12 @@ export type CompanyDocumentsProps = {
   rows: readonly CompanyDocumentRow[];
   contextKey: string;
   provider?: string;
+  detailContext?: (ordinal: number) => ReactNode;
+  focusFallback?: RefObject<HTMLElement | null>;
+  emptyMessage?: ReactNode;
 };
 
-type Entry = { id: string; row: CompanyDocumentRow };
+type Entry = { id: string; row: CompanyDocumentRow; ordinal: number };
 const textStyle = { whiteSpace: "pre-wrap", overflowWrap: "anywhere" } as const;
 
 function safeLink(value: string | null | undefined) {
@@ -54,7 +57,7 @@ function safeLink(value: string | null | undefined) {
 
 function documentEntries(rows: readonly CompanyDocumentRow[]): Entry[] {
   const occurrences = new Map<string, number>();
-  return rows.map((row) => {
+  return rows.map((row, ordinal) => {
     // Canonical values keep focus and selection tied to evidence across immutable refreshes.
     const identity = JSON.stringify(
       Object.entries(row)
@@ -63,7 +66,7 @@ function documentEntries(rows: readonly CompanyDocumentRow[]): Entry[] {
     );
     const occurrence = occurrences.get(identity) ?? 0;
     occurrences.set(identity, occurrence + 1);
-    return { id: `${identity}:${occurrence}`, row };
+    return { id: `${identity}:${occurrence}`, row, ordinal };
   });
 }
 
@@ -124,7 +127,7 @@ function DocumentLinks({
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline"
+            className="underline outline-offset-2 focus-visible:outline"
           >
             {name}
           </a>
@@ -146,15 +149,21 @@ function DocumentMetadata({
   const entries = [
     ["Company", row.symbol || row.symbols || "Company unknown"],
     ["Provider", provider || "Provider unknown"],
-    ["Source", row.source || "Source unknown"],
-    ["Date", row.event_datetime || row.filing_date || row.date || "Date unknown"],
+    [kind === "news" ? "Site" : "Source", row.source || "Source unknown"],
+    [
+      kind === "news" ? "Published" : kind === "filings" ? "Filing date" : "Transcript date",
+      row.filing_date || row.date || row.event_datetime || "Date unknown",
+    ],
   ];
   if (kind === "news")
     entries.push(
       ["Publisher", row.publisher || "Publisher unknown"],
       ["Author", row.author || "Author unknown"],
     );
-  if (kind === "transcript") entries.push(["Fiscal period", period(row)]);
+  if (kind === "transcript") {
+    entries.push(["Fiscal period", period(row)]);
+    if (row.event_datetime && row.date) entries.push(["Event timestamp", row.event_datetime]);
+  }
   if (kind === "filings")
     entries.push(
       ["Form", row.report_type || "Form unknown"],
@@ -178,14 +187,15 @@ function DocumentDetail({
   kind,
   provider,
   close,
+  detailContext,
 }: {
   entry: Entry;
   kind: CompanyDocumentKind;
   provider?: string;
   close: () => void;
+  detailContext?: ReactNode;
 }) {
   const detail = useRef<HTMLElement>(null);
-  const titleId = useId();
   const { row } = entry;
   const body =
     kind === "news" ? row.excerpt : kind === "transcript" ? row.content : null;
@@ -203,7 +213,7 @@ function DocumentDetail({
           close();
         }
       }}
-      className="min-w-0 space-y-3 rounded border border-ds-border p-3 outline-offset-2"
+      className="min-w-0 space-y-3 rounded border border-ds-border p-3 outline-offset-2 focus:outline"
     >
       <button
         type="button"
@@ -212,10 +222,11 @@ function DocumentDetail({
       >
         Close document
       </button>
-      <h3 id={titleId} style={textStyle}>
+      <h3 style={textStyle}>
         {label(row, kind)}
       </h3>
       <DocumentMetadata row={row} kind={kind} provider={provider} />
+      {detailContext}
       <p>{coverage(row, kind)}</p>
       {body?.trim() && row.content_status !== "metadata_only" ? (
         <div data-testid="document-text" style={textStyle}>
@@ -233,23 +244,38 @@ function DocumentBrowser({
   rows,
   kind,
   provider,
-}: Omit<CompanyDocumentsProps, "contextKey">) {
-  const [selected, setSelected] = useState<string | null>(null);
+  contextKey,
+  detailContext,
+  focusFallback,
+  emptyMessage = "No documents supplied.",
+}: CompanyDocumentsProps) {
+  const [selected, setSelected] = useState<{ id: string; contextKey: string } | null>(null);
+  const browser = useRef<HTMLDivElement>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const entries = documentEntries(rows);
-  const entry = entries.find((item) => item.id === selected);
-  useEffect(() => {
-    if (selected && !entry) {
-      setSelected(null);
+  const entry = selected?.contextKey === contextKey
+    ? entries.find((item) => item.id === selected.id)
+    : undefined;
+  useLayoutEffect(() => {
+    if (!selected || entry) return;
+    setSelected(null);
+    const active = document.activeElement;
+    if (focusFallback) {
+      // A receipt can expire while focus is on an independent query control.
+      if (active === document.body || browser.current?.contains(active)) {
+        focusFallback.current?.focus();
+      }
+    } else {
       buttons.current.values().next().value?.focus();
     }
-  }, [selected, entry]);
+  }, [selected, entry, focusFallback]);
   const close = () => {
     setSelected(null);
-    if (selected) buttons.current.get(selected)?.focus();
+    if (selected) (buttons.current.get(selected.id) ?? focusFallback?.current)?.focus();
   };
+  if (!entries.length && emptyMessage == null) return null;
   return (
-    <div className="h-full min-w-0 overflow-auto p-3 text-sm">
+    <div ref={browser} className="h-full min-w-0 overflow-auto p-3 text-sm">
       {entries.length ? (
         <ul aria-label="Company documents" className="space-y-2">
           {entries.map((item) => (
@@ -260,8 +286,8 @@ function DocumentBrowser({
                   if (node) buttons.current.set(item.id, node);
                   else buttons.current.delete(item.id);
                 }}
-                aria-expanded={selected === item.id}
-                onClick={() => setSelected(item.id)}
+                aria-expanded={entry?.id === item.id}
+                onClick={() => setSelected({ id: item.id, contextKey })}
                 style={textStyle}
                 className="w-full rounded border border-ds-border p-2 text-left focus-visible:outline"
               >
@@ -271,7 +297,7 @@ function DocumentBrowser({
           ))}
         </ul>
       ) : (
-        <p>No documents supplied.</p>
+        <p>{emptyMessage}</p>
       )}
       {entry && (
         <DocumentDetail
@@ -280,6 +306,7 @@ function DocumentBrowser({
           kind={kind}
           provider={provider}
           close={close}
+          detailContext={detailContext?.(entry.ordinal)}
         />
       )}
     </div>
@@ -287,12 +314,6 @@ function DocumentBrowser({
 }
 
 export default function CompanyDocuments(props: CompanyDocumentsProps) {
-  return (
-    <DocumentBrowser
-      key={`${props.kind}:${props.contextKey}`}
-      rows={props.rows}
-      kind={props.kind}
-      provider={props.provider}
-    />
-  );
+  const key = props.focusFallback ? props.kind : `${props.kind}:${props.contextKey}`;
+  return <DocumentBrowser key={key} {...props} />;
 }
